@@ -4,6 +4,13 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [2.2.0] - 2026-10-09
+
+### 新增
+
+- `ek_def.h` 新增基础工具宏：`EK_DIV_CEIL(x, div)`（向上取整除法，除数为 0 时安全返回 `x`）、`EK_MAX(v1, v2)`、`EK_MIN(v1, v2)`。
+- `EK_CLAMP(val, min, max)` 防止重复求值：内部改用 `__typeof__` 临时变量，各参数仅求值一次。
+
 ## [2.1.0] - 2026-08-30
 
 相对 [v2.0.0rc](https://github.com/EmbeddedKitOrg/EK_UTILS/releases/tag/v2.0.0rc) 的正式版本。
@@ -63,4 +70,5 @@
 - 启用静态分配时，链接脚本必须增加 `.ek_static_alloc` 段（`KEEP(*(SORT(.ek_static_alloc*)))`，符号 `_ek_static_alloc_start` / `_ek_static_alloc_end`）。
 
 [2.0.0rc]: https://github.com/EmbeddedKitOrg/EK_UTILS/compare/v1.2.0...v2.0.0rc
+[2.2.0]: https://github.com/EmbeddedKitOrg/EK_UTILS/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/EmbeddedKitOrg/EK_UTILS/compare/v2.0.0rc...v2.1.0

@@ -17,7 +17,7 @@
 
 /* ========== 软件版本号 ========== */
 #define EK_VERSION_MAJOR 2
-#define EK_VERSION_MINOR 1
+#define EK_VERSION_MINOR 2
 #define EK_VERSION_PATCH 0
 
 #include <assert.h>
@@ -90,6 +90,7 @@
 #    define __EK_STATIC_INLINE static __inline
 #    define __EK_ALWAYS_INLINE __forceinline
 #    define __EK_ASM           __asm
+
 /* ========== 不支持的编译器（空定义） ========== */
 #else
 #    define __EK_WEAK
@@ -111,7 +112,36 @@
 #define EK_FREQ_K(x)                ((x) * 1000UL)
 #define EK_FREQ_M(x)                ((x) * 1000UL * 1000UL)
 #define EK_ARRAY_LEN(x)             (sizeof(x) / (sizeof((x)[0])))
-#define EK_CLAMP(val, min, max)     (((val) < (min)) ? (min) : (((val) > (max)) ? (max) : (val)))
+
+#define EK_DIV_CEIL(x, div)             \
+    ({                                  \
+        __typeof__(x) _x = (x);         \
+        __typeof__(div) _d = (div);     \
+        _d ? ((_x) + _d - 1) / _d : _x; \
+    })
+
+#define EK_CLAMP(val, min, max)                           \
+    ({                                                    \
+        __typeof__(val) _val = (val);                     \
+        __typeof__(min) _min = (min);                     \
+        __typeof__(max) _max = (max);                     \
+        _val < _min ? _min : (_val > _max ? _max : _val); \
+    })
+
+#define EK_MAX(v1, v2)             \
+    ({                             \
+        __typeof__(v1) _v1 = (v1); \
+        __typeof__(v2) _v2 = (v2); \
+        _v1 > _v2 ? _v1 : _v2;     \
+    })
+
+#define EK_MIN(v1, v2)             \
+    ({                             \
+        __typeof__(v1) _v1 = (v1); \
+        __typeof__(v2) _v2 = (v2); \
+        _v1 < _v2 ? _v1 : _v2;     \
+    })
+
 #define EK_GET_FILE_NAME(file_path)                            \
     (strrchr((file_path), '/') ? strrchr((file_path), '/') + 1 \
                                : (strrchr((file_path), '\\') ? strrchr((file_path), '\\') + 1 : (file_path)))
