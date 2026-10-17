@@ -4,12 +4,21 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [3.1.1] - 2026-10-17
+## [4.0.0] - 2026-10-17
 
 ### 变更
 
 - 各模块 API 不再使用断言检查入参：参数非法时返回对应错误（`EK_ERR_INVAL`/`NULL`/`false`/直接返回），内存分配失败同样返回错误值
-- 内部状态与调用上下文检查（模块未初始化、非任务上下文等）仍保留断言
+- 模块未初始化、非任务上下文等内部状态检查仍保留断言
+
+### 移除
+
+- 移除句柄指针别名类型，统一改用原始指针类型：
+  - `ek_evoke_task_handle_t` → `ek_evoke_task_t *`
+  - `ek_evoke_event_handle_t` → `ek_evoke_event_t *`
+  - `ek_pt_handle_t` → `ek_pt_t *`
+  - `ek_pt_sem_handle_t` → `ek_pt_sem_t *`
+  - `ek_pt_msg_handle_t` → `ek_pt_msg_t *`
 
 ## [3.1.0] - 2026-10-17
 
