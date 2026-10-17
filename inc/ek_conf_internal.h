@@ -124,6 +124,9 @@
 #ifndef EKCFG_STR
 #    define EKCFG_STR (0) /**< 动态字符串 */
 #endif
+#ifndef EKCFG_STR_VIEW
+#    define EKCFG_STR_VIEW (0) /**< 字符串视图 */
+#endif
 #ifndef EKCFG_LIST
 #    define EKCFG_LIST (0) /**< 双向循环链表 */
 #endif

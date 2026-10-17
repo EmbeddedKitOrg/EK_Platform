@@ -102,7 +102,7 @@ struct ek_pt
     void *arg; // 用户参数
     ek_pt_cb_t cb; // 回调函数
 #    if EKCFG_PICOTHREAD_SEM || EKCFG_PICOTHREAD_MSG
-    ek_err_t wait_result; // 事件等待结果：EK_ERR_NONE=成功，EK_ERR_TIMEOUT=超时
+    ek_err_t wait_result; // 事件等待结果：EK_OK=成功，EK_ERR_TIMEOUT=超时
 #    endif
 #    if EKCFG_PICOTHREAD_SEM
     ek_pt_sem_t *wait_sem;
@@ -368,7 +368,7 @@ void ek_pt_sem_give(ek_pt_sem_handle_t sem);
  *
  * 若信号量可用则立即返回；否则阻塞当前任务并让出执行权，
  * 由 EK_PT_SEM_GIVE 唤醒或超时自动唤醒。
- * 恢复后通过 err 判断结果：EK_ERR_NONE=成功，EK_ERR_TIMEOUT=超时。
+ * 恢复后通过 err 判断结果：EK_OK=成功，EK_ERR_TIMEOUT=超时。
  *
  * @param sem  信号量句柄
  * @param tick 超时 tick 数
@@ -381,7 +381,7 @@ void ek_pt_sem_give(ek_pt_sem_handle_t sem);
                 {                                                          \
                     ek_pt_block(ek_pt_active(), (tick));                   \
                     EK_PT_YEILD(ek_pt_active());                           \
-                    if (ek_pt_active()->wait_result != EK_ERR_NONE) break; \
+                    if (ek_pt_active()->wait_result != EK_OK) break; \
                 }                                                          \
                 (err) = ek_pt_active()->wait_result;                       \
             } while (0)
@@ -443,7 +443,7 @@ bool ek_pt_msg_recv(ek_pt_msg_handle_t msg, void *data);
  *
  * 若队列有空位则立即返回；否则阻塞当前任务并让出执行权，
  * 由 EK_PT_MSG_RECV 消费后唤醒或超时自动唤醒。
- * 恢复后通过 err 判断结果：EK_ERR_NONE=成功，EK_ERR_TIMEOUT=超时。
+ * 恢复后通过 err 判断结果：EK_OK=成功，EK_ERR_TIMEOUT=超时。
  *
  * @param msg  消息队列句柄
  * @param data 指向消息数据的指针
@@ -457,7 +457,7 @@ bool ek_pt_msg_recv(ek_pt_msg_handle_t msg, void *data);
                 {                                                          \
                     ek_pt_block(ek_pt_active(), (tick));                   \
                     EK_PT_YEILD(ek_pt_active());                           \
-                    if (ek_pt_active()->wait_result != EK_ERR_NONE) break; \
+                    if (ek_pt_active()->wait_result != EK_OK) break; \
                 }                                                          \
                 (err) = ek_pt_active()->wait_result;                       \
             } while (0)
@@ -467,7 +467,7 @@ bool ek_pt_msg_recv(ek_pt_msg_handle_t msg, void *data);
  *
  * 若队列有数据则立即返回；否则阻塞当前任务并让出执行权，
  * 由 EK_PT_MSG_SEND 写入后唤醒或超时自动唤醒。
- * 恢复后通过 err 判断结果：EK_ERR_NONE=成功，EK_ERR_TIMEOUT=超时。
+ * 恢复后通过 err 判断结果：EK_OK=成功，EK_ERR_TIMEOUT=超时。
  *
  * @param msg  消息队列句柄
  * @param data 接收消息数据的缓冲区指针
@@ -481,7 +481,7 @@ bool ek_pt_msg_recv(ek_pt_msg_handle_t msg, void *data);
                 {                                                          \
                     ek_pt_block(ek_pt_active(), (tick));                   \
                     EK_PT_YEILD(ek_pt_active());                           \
-                    if (ek_pt_active()->wait_result != EK_ERR_NONE) break; \
+                    if (ek_pt_active()->wait_result != EK_OK) break; \
                 }                                                          \
                 (err) = ek_pt_active()->wait_result;                       \
             } while (0)

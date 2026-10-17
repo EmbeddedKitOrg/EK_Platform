@@ -122,7 +122,7 @@ void ek_ringbuf_deinit_static(ek_ringbuf_t *rb);
  * @brief 向环形缓冲区写入一个元素
  * @param rb 环形缓冲区指针
  * @param item 要写入的元素指针
- * @return EK_ERR_NONE 写入成功
+ * @return EK_OK 写入成功
  * @return EK_ERR_FULL 缓冲区已满
  * @return EK_ERR_BUSY 资源忙（RTOS 模式）
  */
@@ -132,7 +132,7 @@ ek_err_t ek_ringbuf_write(ek_ringbuf_t *rb, const void *item);
  * @brief 从环形缓冲区读取一个元素
  * @param rb 环形缓冲区指针
  * @param item 存储读取结果的缓冲区指针，传入 NULL 则直接丢弃数据
- * @return EK_ERR_NONE 读取成功
+ * @return EK_OK 读取成功
  * @return EK_ERR_EMPTY 缓冲区为空
  * @return EK_ERR_BUSY 资源忙（RTOS 模式）
  */
@@ -142,7 +142,7 @@ ek_err_t ek_ringbuf_read(ek_ringbuf_t *rb, void *item);
  * @brief 查看环形缓冲区首个元素（不移动读指针）
  * @param rb 环形缓冲区指针
  * @param item 存储查看结果的缓冲区指针
- * @return EK_ERR_NONE 查看成功
+ * @return EK_OK 查看成功
  * @return EK_ERR_EMPTY 缓冲区为空
  * @return EK_ERR_BUSY 资源忙（RTOS 模式）
  */
@@ -214,7 +214,7 @@ void ek_ringbuf_deinit_spsc_static(ek_ringbuf_spsc_t *rb);
  * @brief 向 SPSC 环形缓冲区写入一个元素
  * @param rb 环形缓冲区指针
  * @param item 要写入的元素指针
- * @return EK_ERR_NONE 写入成功
+ * @return EK_OK 写入成功
  * @return EK_ERR_FULL 缓冲区已满
  */
 ek_err_t ek_ringbuf_write_spsc(ek_ringbuf_spsc_t *rb, const void *item);
@@ -223,7 +223,7 @@ ek_err_t ek_ringbuf_write_spsc(ek_ringbuf_spsc_t *rb, const void *item);
  * @brief 从 SPSC 环形缓冲区读取一个元素
  * @param rb 环形缓冲区指针
  * @param item 存储读取结果的缓冲区指针，传入 NULL 则直接丢弃数据
- * @return EK_ERR_NONE 读取成功
+ * @return EK_OK 读取成功
  * @return EK_ERR_EMPTY 缓冲区为空
  */
 ek_err_t ek_ringbuf_read_spsc(ek_ringbuf_spsc_t *rb, void *item);
@@ -232,7 +232,7 @@ ek_err_t ek_ringbuf_read_spsc(ek_ringbuf_spsc_t *rb, void *item);
  * @brief 查看 SPSC 环形缓冲区首个元素（不移动读指针）
  * @param rb 环形缓冲区指针
  * @param item 存储查看结果的缓冲区指针
- * @return EK_ERR_NONE 查看成功
+ * @return EK_OK 查看成功
  * @return EK_ERR_EMPTY 缓冲区为空
  */
 ek_err_t ek_ringbuf_peek_spsc(ek_ringbuf_spsc_t *rb, void *item);

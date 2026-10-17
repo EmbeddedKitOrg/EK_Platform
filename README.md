@@ -351,7 +351,7 @@ uint32_t ek_port_log_get_tick(void)
 
 ```c
 ek_err_t ek_ringbuf_write(ek_ringbuf_t *rb, const void *item);
-// 返回 EK_ERR_NONE(0) 成功，EK_ERR_FULL(207) 满，EK_ERR_BUSY(202) 忙
+// 返回 EK_OK(0) 成功，EK_ERR_FULL(207) 满，EK_ERR_BUSY(202) 忙
 
 // 错误传播宏
 EK_ERR_RETURN(ek_str_append(s, "hello"));  // 非零则直接 return
@@ -448,7 +448,7 @@ ek_stack_destroy_safely(sk);            // sk 释放后自动 = NULL
 
 ek_err_t do_something(void) {
     if (fail) return EK_ERR_NOMEM;
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 // 错误传播
@@ -905,12 +905,12 @@ my_data_t tx = { /* 最新采样 */ };
 my_data_t rx;
 
 // 写入快照：unique 为递增序号/时间戳，不得为 0 或与当前 id 相同
-if (ek_snapshot_set(snap, &tx, ++seq) == EK_ERR_NONE) {
+if (ek_snapshot_set(snap, &tx, ++seq) == EK_OK) {
     // 快照已更新
 }
 
 // 读取快照：无数据时返回 EK_ERR_NODATA
-if (ek_snapshot_get(snap, &rx) == EK_ERR_NONE) {
+if (ek_snapshot_get(snap, &rx) == EK_OK) {
     // rx 即最新快照
 }
 
@@ -1078,7 +1078,7 @@ EK_DEFINE_EVOKE_EVENT(static_event, 0);
 
 int main(void) {
     ek_export_init(); // 未启用 export 时改为手动 ek_heap_init(); ek_static_alloc_init();
-    if (ek_static_alloc_get_init_error() != EK_ERR_NONE) {
+    if (ek_static_alloc_get_init_error() != EK_OK) {
         // 查看日志中的失败项
     }
 }
@@ -1268,7 +1268,7 @@ static void producer(ek_pt_handle_t pt, void *arg) {
     EK_PT_BEGIN(pt);
     // 获取信号量，超时 1000 ticks
     EK_PT_SEM_TAKE(sem, 1000, err);
-    if (err == EK_ERR_NONE) {
+    if (err == EK_OK) {
         // 临界区操作
     }
     EK_PT_SEM_GIVE(sem);
@@ -1329,7 +1329,7 @@ static void receiver(ek_pt_handle_t pt, void *arg) {
     sensor_data_t data;
     EK_PT_BEGIN(pt);
     EK_PT_MSG_RECV(mq, &data, 1000, err);
-    if (err == EK_ERR_NONE) { /* 处理 data */ }
+    if (err == EK_OK) { /* 处理 data */ }
     EK_PT_END(pt);
 }
 ```

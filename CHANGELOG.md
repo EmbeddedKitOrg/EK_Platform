@@ -4,6 +4,12 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [3.0.0] - 2026-10-17
+
+### 变更
+
+- `ek_err.h` 将原本用于表达函数正常执行的 `EK_ERR_NONE` 变更为 `EK_OK`
+
 ## [2.2.0] - 2026-10-09
 
 ### 新增

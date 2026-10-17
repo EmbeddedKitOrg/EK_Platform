@@ -118,7 +118,7 @@ void ek_snapshot_destroy(ek_snapshot_t *snapshot);
  * @param snapshot 快照对象指针
  * @param data 数据源指针，按 data_size 整块拷贝
  * @param unique 本次快照的唯一 id，不得为 0 或与当前 id 相同
- * @return EK_ERR_NONE 成功
+ * @return EK_OK 成功
  * @return EK_ERR_INVAL unique 与当前 id 相同
  * @return EK_ERR_BUSY 资源忙（RTOS 模式）
  */
@@ -128,7 +128,7 @@ ek_err_t ek_snapshot_set(ek_snapshot_t *snapshot, void *data, uint32_t unique);
  * @brief 读取快照
  * @param snapshot 快照对象指针
  * @param data 接收缓冲区指针，拷出 data_size 字节
- * @return EK_ERR_NONE 成功
+ * @return EK_OK 成功
  * @return EK_ERR_NODATA 快照为空（尚未写入或已被清空）
  * @return EK_ERR_BUSY 资源忙（RTOS 模式）
  */

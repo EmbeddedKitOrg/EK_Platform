@@ -135,7 +135,7 @@ void ek_stack_deinit_static(ek_stack_t *sk);
  *
  * @param sk 栈指针
  * @param item 指向要压入的元素的指针
- * @return EK_ERR_NONE 成功压入
+ * @return EK_OK 成功压入
  * @return EK_ERR_FULL 栈已满
  * @return EK_ERR_BUSY 资源忙（RTOS 模式）
  *
@@ -152,7 +152,7 @@ ek_err_t ek_stack_push(ek_stack_t *sk, const void *item);
  *
  * @param sk 栈指针
  * @param item 指向接收弹出元素的缓冲区的指针
- * @return EK_ERR_NONE 成功弹出
+ * @return EK_OK 成功弹出
  * @return EK_ERR_EMPTY 栈为空
  * @return EK_ERR_BUSY 资源忙（RTOS 模式）
  *

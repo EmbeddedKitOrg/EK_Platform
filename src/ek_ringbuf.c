@@ -38,7 +38,7 @@ ek_err_t ek_ringbuf_init_static(ek_ringbuf_t *rb, size_t item_size, uint32_t ite
 #            if EKCFG_RTOS == 1
     EK_LOCK_INIT(rb->lock);
 #            endif /* EKCFG_RTOS */
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 void ek_ringbuf_deinit_static(ek_ringbuf_t *rb)
@@ -113,7 +113,7 @@ ek_err_t ek_ringbuf_write(ek_ringbuf_t *rb, const void *item)
 
     EK_LOCK_RELEASE(rb);
 
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 ek_err_t ek_ringbuf_read(ek_ringbuf_t *rb, void *item)
@@ -139,7 +139,7 @@ ek_err_t ek_ringbuf_read(ek_ringbuf_t *rb, void *item)
 
     EK_LOCK_RELEASE(rb);
 
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 ek_err_t ek_ringbuf_peek(ek_ringbuf_t *rb, void *item)
@@ -160,7 +160,7 @@ ek_err_t ek_ringbuf_peek(ek_ringbuf_t *rb, void *item)
 
     EK_LOCK_RELEASE(rb);
 
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 #    endif /* EKCFG_RINGBUF */
 
@@ -190,7 +190,7 @@ ek_err_t ek_ringbuf_init_spsc_static(ek_ringbuf_spsc_t *rb, size_t item_size, ui
     rb->item_size = item_size;
     rb->read_idx = 0U;
     rb->write_idx = 0U;
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 void ek_ringbuf_deinit_spsc_static(ek_ringbuf_spsc_t *rb)
@@ -248,7 +248,7 @@ ek_err_t ek_ringbuf_write_spsc(ek_ringbuf_spsc_t *rb, const void *item)
     memcpy(target, item, rb->item_size);
     rb->write_idx = next_idx;
 
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 ek_err_t ek_ringbuf_read_spsc(ek_ringbuf_spsc_t *rb, void *item)
@@ -268,7 +268,7 @@ ek_err_t ek_ringbuf_read_spsc(ek_ringbuf_spsc_t *rb, void *item)
 
     rb->read_idx = _ek_ringbuf_spsc_next_idx(rb, rb->read_idx);
 
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 ek_err_t ek_ringbuf_peek_spsc(ek_ringbuf_spsc_t *rb, void *item)
@@ -284,7 +284,7 @@ ek_err_t ek_ringbuf_peek_spsc(ek_ringbuf_spsc_t *rb, void *item)
     const uint8_t *source = rb->data + (rb->read_idx * rb->item_size);
     memcpy(item, source, rb->item_size);
 
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 #    endif /* EKCFG_RINGBUF_SPSC */
 

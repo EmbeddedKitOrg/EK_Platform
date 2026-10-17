@@ -34,7 +34,7 @@ ek_str_t *ek_str_create(const char *str)
     // 传入 NULL 则创建一个空的字符串
     if (str == NULL) return s;
 
-    if (ek_str_append(s, str) != EK_ERR_NONE)
+    if (ek_str_append(s, str) != EK_OK)
     {
         ek_free(s);
         return NULL;
@@ -66,7 +66,7 @@ ek_err_t ek_str_append_len(ek_str_t *s, const char *str, uint32_t len)
 
     // 如果传入追加内容为空，并且字符长度也为空
     // 什么也不做
-    if (str == NULL && len == 0) return EK_ERR_NONE;
+    if (str == NULL && len == 0) return EK_OK;
 
     ek_assert_param(str != NULL);
     ek_assert_param(len != 0);
@@ -77,7 +77,7 @@ ek_err_t ek_str_append_len(ek_str_t *s, const char *str, uint32_t len)
     s->len += len;
     s->buf[s->len] = '\0';
 
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 ek_err_t ek_str_append_fmt(ek_str_t *s, const char *fmt, ...)
@@ -102,7 +102,7 @@ ek_err_t ek_str_append_fmt(ek_str_t *s, const char *fmt, ...)
     s->len += len;
     s->buf[s->len] = '\0';
 
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 ek_err_t ek_str_append(ek_str_t *s, const char *str)
@@ -164,7 +164,7 @@ ek_err_t ek_str_reverse(ek_str_t *s)
         right--;
     }
 
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 const char *ek_str_get_cstring(ek_str_t *s)
@@ -215,7 +215,7 @@ static ek_err_t _str_ensure_cap(ek_str_t *s, uint32_t len)
 {
     ek_assert_param(s != NULL);
 
-    if (s->cap >= len) return EK_ERR_NONE;
+    if (s->cap >= len) return EK_OK;
 
     uint32_t new_cap = s->cap;
     do
@@ -234,7 +234,7 @@ static ek_err_t _str_ensure_cap(ek_str_t *s, uint32_t len)
     s->buf = buf;
     s->cap = new_cap;
 
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 #endif // EKCFG_STR

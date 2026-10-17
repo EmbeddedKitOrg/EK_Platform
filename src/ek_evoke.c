@@ -117,7 +117,7 @@ ek_err_t ek_evoke_task_init_static(ek_evoke_task_t *tsk, ek_evoke_cb_t cb, void 
     tsk->arg = arg;
     tsk->state = EK_EVOKE_STATE_IDLE;
     tsk->wait_event = NULL;
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 void ek_evoke_task_deinit_static(ek_evoke_task_t *tsk)
@@ -140,7 +140,7 @@ ek_err_t ek_evoke_event_init_static(ek_evoke_event_t *evt, uint32_t init)
     ek_list_init(&evt->wait_list);
     evt->count = init;
     evt->data = NULL;
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 void ek_evoke_event_deinit_static(ek_evoke_event_t *evt)
@@ -381,7 +381,7 @@ void ek_evoke_event_loop(void)
         while (!ek_ringbuf_empty_spsc(s_isr_fifo))
         {
             _isr_req_t req = { 0 };
-            if (ek_ringbuf_read_spsc(s_isr_fifo, &req) == EK_ERR_NONE)
+            if (ek_ringbuf_read_spsc(s_isr_fifo, &req) == EK_OK)
             {
                 if (req.type & ISR_REQ_PUBLISH)
                 {

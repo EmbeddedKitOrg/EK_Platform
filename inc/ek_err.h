@@ -13,10 +13,10 @@
 #include "ek_def.h"
 
 /** 错误码类型 */
-typedef uint8_t ek_err_t;
+typedef int ek_err_t;
 
 /** 成功 */
-#define EK_ERR_NONE ((ek_err_t)0)
+#define EK_OK ((ek_err_t)0)
 
 /* ========== 通用错误 (200-209) ========== */
 #define EK_ERR_FAILED   ((ek_err_t)200) /**< 通用失败 */
@@ -64,20 +64,20 @@ typedef uint8_t ek_err_t;
 
 /* ========== 错误处理辅助宏 ========== */
 
-/** 如果表达式返回非 EK_ERR_NONE，直接 return 该错误码 */
+/** 如果表达式返回非 EK_OK，直接 return 该错误码 */
 #define EK_ERR_RETURN(expr)                     \
     do                                          \
     {                                           \
         ek_err_t _err_ = (expr);                \
-        if (_err_ != EK_ERR_NONE) return _err_; \
+        if (_err_ != EK_OK) return _err_; \
     } while (0)
 
-/** 如果表达式返回非 EK_ERR_NONE，goto 到指定标签（用于 cleanup 模式） */
+/** 如果表达式返回非 EK_OK，goto 到指定标签（用于 cleanup 模式） */
 #define EK_ERR_GOTO(expr, label)              \
     do                                        \
     {                                         \
         ek_err_t _err_ = (expr);              \
-        if (_err_ != EK_ERR_NONE) goto label; \
+        if (_err_ != EK_OK) goto label; \
     } while (0)
 
 /**
@@ -89,7 +89,7 @@ __EK_STATIC_INLINE const char *ek_strerror(ek_err_t err)
 {
     switch (err)
     {
-        case EK_ERR_NONE:
+        case EK_OK:
             return "OK";
         case EK_ERR_FAILED:
             return "Failed";

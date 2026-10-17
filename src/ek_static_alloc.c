@@ -26,7 +26,7 @@ void ek_static_alloc_init(void)
     const _ek_static_alloc_item_t *end = &_ek_static_alloc_end;
     const size_t count = (size_t)(end - start);
 
-    s_static_alloc_error = EK_ERR_NONE;
+    s_static_alloc_error = EK_OK;
     if (count == 0U) return;
 
     _ek_static_alloc_item_t items[count];
@@ -38,9 +38,9 @@ void ek_static_alloc_init(void)
     {
         if (items[i].fn == NULL) continue;
         const ek_err_t err = items[i].fn();
-        if (err != EK_ERR_NONE)
+        if (err != EK_OK)
         {
-            if (s_static_alloc_error == EK_ERR_NONE) s_static_alloc_error = err;
+            if (s_static_alloc_error == EK_OK) s_static_alloc_error = err;
 #    if EKCFG_LOG == 1
             EK_LOG_ERROR("static allocation init failed: %s: %s", items[i].name, ek_strerror(err));
 #    endif

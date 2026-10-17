@@ -34,7 +34,7 @@ ek_err_t ek_stack_init_static(ek_stack_t *sk, size_t item_size, uint32_t item_am
 #        if EKCFG_RTOS == 1
     EK_LOCK_INIT(sk->lock);
 #        endif /* EKCFG_RTOS */
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 void ek_stack_deinit_static(ek_stack_t *sk)
@@ -103,7 +103,7 @@ ek_err_t ek_stack_push(ek_stack_t *sk, const void *item)
 
     EK_LOCK_RELEASE(sk);
 
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 ek_err_t ek_stack_pop(ek_stack_t *sk, void *item)
@@ -125,7 +125,7 @@ ek_err_t ek_stack_pop(ek_stack_t *sk, void *item)
 
     EK_LOCK_RELEASE(sk);
 
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 #endif /* EKCFG_STACK */

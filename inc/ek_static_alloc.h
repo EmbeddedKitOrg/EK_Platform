@@ -41,7 +41,7 @@ extern "C"
 
 /**
  * @brief 静态对象初始化回调
- * @return EK_ERR_NONE 成功，非零表示该对象初始化失败
+ * @return EK_OK 成功，非零表示该对象初始化失败
  */
 typedef ek_err_t (*_ek_static_alloc_init_fn_t)(void);
 
@@ -80,7 +80,7 @@ void ek_static_alloc_init(void);
 
 /**
  * @brief 查询最近一次静态初始化的首个错误
- * @return EK_ERR_NONE 全部成功，否则为第一个失败项的错误码
+ * @return EK_OK 全部成功，否则为第一个失败项的错误码
  */
 ek_err_t ek_static_alloc_get_init_error(void);
 

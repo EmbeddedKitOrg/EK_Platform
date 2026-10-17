@@ -25,7 +25,7 @@ ek_err_t ek_snapshot_init_static(ek_snapshot_t *snapshot, size_t data_size)
     EK_LOCK_INIT(snapshot->lock);
 #        endif /* EKCFG_RTOS */
 
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 void ek_snapshot_deinit_static(ek_snapshot_t *snapshot)
@@ -83,7 +83,7 @@ ek_err_t ek_snapshot_set(ek_snapshot_t *snapshot, void *data, uint32_t unique)
 
     EK_LOCK_RELEASE(snapshot);
 
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 ek_err_t ek_snapshot_get(ek_snapshot_t *snapshot, void *data)
@@ -102,7 +102,7 @@ ek_err_t ek_snapshot_get(ek_snapshot_t *snapshot, void *data)
 
     EK_LOCK_RELEASE(snapshot);
 
-    return EK_ERR_NONE;
+    return EK_OK;
 }
 
 uint32_t ek_snapshot_get_unique(ek_snapshot_t *snapshot)
