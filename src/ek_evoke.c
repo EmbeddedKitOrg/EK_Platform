@@ -158,7 +158,7 @@ void ek_evoke_event_deinit_static(ek_evoke_event_t *evt)
 }
 #    endif /* EKCFG_STATIC_ALLOC */
 
-ek_evoke_task_handle_t ek_evoke_task_create(ek_evoke_cb_t cb, void *arg)
+ek_evoke_task_t *ek_evoke_task_create(ek_evoke_cb_t cb, void *arg)
 {
     if (cb == NULL) return NULL;
 
@@ -174,7 +174,7 @@ ek_evoke_task_handle_t ek_evoke_task_create(ek_evoke_cb_t cb, void *arg)
     return tsk;
 }
 
-void ek_evoke_task_destroy(ek_evoke_task_handle_t tsk)
+void ek_evoke_task_destroy(ek_evoke_task_t *tsk)
 {
     if (tsk == NULL) return;
     if (tsk->state != EK_EVOKE_STATE_IDLE)
@@ -184,7 +184,7 @@ void ek_evoke_task_destroy(ek_evoke_task_handle_t tsk)
     ek_free(tsk);
 }
 
-ek_evoke_event_handle_t ek_evoke_event_create(uint32_t init)
+ek_evoke_event_t *ek_evoke_event_create(uint32_t init)
 {
     ek_evoke_event_t *evt = ek_malloc(sizeof(*evt));
     if (evt == NULL) return NULL;
@@ -196,7 +196,7 @@ ek_evoke_event_handle_t ek_evoke_event_create(uint32_t init)
     return evt;
 }
 
-void ek_evoke_event_destroy(ek_evoke_event_handle_t evt)
+void ek_evoke_event_destroy(ek_evoke_event_t *evt)
 {
     if (evt == NULL) return;
     while (!ek_list_is_empty(&evt->wait_list))
@@ -210,7 +210,7 @@ void ek_evoke_event_destroy(ek_evoke_event_handle_t evt)
     ek_free(evt);
 }
 
-bool ek_evoke_event_subscribe(ek_evoke_task_handle_t tsk, ek_evoke_event_handle_t evt)
+bool ek_evoke_event_subscribe(ek_evoke_task_t *tsk, ek_evoke_event_t *evt)
 {
     if (tsk == NULL || evt == NULL) return false;
 
@@ -234,7 +234,7 @@ bool ek_evoke_event_subscribe(ek_evoke_task_handle_t tsk, ek_evoke_event_handle_
     return false;
 }
 
-void ek_evoke_event_broadcast(ek_evoke_event_handle_t evt, void *payload)
+void ek_evoke_event_broadcast(ek_evoke_event_t *evt, void *payload)
 {
     if (evt == NULL) return;
 
@@ -258,7 +258,7 @@ void ek_evoke_event_broadcast(ek_evoke_event_handle_t evt, void *payload)
     }
 }
 
-void ek_evoke_event_publish(ek_evoke_event_handle_t evt, void *payload)
+void ek_evoke_event_publish(ek_evoke_event_t *evt, void *payload)
 {
     if (evt == NULL) return;
 
@@ -279,7 +279,7 @@ void ek_evoke_event_publish(ek_evoke_event_handle_t evt, void *payload)
     evt->count++;
 }
 
-void ek_evoke_event_defer(ek_evoke_event_handle_t evt, void *payload, uint32_t delay, bool broadcast)
+void ek_evoke_event_defer(ek_evoke_event_t *evt, void *payload, uint32_t delay, bool broadcast)
 {
     if (evt == NULL) return;
 
@@ -311,7 +311,7 @@ void ek_evoke_event_defer(ek_evoke_event_handle_t evt, void *payload, uint32_t d
     ek_list_insert_before(pos, &req->node);
 }
 
-ek_err_t ek_evoke_event_broadcast_from_isr(ek_evoke_event_handle_t evt, void *payload)
+ek_err_t ek_evoke_event_broadcast_from_isr(ek_evoke_event_t *evt, void *payload)
 {
     if (evt == NULL) return EK_ERR_INVAL;
 
@@ -330,7 +330,7 @@ defer:
     return err;
 }
 
-ek_err_t ek_evoke_event_publish_from_isr(ek_evoke_event_handle_t evt, void *payload)
+ek_err_t ek_evoke_event_publish_from_isr(ek_evoke_event_t *evt, void *payload)
 {
     if (evt == NULL) return EK_ERR_INVAL;
 
@@ -349,7 +349,7 @@ defer:
     return err;
 }
 
-ek_err_t ek_evoke_event_defer_from_isr(ek_evoke_event_handle_t evt, void *payload, uint32_t delay, bool broadcast)
+ek_err_t ek_evoke_event_defer_from_isr(ek_evoke_event_t *evt, void *payload, uint32_t delay, bool broadcast)
 {
     if (evt == NULL) return EK_ERR_INVAL;
 

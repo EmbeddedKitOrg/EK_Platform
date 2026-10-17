@@ -89,7 +89,7 @@ void ek_pt_deinit_static(ek_pt_t *pt)
 }
 #    endif /* EKCFG_STATIC_ALLOC */
 
-ek_pt_handle_t ek_pt_create(ek_pt_cb_t cb, uint8_t prio, void *arg)
+ek_pt_t *ek_pt_create(ek_pt_cb_t cb, uint8_t prio, void *arg)
 {
     ek_assert_param(s_init == true);
     if (cb == NULL || prio > EKCFG_PT_PRIO_LOWEST) return NULL;
@@ -118,7 +118,7 @@ ek_pt_handle_t ek_pt_create(ek_pt_cb_t cb, uint8_t prio, void *arg)
     return pt;
 }
 
-void ek_pt_destroy(ek_pt_handle_t pt)
+void ek_pt_destroy(ek_pt_t *pt)
 {
     if (pt == NULL || pt == s_cur_pt) return;
 
@@ -224,7 +224,7 @@ uint32_t ek_pt_schedule(uint32_t now)
     return first_blocked->tick;
 }
 
-void ek_pt_block(ek_pt_handle_t pt, uint32_t xtick)
+void ek_pt_block(ek_pt_t *pt, uint32_t xtick)
 {
     ek_assert_param(s_init == true);
     if (pt == NULL) return;
@@ -241,7 +241,7 @@ void ek_pt_block(ek_pt_handle_t pt, uint32_t xtick)
     _insert_state_by_time(&s_block_list, pt);
 }
 
-ek_pt_handle_t ek_pt_suspend(ek_pt_handle_t pt)
+ek_pt_t *ek_pt_suspend(ek_pt_t *pt)
 {
     // 传入 NULL 表示挂起自己
     ek_pt_t *pt_to_suspend = pt == NULL ? s_cur_pt : pt;
@@ -261,7 +261,7 @@ ek_pt_handle_t ek_pt_suspend(ek_pt_handle_t pt)
     return NULL;
 }
 
-void ek_pt_resume(ek_pt_handle_t pt)
+void ek_pt_resume(ek_pt_t *pt)
 {
     ek_assert_param(s_init == true);
     if (pt == NULL || pt->state != EK_PT_STATE_SUSPEND) return;
@@ -270,7 +270,7 @@ void ek_pt_resume(ek_pt_handle_t pt)
     _ready_enqueue(pt);
 }
 
-ek_pt_handle_t ek_pt_active(void)
+ek_pt_t *ek_pt_active(void)
 {
     return s_cur_pt;
 }
@@ -303,7 +303,7 @@ void ek_pt_sem_deinit_static(ek_pt_sem_t *sem)
 }
 #        endif /* EKCFG_STATIC_ALLOC */
 
-ek_pt_sem_handle_t ek_pt_sem_create(uint8_t count)
+ek_pt_sem_t *ek_pt_sem_create(uint8_t count)
 {
     ek_pt_sem_t *sem = ek_malloc(sizeof(*sem));
     if (sem == NULL) return NULL;
@@ -312,7 +312,7 @@ ek_pt_sem_handle_t ek_pt_sem_create(uint8_t count)
     return sem;
 }
 
-void ek_pt_sem_destroy(ek_pt_sem_handle_t sem)
+void ek_pt_sem_destroy(ek_pt_sem_t *sem)
 {
     if (sem == NULL) return;
 
@@ -332,7 +332,7 @@ void ek_pt_sem_destroy(ek_pt_sem_handle_t sem)
     ek_free(sem);
 }
 
-bool ek_pt_sem_take(ek_pt_sem_handle_t sem)
+bool ek_pt_sem_take(ek_pt_sem_t *sem)
 {
     if (sem == NULL) return false;
     ek_assert_param(s_cur_pt != NULL);
@@ -347,7 +347,7 @@ bool ek_pt_sem_take(ek_pt_sem_handle_t sem)
     return false;
 }
 
-void ek_pt_sem_give(ek_pt_sem_handle_t sem)
+void ek_pt_sem_give(ek_pt_sem_t *sem)
 {
     if (sem == NULL) return;
 
@@ -417,7 +417,7 @@ void ek_pt_msg_deinit_static(ek_pt_msg_t *msg)
     ek_ringbuf_deinit_static(&msg->rb);
 }
 #        endif /* EKCFG_STATIC_ALLOC */
-ek_pt_msg_handle_t ek_pt_msg_create(size_t item_size, uint32_t item_amount)
+ek_pt_msg_t *ek_pt_msg_create(size_t item_size, uint32_t item_amount)
 {
     if (item_size == 0U || item_amount == 0U) return NULL;
     // 防止总大小溢出
@@ -439,7 +439,7 @@ ek_pt_msg_handle_t ek_pt_msg_create(size_t item_size, uint32_t item_amount)
     return msg;
 }
 
-void ek_pt_msg_destroy(ek_pt_msg_handle_t msg)
+void ek_pt_msg_destroy(ek_pt_msg_t *msg)
 {
     if (msg == NULL) return;
 
@@ -469,7 +469,7 @@ void ek_pt_msg_destroy(ek_pt_msg_handle_t msg)
     ek_free(msg);
 }
 
-bool ek_pt_msg_send(ek_pt_msg_handle_t msg, const void *data)
+bool ek_pt_msg_send(ek_pt_msg_t *msg, const void *data)
 {
     if (msg == NULL || data == NULL) return false;
     ek_assert_param(s_cur_pt != NULL);
@@ -498,7 +498,7 @@ bool ek_pt_msg_send(ek_pt_msg_handle_t msg, const void *data)
     return false;
 }
 
-bool ek_pt_msg_recv(ek_pt_msg_handle_t msg, void *data)
+bool ek_pt_msg_recv(ek_pt_msg_t *msg, void *data)
 {
     if (msg == NULL) return false;
     ek_assert_param(s_cur_pt != NULL);

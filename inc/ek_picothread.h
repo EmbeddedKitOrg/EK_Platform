@@ -15,11 +15,6 @@
 typedef struct ek_pt_sem ek_pt_sem_t;
 
 /**
- * @brief 信号量句柄
- */
-typedef ek_pt_sem_t *ek_pt_sem_handle_t;
-
-/**
  * @brief 信号量结构体
  */
 struct ek_pt_sem
@@ -36,11 +31,6 @@ struct ek_pt_sem
  * @brief 消息队列结构体前向声明
  */
 typedef struct ek_pt_msg ek_pt_msg_t;
-
-/**
- * @brief 消息队列句柄
- */
-typedef ek_pt_msg_t *ek_pt_msg_handle_t;
 
 /**
  * @brief 消息队列结构体
@@ -61,11 +51,6 @@ struct ek_pt_msg
 typedef struct ek_pt ek_pt_t;
 
 /**
- * @brief 微线程句柄，指向 ek_pt_t 的指针
- */
-typedef ek_pt_t *ek_pt_handle_t;
-
-/**
  * @brief 微线程回调函数类型
  *
  * 每次调度时调用此回调，回调内通过 EK_PT_BEGIN/YEILD/END 宏实现协程式逻辑。
@@ -73,7 +58,7 @@ typedef ek_pt_t *ek_pt_handle_t;
  * @param pt  当前微线程句柄
  * @param arg 创建时传入的用户参数
  */
-typedef void (*ek_pt_cb_t)(ek_pt_handle_t pt, void *arg);
+typedef void (*ek_pt_cb_t)(ek_pt_t *pt, void *arg);
 
 /**
  * @brief 微线程状态枚举
@@ -121,7 +106,7 @@ struct ek_pt
  * @param pt  微线程句柄
  *
  * @code
- * static void my_task(ek_pt_handle_t pt, void *arg) {
+ * static void my_task(ek_pt_t *pt, void *arg) {
  *     EK_PT_BEGIN(pt);
  *     // ... 协程逻辑 ...
  *     EK_PT_END(pt);
@@ -184,14 +169,14 @@ void ek_pt_init(void);
  * @param arg  用户参数
  * @return 微线程句柄，参数非法或内存不足时返回 NULL
  */
-ek_pt_handle_t ek_pt_create(ek_pt_cb_t cb, uint8_t prio, void *arg);
+ek_pt_t *ek_pt_create(ek_pt_cb_t cb, uint8_t prio, void *arg);
 
 /**
  * @brief 销毁微线程
  *
  * @param pt 微线程句柄
  */
-void ek_pt_destroy(ek_pt_handle_t pt);
+void ek_pt_destroy(ek_pt_t *pt);
 
 #    if EKCFG_STATIC_ALLOC == 1
 #        include "ek_static_alloc.h"
@@ -261,7 +246,7 @@ uint32_t ek_pt_schedule(uint32_t now);
  *
  * @warning 不应直接调用，请使用 EK_PT_DELAY 宏。
  */
-void ek_pt_block(ek_pt_handle_t pt, uint32_t xtick);
+void ek_pt_block(ek_pt_t *pt, uint32_t xtick);
 
 /**
  * @brief 挂起当前或指定任务
@@ -271,21 +256,21 @@ void ek_pt_block(ek_pt_handle_t pt, uint32_t xtick);
  *
  * @warning 不应直接调用，请使用 EK_PT_SUSPEND 宏。
  */
-ek_pt_t *ek_pt_suspend(ek_pt_handle_t pt);
+ek_pt_t *ek_pt_suspend(ek_pt_t *pt);
 
 /**
  * @brief 恢复挂起的任务
  *
  * @param pt 微线程句柄
  */
-void ek_pt_resume(ek_pt_handle_t pt);
+void ek_pt_resume(ek_pt_t *pt);
 
 /**
  * @brief 获取当前正在运行的微线程句柄
  *
  * @return 当前微线程句柄，无任务运行时返回 NULL
  */
-ek_pt_handle_t ek_pt_active(void);
+ek_pt_t *ek_pt_active(void);
 
 /**
  * @brief 延迟指定 tick 数后恢复执行
@@ -333,14 +318,14 @@ ek_pt_handle_t ek_pt_active(void);
  * @param count 初始计数
  * @return 信号量句柄，内存不足时返回 NULL
  */
-ek_pt_sem_handle_t ek_pt_sem_create(uint8_t count);
+ek_pt_sem_t *ek_pt_sem_create(uint8_t count);
 
 /**
  * @brief 销毁信号量
  *
  * @param sem 信号量句柄
  */
-void ek_pt_sem_destroy(ek_pt_sem_handle_t sem);
+void ek_pt_sem_destroy(ek_pt_sem_t *sem);
 
 /**
  * @brief 获取信号量（底层函数）
@@ -352,7 +337,7 @@ void ek_pt_sem_destroy(ek_pt_sem_handle_t sem);
  *
  * @warning 不应直接调用，请使用 EK_PT_SEM_TAKE 宏。
  */
-bool ek_pt_sem_take(ek_pt_sem_handle_t sem);
+bool ek_pt_sem_take(ek_pt_sem_t *sem);
 
 /**
  * @brief 释放信号量
@@ -361,7 +346,7 @@ bool ek_pt_sem_take(ek_pt_sem_handle_t sem);
  *
  * @param sem 信号量句柄
  */
-void ek_pt_sem_give(ek_pt_sem_handle_t sem);
+void ek_pt_sem_give(ek_pt_sem_t *sem);
 
 /**
  * @brief 获取信号量，带超时支持
@@ -403,14 +388,14 @@ void ek_pt_sem_give(ek_pt_sem_handle_t sem);
  * @param item_amount 消息容量
  * @return 消息队列句柄，失败返回 NULL
  */
-ek_pt_msg_handle_t ek_pt_msg_create(size_t item_size, uint32_t item_amount);
+ek_pt_msg_t *ek_pt_msg_create(size_t item_size, uint32_t item_amount);
 
 /**
  * @brief 销毁消息队列
  *
  * @param msg 消息队列句柄
  */
-void ek_pt_msg_destroy(ek_pt_msg_handle_t msg);
+void ek_pt_msg_destroy(ek_pt_msg_t *msg);
 
 /**
  * @brief 发送消息到队列（底层函数）
@@ -423,7 +408,7 @@ void ek_pt_msg_destroy(ek_pt_msg_handle_t msg);
  *
  * @warning 不应直接调用，请使用 EK_PT_MSG_SEND 宏。
  */
-bool ek_pt_msg_send(ek_pt_msg_handle_t msg, const void *data);
+bool ek_pt_msg_send(ek_pt_msg_t *msg, const void *data);
 
 /**
  * @brief 从队列接收消息（底层函数）
@@ -436,7 +421,7 @@ bool ek_pt_msg_send(ek_pt_msg_handle_t msg, const void *data);
  *
  * @warning 不应直接调用，请使用 EK_PT_MSG_RECV 宏。
  */
-bool ek_pt_msg_recv(ek_pt_msg_handle_t msg, void *data);
+bool ek_pt_msg_recv(ek_pt_msg_t *msg, void *data);
 
 /**
  * @brief 发送消息，带超时支持

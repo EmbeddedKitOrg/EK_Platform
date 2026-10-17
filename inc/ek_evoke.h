@@ -46,16 +46,6 @@ typedef struct ek_evoke_task ek_evoke_task_t;
 typedef struct ek_evoke_event ek_evoke_event_t;
 
 /**
- * @brief 任务句柄类型
- */
-typedef ek_evoke_task_t *ek_evoke_task_handle_t;
-
-/**
- * @brief 事件句柄类型
- */
-typedef ek_evoke_event_t *ek_evoke_event_handle_t;
-
-/**
  * @brief 任务回调函数类型
  * @param evt 触发的事件
  * @param arg 用户传入的参数
@@ -115,20 +105,20 @@ void ek_evoke_init(void);
  * @param arg 用户参数
  * @return 任务句柄
  */
-ek_evoke_task_handle_t ek_evoke_task_create(ek_evoke_cb_t cb, void *arg);
+ek_evoke_task_t *ek_evoke_task_create(ek_evoke_cb_t cb, void *arg);
 
 /**
  * @brief 销毁任务
  * @param tsk 任务句柄
  */
-void ek_evoke_task_destroy(ek_evoke_task_handle_t tsk);
+void ek_evoke_task_destroy(ek_evoke_task_t *tsk);
 
 /**
  * @brief 创建事件
  * @param init 初始计数值
  * @return 事件句柄
  */
-ek_evoke_event_handle_t ek_evoke_event_create(uint32_t init);
+ek_evoke_event_t *ek_evoke_event_create(uint32_t init);
 
 /**
  * @brief 销毁事件
@@ -136,7 +126,7 @@ ek_evoke_event_handle_t ek_evoke_event_create(uint32_t init);
  *
  * @warning 销毁事件时会将所有等待该事件的任务状态设为 IDLE
  */
-void ek_evoke_event_destroy(ek_evoke_event_handle_t evt);
+void ek_evoke_event_destroy(ek_evoke_event_t *evt);
 
 #    if EKCFG_STATIC_ALLOC == 1
 #        include "ek_static_alloc.h"
@@ -172,7 +162,7 @@ void ek_evoke_event_deinit_static(ek_evoke_event_t *evt);
  * @return true 任务立即就绪（事件已有计数）
  * @return false 任务进入等待状态
  */
-bool ek_evoke_event_subscribe(ek_evoke_task_handle_t tsk, ek_evoke_event_handle_t evt);
+bool ek_evoke_event_subscribe(ek_evoke_task_t *tsk, ek_evoke_event_t *evt);
 
 /**
  * @brief 广播事件（唤醒所有等待任务）
@@ -181,7 +171,7 @@ bool ek_evoke_event_subscribe(ek_evoke_task_handle_t tsk, ek_evoke_event_handle_
  *
  * @note 如果没有任务等待，则增加事件计数
  */
-void ek_evoke_event_broadcast(ek_evoke_event_handle_t evt, void *payload);
+void ek_evoke_event_broadcast(ek_evoke_event_t *evt, void *payload);
 
 /**
  * @brief 发布事件（唤醒单个等待任务）
@@ -190,7 +180,7 @@ void ek_evoke_event_broadcast(ek_evoke_event_handle_t evt, void *payload);
  *
  * @note 如果没有任务等待，则增加事件计数
  */
-void ek_evoke_event_publish(ek_evoke_event_handle_t evt, void *payload);
+void ek_evoke_event_publish(ek_evoke_event_t *evt, void *payload);
 
 /**
  * @brief 延迟发布事件
@@ -199,7 +189,7 @@ void ek_evoke_event_publish(ek_evoke_event_handle_t evt, void *payload);
  * @param delay 延迟时间（tick）
  * @param broadcast true 广播模式，false 发布模式
  */
-void ek_evoke_event_defer(ek_evoke_event_handle_t evt, void *payload, uint32_t delay, bool broadcast);
+void ek_evoke_event_defer(ek_evoke_event_t *evt, void *payload, uint32_t delay, bool broadcast);
 
 /**
  * @brief ISR 中广播事件
@@ -208,7 +198,7 @@ void ek_evoke_event_defer(ek_evoke_event_handle_t evt, void *payload, uint32_t d
  * @return 执行情况
  * @note 请求会被放入 ISR 请求队列，在主循环中处理
  */
-ek_err_t ek_evoke_event_broadcast_from_isr(ek_evoke_event_handle_t evt, void *payload);
+ek_err_t ek_evoke_event_broadcast_from_isr(ek_evoke_event_t *evt, void *payload);
 
 /**
  * @brief ISR 中发布事件
@@ -217,7 +207,7 @@ ek_err_t ek_evoke_event_broadcast_from_isr(ek_evoke_event_handle_t evt, void *pa
  * @return 执行情况
  * @note 请求会被放入 ISR 请求队列，在主循环中处理
  */
-ek_err_t ek_evoke_event_publish_from_isr(ek_evoke_event_handle_t evt, void *payload);
+ek_err_t ek_evoke_event_publish_from_isr(ek_evoke_event_t *evt, void *payload);
 
 /**
  * @brief ISR 中延迟发布事件
@@ -228,7 +218,7 @@ ek_err_t ek_evoke_event_publish_from_isr(ek_evoke_event_handle_t evt, void *payl
  * @return 执行情况
  * @note 请求会被放入 ISR 请求队列，在主循环中处理
  */
-ek_err_t ek_evoke_event_defer_from_isr(ek_evoke_event_handle_t evt, void *payload, uint32_t delay, bool broadcast);
+ek_err_t ek_evoke_event_defer_from_isr(ek_evoke_event_t *evt, void *payload, uint32_t delay, bool broadcast);
 
 /* ========== 睡眠锁 ========== */
 

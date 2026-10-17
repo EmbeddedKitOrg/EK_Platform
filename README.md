@@ -1181,8 +1181,8 @@ int main(void) {
 int main(void) {
     ek_export_init();         // 自动初始化 heap → evoke
 
-    ek_evoke_task_handle_t tsk = ek_evoke_task_create(led_cb, NULL);
-    ek_evoke_event_handle_t evt = ek_evoke_event_create(0);
+    ek_evoke_task_t *tsk = ek_evoke_task_create(led_cb, NULL);
+    ek_evoke_event_t *evt = ek_evoke_event_create(0);
     ek_evoke_event_subscribe(tsk, evt);
 
     ek_evoke_event_loop();   // 永不返回
@@ -1240,7 +1240,7 @@ EK_DEFINE_EVOKE_EVENT(static_event, 0);
 | `== 0` | 无任何任务 | 可深度睡眠（等待外部中断唤醒） |
 
 ```c
-static void led_task(ek_pt_handle_t pt, void *arg) {
+static void led_task(ek_pt_t *pt, void *arg) {
     EK_PT_BEGIN(pt);
     while (1) {
         led_toggle();
@@ -1301,14 +1301,14 @@ int main(void) {
 
 **初始化**：
 ```c
-ek_pt_sem_handle_t sem = ek_pt_sem_create(1); // 初始计数 = 1（二值信号量）
+ek_pt_sem_t *sem = ek_pt_sem_create(1); // 初始计数 = 1（二值信号量）
 // 或：EK_DEFINE_PT_SEM(static_sem, 1);
 ```
 
 **使用示例**：
 ```c
-static void producer(ek_pt_handle_t pt, void *arg) {
-    ek_pt_sem_handle_t sem = (ek_pt_sem_handle_t)arg;
+static void producer(ek_pt_t *pt, void *arg) {
+    ek_pt_sem_t *sem = (ek_pt_sem_t *)arg;
     ek_err_t err;
     EK_PT_BEGIN(pt);
     // 获取信号量，超时 1000 ticks
@@ -1351,15 +1351,15 @@ static void producer(ek_pt_handle_t pt, void *arg) {
 
 **初始化**：
 ```c
-ek_pt_msg_handle_t msg = ek_pt_msg_create(sizeof(my_data_t), 8); // 8 条消息容量
+ek_pt_msg_t *msg = ek_pt_msg_create(sizeof(my_data_t), 8); // 8 条消息容量
 // 或：EK_DEFINE_PT_MSG(static_msg, my_data_t, 8);
 ```
 
 **使用示例**：
 ```c
 typedef struct { int id; float val; } sensor_data_t;
-static void sender(ek_pt_handle_t pt, void *arg) {
-    ek_pt_msg_handle_t mq = (ek_pt_msg_handle_t)arg;
+static void sender(ek_pt_t *pt, void *arg) {
+    ek_pt_msg_t *mq = (ek_pt_msg_t *)arg;
     ek_err_t err;
     sensor_data_t data = { .id = 1, .val = 3.14f };
     EK_PT_BEGIN(pt);
@@ -1368,8 +1368,8 @@ static void sender(ek_pt_handle_t pt, void *arg) {
     EK_PT_END(pt);
 }
 
-static void receiver(ek_pt_handle_t pt, void *arg) {
-    ek_pt_msg_handle_t mq = (ek_pt_msg_handle_t)arg;
+static void receiver(ek_pt_t *pt, void *arg) {
+    ek_pt_msg_t *mq = (ek_pt_msg_t *)arg;
     ek_err_t err;
     sensor_data_t data;
     EK_PT_BEGIN(pt);
