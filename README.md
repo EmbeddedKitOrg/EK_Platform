@@ -31,6 +31,7 @@ ek_utils/
 │   ├── ek_stack.h                 # 通用 LIFO 栈
 │   ├── ek_snapshot.h              # 快照数据（单槽覆盖写，整块读写）
 │   ├── ek_str.h                   # 动态字符串
+│   ├── ek_str_view.h              # 字符串视图
 │   ├── ek_export.h                # 函数自动导出初始化（类似 Linux initcall）
 │   ├── ek_static_alloc.h          # 静态对象自动注册与初始化
 │   ├── ek_evoke.h                 # 协作式事件驱动任务调度器
@@ -48,7 +49,8 @@ ek_utils/
 │   ├── ek_snapshot.c
 │   ├── ek_stack.c
 │   ├── ek_static_alloc.c
-│   └── ek_str.c
+│   ├── ek_str.c
+│   └── ek_str_view.c
 ├── third_party/                   # 第三方代码
 │   ├── tlsf/                       # TLSF 实时内存分配器（O(1) 分配/释放）
 │   ├── lwprintf/                   # 轻量级 printf 实现
@@ -73,6 +75,7 @@ ek_utils/
 | `ek_stack` | `EKCFG_STACK` | 数据结构 | 通用 LIFO 栈 |
 | `ek_snapshot` | `EKCFG_SNAPSHOT` | 数据结构 | 单槽快照（唯一 id 覆盖写，整块读写） |
 | `ek_str` | `EKCFG_STR` | 数据结构 | 自动扩容的动态字符串 |
+| `ek_str_view` | `EKCFG_STR_VIEW` | 数据结构 | 无动态分配的字符串视图：裁剪、去空白、按分隔符切分 |
 | `ek_export` | `EKCFG_EXPORT` | 系统服务 | 基于链接器段的自动初始化（需配合链接脚本） |
 | `ek_static_alloc` | `EKCFG_STATIC_ALLOC` | 系统服务 | 静态对象自动注册（`EK_DEFINE_*` → `.ek_static_alloc` 段） |
 | `ek_evoke` | `EKCFG_EVOKE` | 系统服务 | 协作式事件驱动调度器（仅裸机，`EKCFG_RTOS=0` 时可用） |
@@ -221,6 +224,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE Core/Inc)
 
 // 数据结构（1=启用，0=禁用）
 #define EKCFG_STR            (0)
+#define EKCFG_STR_VIEW       (0)
 #define EKCFG_LIST           (0)
 #define EKCFG_VEC            (0)
 #define EKCFG_RINGBUF        (0)
@@ -415,12 +419,13 @@ ek_stack_destroy_safely(sk);            // sk 释放后自动 = NULL
 |11|ek_stack|数据结构|依赖 `ek_heap`（动态分配）；`EKCFG_STATIC_ALLOC=1` 时可用 `EK_DEFINE_STACK`|
 |12|ek_snapshot|数据结构|依赖 `ek_heap`（动态分配）；`EKCFG_STATIC_ALLOC=1` 时可用 `EK_SNAPSHOT_DEFINE`|
 |13|ek_str|数据结构|依赖 `ek_heap` + `ek_io`（格式化）|
-|14|ek_export|系统服务|**必须修改链接脚本**（`.ek_export_fn` 段）|
-|15|ek_static_alloc|系统服务|`EKCFG_STATIC_ALLOC=1` 时需增加 `.ek_static_alloc` 段|
-|16|ek_evoke|系统服务|仅裸机；实现 5 个弱函数（临界区/定时器/睡眠）；ISR FIFO 为文件内静态缓冲|
-|17|ek_picothread|系统服务|无弱函数，纯调度器；主循环需配合定时器；就绪队列为分级 FIFO|
-|18|ek_picothread_sem|系统服务|依赖 `ek_picothread`，子模块无额外移植|
-|19|ek_picothread_msg|系统服务|依赖 `ek_picothread` + `ek_ringbuf`|
+|14|ek_str_view|数据结构|零移植，无堆/IO 依赖（纯指针裁剪）|
+|15|ek_export|系统服务|**必须修改链接脚本**（`.ek_export_fn` 段）|
+|16|ek_static_alloc|系统服务|`EKCFG_STATIC_ALLOC=1` 时需增加 `.ek_static_alloc` 段|
+|17|ek_evoke|系统服务|仅裸机；实现 5 个弱函数（临界区/定时器/睡眠）；ISR FIFO 为文件内静态缓冲|
+|18|ek_picothread|系统服务|无弱函数，纯调度器；主循环需配合定时器；就绪队列为分级 FIFO|
+|19|ek_picothread_sem|系统服务|依赖 `ek_picothread`，子模块无额外移植|
+|20|ek_picothread_msg|系统服务|依赖 `ek_picothread` + `ek_ringbuf`|
 
 ---
 
@@ -961,6 +966,46 @@ ek_str_free(s);
 - 扩容策略：当前容量的 1.5 倍
 - `ek_str_get_cstring` 返回内部缓冲区指针，不要手动释放
 - `ek_str_slice` 创建新字符串对象，需单独释放
+
+---
+
+### ek_str_view — 字符串视图
+
+**功能概述**：非拥有型字符串视图：只记录字符串指针与长度，不复制内容、不分配内存。支持左/右裁剪、去除两端空白、按分隔符逐段切分。
+
+**源文件**：
+- `ek_utils/inc/ek_str_view.h`
+- `ek_utils/src/ek_str_view.c`
+
+**依赖**：
+- ek_err、ek_conf_internal、ek_def
+
+**配置宏**：
+| 宏 | 默认值 | 说明 |
+|----|--------|------|
+| `EKCFG_STR_VIEW` | 0 | 模块开关 |
+
+**用户需实现的接口**：无。
+
+**链接脚本变更**：无。
+
+**初始化**：无需初始化。视图不拥有内存，底层字符串在视图使用期间必须保持有效。
+
+**使用示例**：
+```c
+ek_str_view_t sv = ek_str_view_create("key = value");
+
+ek_str_view_t key = ek_str_view_split(&sv, '='); // key = "key "，sv 前进到 " value"
+ek_str_view_trim(&key);                           // key = "key"
+ek_str_view_t val = ek_str_view_split(&sv, '='); // 无分隔符：val = " value"，sv 被清空
+ek_str_view_trim(&val);                           // val = "value"
+```
+
+**注意事项**：
+- 视图不复制内容、不分配内存；底层字符串在视图使用期间必须保持有效
+- `chop_left`/`chop_right` 的字符数超过视图长度时按全部切掉处理
+- `ek_str_view_split` 未找到分隔符时返回剩余全部内容，并将原视图清空
+- `create`/`split` 不检查 NULL 参数（传入属未定义行为）；`chop_left`/`chop_right`/`trim` 传入 NULL 返回 `EK_ERR_INVAL`
 
 ---
 

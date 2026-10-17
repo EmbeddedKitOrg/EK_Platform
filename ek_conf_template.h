@@ -47,6 +47,7 @@
  * ======================================================================== */
 
 #define EKCFG_STR            (1) /**< 动态字符串 */
+#define EKCFG_STR_VIEW       (1) /**< 字符视图 */
 #define EKCFG_LIST           (1) /**< 双向循环链表 */
 #define EKCFG_VEC            (1) /**< 动态数组 */
 #define EKCFG_RINGBUF        (1) /**< 通用环形缓冲区 */

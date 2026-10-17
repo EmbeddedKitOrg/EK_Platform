@@ -4,6 +4,12 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [3.1.0] - 2026-10-17
+
+### 新增
+
+- 新增字符串视图模块 `ek_str_view` （`EKCFG_STR_VIEW`，默认关闭)：无动态分配的 C 字符串裁剪模块。
+
 ## [3.0.0] - 2026-10-17
 
 ### 变更
