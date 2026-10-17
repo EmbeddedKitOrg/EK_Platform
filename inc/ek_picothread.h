@@ -228,7 +228,7 @@ void ek_pt_msg_deinit_static(ek_pt_msg_t *msg);
                 static union                                                        \
                 {                                                                   \
                     ek_pt_msg_t msg;                                                \
-                    type align_; /* 把 union 对齐抬到元素对齐 */           \
+                    type align_; /* 把 union 对齐抬到元素对齐 */                    \
                     uint8_t storage[sizeof(ek_pt_msg_t) + sizeof(type) * (amount)]; \
                 } handle##_mem;                                                     \
                 static ek_pt_msg_t *const handle = &handle##_mem.msg;               \
@@ -374,16 +374,16 @@ void ek_pt_sem_give(ek_pt_sem_handle_t sem);
  * @param tick 超时 tick 数
  * @param err  输出参数，接收等待结果
  */
-#        define EK_PT_SEM_TAKE(sem, tick, err)                             \
-            do                                                             \
-            {                                                              \
-                while (!ek_pt_sem_take((sem)))                             \
-                {                                                          \
-                    ek_pt_block(ek_pt_active(), (tick));                   \
-                    EK_PT_YEILD(ek_pt_active());                           \
+#        define EK_PT_SEM_TAKE(sem, tick, err)                       \
+            do                                                       \
+            {                                                        \
+                while (!ek_pt_sem_take((sem)))                       \
+                {                                                    \
+                    ek_pt_block(ek_pt_active(), (tick));             \
+                    EK_PT_YEILD(ek_pt_active());                     \
                     if (ek_pt_active()->wait_result != EK_OK) break; \
-                }                                                          \
-                (err) = ek_pt_active()->wait_result;                       \
+                }                                                    \
+                (err) = ek_pt_active()->wait_result;                 \
             } while (0)
 
 /**
@@ -450,16 +450,16 @@ bool ek_pt_msg_recv(ek_pt_msg_handle_t msg, void *data);
  * @param tick 超时 tick 数
  * @param err  输出参数，接收等待结果
  */
-#        define EK_PT_MSG_SEND(msg, data, tick, err)                       \
-            do                                                             \
-            {                                                              \
-                while (!ek_pt_msg_send((msg), (data)))                     \
-                {                                                          \
-                    ek_pt_block(ek_pt_active(), (tick));                   \
-                    EK_PT_YEILD(ek_pt_active());                           \
+#        define EK_PT_MSG_SEND(msg, data, tick, err)                 \
+            do                                                       \
+            {                                                        \
+                while (!ek_pt_msg_send((msg), (data)))               \
+                {                                                    \
+                    ek_pt_block(ek_pt_active(), (tick));             \
+                    EK_PT_YEILD(ek_pt_active());                     \
                     if (ek_pt_active()->wait_result != EK_OK) break; \
-                }                                                          \
-                (err) = ek_pt_active()->wait_result;                       \
+                }                                                    \
+                (err) = ek_pt_active()->wait_result;                 \
             } while (0)
 
 /**
@@ -474,16 +474,16 @@ bool ek_pt_msg_recv(ek_pt_msg_handle_t msg, void *data);
  * @param tick 超时 tick 数
  * @param err  输出参数，接收等待结果
  */
-#        define EK_PT_MSG_RECV(msg, data, tick, err)                       \
-            do                                                             \
-            {                                                              \
-                while (!ek_pt_msg_recv((msg), (data)))                     \
-                {                                                          \
-                    ek_pt_block(ek_pt_active(), (tick));                   \
-                    EK_PT_YEILD(ek_pt_active());                           \
+#        define EK_PT_MSG_RECV(msg, data, tick, err)                 \
+            do                                                       \
+            {                                                        \
+                while (!ek_pt_msg_recv((msg), (data)))               \
+                {                                                    \
+                    ek_pt_block(ek_pt_active(), (tick));             \
+                    EK_PT_YEILD(ek_pt_active());                     \
                     if (ek_pt_active()->wait_result != EK_OK) break; \
-                }                                                          \
-                (err) = ek_pt_active()->wait_result;                       \
+                }                                                    \
+                (err) = ek_pt_active()->wait_result;                 \
             } while (0)
 
 #    endif /* EKCFG_PICOTHREAD_MSG */

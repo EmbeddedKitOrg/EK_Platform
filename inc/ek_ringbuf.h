@@ -95,7 +95,7 @@ void ek_ringbuf_deinit_static(ek_ringbuf_t *rb);
                 static union                                                         \
                 {                                                                    \
                     ek_ringbuf_t rb;                                                 \
-                    type align_; /* 把 union 对齐抬到元素对齐 */            \
+                    type align_; /* 把 union 对齐抬到元素对齐 */                     \
                     uint8_t storage[sizeof(ek_ringbuf_t) + sizeof(type) * (amount)]; \
                 } handle##_mem;                                                      \
                 static ek_ringbuf_t *const handle = &handle##_mem.rb;                \
@@ -188,7 +188,7 @@ void ek_ringbuf_deinit_spsc_static(ek_ringbuf_spsc_t *rb);
                 static union                                                              \
                 {                                                                         \
                     ek_ringbuf_spsc_t rb;                                                 \
-                    type align_; /* 把 union 对齐抬到元素对齐 */                 \
+                    type align_; /* 把 union 对齐抬到元素对齐 */                          \
                     uint8_t storage[sizeof(ek_ringbuf_spsc_t) + sizeof(type) * (amount)]; \
                 } handle##_mem;                                                           \
                 static ek_ringbuf_spsc_t *const handle = &handle##_mem.rb;                \

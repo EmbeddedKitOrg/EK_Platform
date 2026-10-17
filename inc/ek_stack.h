@@ -106,7 +106,7 @@ void ek_stack_deinit_static(ek_stack_t *sk);
             static union                                                       \
             {                                                                  \
                 ek_stack_t sk;                                                 \
-                type align_; /* 把 union 对齐抬到元素对齐 */          \
+                type align_; /* 把 union 对齐抬到元素对齐 */                   \
                 uint8_t storage[sizeof(ek_stack_t) + sizeof(type) * (amount)]; \
             } handle##_mem;                                                    \
             static ek_stack_t *const handle = &handle##_mem.sk;                \

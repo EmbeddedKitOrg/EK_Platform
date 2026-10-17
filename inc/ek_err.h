@@ -65,18 +65,18 @@ typedef int ek_err_t;
 /* ========== 错误处理辅助宏 ========== */
 
 /** 如果表达式返回非 EK_OK，直接 return 该错误码 */
-#define EK_ERR_RETURN(expr)                     \
-    do                                          \
-    {                                           \
-        ek_err_t _err_ = (expr);                \
+#define EK_ERR_RETURN(expr)               \
+    do                                    \
+    {                                     \
+        ek_err_t _err_ = (expr);          \
         if (_err_ != EK_OK) return _err_; \
     } while (0)
 
 /** 如果表达式返回非 EK_OK，goto 到指定标签（用于 cleanup 模式） */
-#define EK_ERR_GOTO(expr, label)              \
-    do                                        \
-    {                                         \
-        ek_err_t _err_ = (expr);              \
+#define EK_ERR_GOTO(expr, label)        \
+    do                                  \
+    {                                   \
+        ek_err_t _err_ = (expr);        \
         if (_err_ != EK_OK) goto label; \
     } while (0)
 
