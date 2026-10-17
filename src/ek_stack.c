@@ -8,18 +8,17 @@
 
 #if EKCFG_STACK == 1
 
-#    include "ek_assert.h"
 #    include "ek_heap.h"
 
 bool ek_stack_full(ek_stack_t *sk)
 {
-    ek_assert_param(sk != NULL);
+    if (sk == NULL) return false;
     return sk->sp >= sk->cap;
 }
 
 bool ek_stack_empty(ek_stack_t *sk)
 {
-    ek_assert_param(sk != NULL);
+    if (sk == NULL) return false;
     return sk->sp == 0;
 }
 
@@ -51,8 +50,7 @@ void ek_stack_deinit_static(ek_stack_t *sk)
 
 ek_stack_t *ek_stack_create(size_t item_size, uint32_t item_amount)
 {
-    ek_assert_param(item_amount != 0);
-    ek_assert_param(item_size != 0);
+    if (item_amount == 0U || item_size == 0U) return NULL;
     // 防止总大小溢出
     if (item_amount > (SIZE_MAX - sizeof(ek_stack_t)) / item_size)
     {
@@ -76,7 +74,7 @@ ek_stack_t *ek_stack_create(size_t item_size, uint32_t item_amount)
 
 void ek_stack_destroy(ek_stack_t *sk)
 {
-    ek_assert_param(sk != NULL);
+    if (sk == NULL) return;
 
 #    if EKCFG_RTOS == 1
     EK_LOCK_DEINIT(sk->lock);
@@ -86,8 +84,7 @@ void ek_stack_destroy(ek_stack_t *sk)
 
 ek_err_t ek_stack_push(ek_stack_t *sk, const void *item)
 {
-    ek_assert_param(sk != NULL);
-    ek_assert_param(item != NULL);
+    if (sk == NULL || item == NULL) return EK_ERR_INVAL;
 
     if (!EK_LOCK_TRY(sk)) return EK_ERR_BUSY;
 
@@ -108,8 +105,7 @@ ek_err_t ek_stack_push(ek_stack_t *sk, const void *item)
 
 ek_err_t ek_stack_pop(ek_stack_t *sk, void *item)
 {
-    ek_assert_param(sk != NULL);
-    ek_assert_param(item != NULL);
+    if (sk == NULL || item == NULL) return EK_ERR_INVAL;
 
     if (!EK_LOCK_TRY(sk)) return EK_ERR_BUSY;
 

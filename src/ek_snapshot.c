@@ -8,7 +8,6 @@
 
 #if EKCFG_SNAPSHOT == 1
 
-#    include "ek_assert.h"
 #    include "ek_heap.h"
 
 #    if EKCFG_STATIC_ALLOC == 1
@@ -43,7 +42,7 @@ void ek_snapshot_deinit_static(ek_snapshot_t *snapshot)
 
 ek_snapshot_t *ek_snapshot_create(size_t data_size)
 {
-    ek_assert_param(data_size != 0);
+    if (data_size == 0U) return NULL;
 
     ek_snapshot_t *snapshot = ek_malloc(sizeof(*snapshot) + data_size);
     if (!snapshot) return NULL;
@@ -61,7 +60,7 @@ ek_snapshot_t *ek_snapshot_create(size_t data_size)
 
 void ek_snapshot_destroy(ek_snapshot_t *snapshot)
 {
-    ek_assert_param(snapshot != NULL);
+    if (snapshot == NULL) return;
 
 #    if EKCFG_RTOS == 1
     EK_LOCK_DEINIT(snapshot->lock);
@@ -71,8 +70,7 @@ void ek_snapshot_destroy(ek_snapshot_t *snapshot)
 
 ek_err_t ek_snapshot_set(ek_snapshot_t *snapshot, void *data, uint32_t unique)
 {
-    ek_assert_param(snapshot != NULL);
-    ek_assert_param(data != NULL);
+    if (snapshot == NULL || data == NULL) return EK_ERR_INVAL;
     if (unique == snapshot->unique) return EK_ERR_INVAL;
 
     if (!EK_LOCK_TRY(snapshot)) return EK_ERR_BUSY;
@@ -88,8 +86,7 @@ ek_err_t ek_snapshot_set(ek_snapshot_t *snapshot, void *data, uint32_t unique)
 
 ek_err_t ek_snapshot_get(ek_snapshot_t *snapshot, void *data)
 {
-    ek_assert_param(snapshot != NULL);
-    ek_assert_param(data != NULL);
+    if (snapshot == NULL || data == NULL) return EK_ERR_INVAL;
 
     if (!EK_LOCK_TRY(snapshot)) return EK_ERR_BUSY;
 
@@ -107,7 +104,7 @@ ek_err_t ek_snapshot_get(ek_snapshot_t *snapshot, void *data)
 
 uint32_t ek_snapshot_get_unique(ek_snapshot_t *snapshot)
 {
-    ek_assert_param(snapshot != NULL);
+    if (snapshot == NULL) return 0U;
     return snapshot->unique;
 }
 

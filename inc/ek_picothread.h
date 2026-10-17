@@ -182,7 +182,7 @@ void ek_pt_init(void);
  * @param cb   回调函数
  * @param prio 优先级（数值越小优先级越高，范围为 0..EKCFG_PT_PRIO_LOWEST）
  * @param arg  用户参数
- * @return 微线程句柄，失败返回 NULL（通过断言捕获）
+ * @return 微线程句柄，参数非法或内存不足时返回 NULL
  */
 ek_pt_handle_t ek_pt_create(ek_pt_cb_t cb, uint8_t prio, void *arg);
 
@@ -331,7 +331,7 @@ ek_pt_handle_t ek_pt_active(void);
  * @brief 创建信号量
  *
  * @param count 初始计数
- * @return 信号量句柄，失败返回 NULL（通过断言捕获）
+ * @return 信号量句柄，内存不足时返回 NULL
  */
 ek_pt_sem_handle_t ek_pt_sem_create(uint8_t count);
 

@@ -9,8 +9,8 @@
  * @note 栈基于动态内存分配，使用前需调用 ek_stack_create() 创建，
  *       使用完毕后需调用 ek_stack_destroy() 释放内存。
  *
- * @warning 所有操作函数均会对传入的栈指针进行断言检查，
- *          传入 NULL 指针将在调试模式下触发断言失败。
+ * @warning 所有操作函数均会对传入参数做检查，
+ *          传入 NULL 指针等非法参数会返回对应错误码（或直接返回），不触发断言。
  */
 
 #ifndef EK_STACK_H
@@ -77,7 +77,7 @@ bool ek_stack_empty(ek_stack_t *sk);
  * @param item_amount 栈的容量（最多可存储的元素数量）
  * @return 成功返回栈指针，失败返回 NULL
  *
- * @warning item_size 和 item_amount 不能为 0，否则触发断言
+ * @warning item_size 和 item_amount 为 0 时返回 NULL
  * @warning 内存分配失败时返回 NULL，调用者需检查返回值
  * @note 失败时会自动释放已分配的内存，不会造成内存泄漏
  */
@@ -91,7 +91,7 @@ ek_stack_t *ek_stack_create(size_t item_size, uint32_t item_amount);
  * @param sk 栈指针
  *
  * @note 缓冲区与控制块同块分配，本函数仅 ek_free(sk) 一次；配合 ek_stack_destroy_safely() 使用
- * @warning 传入 NULL 指针将触发断言失败
+ * @warning 传入 NULL 指针时直接返回
  * @warning 不应对同一个栈多次调用此函数
  */
 void ek_stack_destroy(ek_stack_t *sk);
@@ -139,7 +139,7 @@ void ek_stack_deinit_static(ek_stack_t *sk);
  * @return EK_ERR_FULL 栈已满
  * @return EK_ERR_BUSY 资源忙（RTOS 模式）
  *
- * @warning sk 和 item 不能为 NULL，否则触发断言
+ * @warning sk 和 item 为 NULL 时返回 EK_ERR_INVAL
  * @note 复杂度：O(1)
  * @note 会按 item_size 字节数复制数据
  */
@@ -156,7 +156,7 @@ ek_err_t ek_stack_push(ek_stack_t *sk, const void *item);
  * @return EK_ERR_EMPTY 栈为空
  * @return EK_ERR_BUSY 资源忙（RTOS 模式）
  *
- * @warning sk 和 item 不能为 NULL，否则触发断言
+ * @warning sk 和 item 为 NULL 时返回 EK_ERR_INVAL
  * @note 复杂度：O(1)
  * @note 会按 item_size 字节数复制数据
  */

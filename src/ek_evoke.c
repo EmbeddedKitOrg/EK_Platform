@@ -12,7 +12,6 @@
 #    include "ek_heap.h"
 #    include "ek_export.h"
 #    include "ek_log.h"
-#    include "ek_assert.h"
 
 EK_LOG_FILE_TAG("ek_evoke.c");
 
@@ -161,10 +160,10 @@ void ek_evoke_event_deinit_static(ek_evoke_event_t *evt)
 
 ek_evoke_task_handle_t ek_evoke_task_create(ek_evoke_cb_t cb, void *arg)
 {
-    ek_assert_param(cb != NULL);
+    if (cb == NULL) return NULL;
 
     ek_evoke_task_t *tsk = ek_malloc(sizeof(*tsk));
-    ek_assert_param(tsk != NULL);
+    if (tsk == NULL) return NULL;
 
     ek_list_init(&tsk->node);
     tsk->cb = cb;
@@ -177,7 +176,7 @@ ek_evoke_task_handle_t ek_evoke_task_create(ek_evoke_cb_t cb, void *arg)
 
 void ek_evoke_task_destroy(ek_evoke_task_handle_t tsk)
 {
-    ek_assert_param(tsk != NULL);
+    if (tsk == NULL) return;
     if (tsk->state != EK_EVOKE_STATE_IDLE)
     {
         ek_list_remove(&tsk->node);
@@ -188,7 +187,7 @@ void ek_evoke_task_destroy(ek_evoke_task_handle_t tsk)
 ek_evoke_event_handle_t ek_evoke_event_create(uint32_t init)
 {
     ek_evoke_event_t *evt = ek_malloc(sizeof(*evt));
-    ek_assert_param(evt != NULL);
+    if (evt == NULL) return NULL;
 
     ek_list_init(&evt->wait_list);
     evt->count = init;
@@ -199,7 +198,7 @@ ek_evoke_event_handle_t ek_evoke_event_create(uint32_t init)
 
 void ek_evoke_event_destroy(ek_evoke_event_handle_t evt)
 {
-    ek_assert_param(evt != NULL);
+    if (evt == NULL) return;
     while (!ek_list_is_empty(&evt->wait_list))
     {
         ek_list_node_t *node = ek_list_get_first(&evt->wait_list);
@@ -213,8 +212,7 @@ void ek_evoke_event_destroy(ek_evoke_event_handle_t evt)
 
 bool ek_evoke_event_subscribe(ek_evoke_task_handle_t tsk, ek_evoke_event_handle_t evt)
 {
-    ek_assert_param(tsk != NULL);
-    ek_assert_param(evt != NULL);
+    if (tsk == NULL || evt == NULL) return false;
 
     tsk->wait_event = evt;
     // 等待的事件中有计数量
@@ -238,7 +236,7 @@ bool ek_evoke_event_subscribe(ek_evoke_task_handle_t tsk, ek_evoke_event_handle_
 
 void ek_evoke_event_broadcast(ek_evoke_event_handle_t evt, void *payload)
 {
-    ek_assert_param(evt != NULL);
+    if (evt == NULL) return;
 
     evt->data = payload;
     // 没有任务等待这个事件
@@ -262,7 +260,7 @@ void ek_evoke_event_broadcast(ek_evoke_event_handle_t evt, void *payload)
 
 void ek_evoke_event_publish(ek_evoke_event_handle_t evt, void *payload)
 {
-    ek_assert_param(evt != NULL);
+    if (evt == NULL) return;
 
     evt->data = payload;
     // 只唤醒第一个等待该事件的任务
@@ -283,7 +281,7 @@ void ek_evoke_event_publish(ek_evoke_event_handle_t evt, void *payload)
 
 void ek_evoke_event_defer(ek_evoke_event_handle_t evt, void *payload, uint32_t delay, bool broadcast)
 {
-    ek_assert_param(evt != NULL);
+    if (evt == NULL) return;
 
     if (!delay)
     {
@@ -315,7 +313,7 @@ void ek_evoke_event_defer(ek_evoke_event_handle_t evt, void *payload, uint32_t d
 
 ek_err_t ek_evoke_event_broadcast_from_isr(ek_evoke_event_handle_t evt, void *payload)
 {
-    ek_assert_param(evt != NULL);
+    if (evt == NULL) return EK_ERR_INVAL;
 
     ek_evoke_enter_critical();
 
@@ -334,7 +332,7 @@ defer:
 
 ek_err_t ek_evoke_event_publish_from_isr(ek_evoke_event_handle_t evt, void *payload)
 {
-    ek_assert_param(evt != NULL);
+    if (evt == NULL) return EK_ERR_INVAL;
 
     ek_evoke_enter_critical();
 
@@ -353,7 +351,7 @@ defer:
 
 ek_err_t ek_evoke_event_defer_from_isr(ek_evoke_event_handle_t evt, void *payload, uint32_t delay, bool broadcast)
 {
-    ek_assert_param(evt != NULL);
+    if (evt == NULL) return EK_ERR_INVAL;
 
     ek_evoke_enter_critical();
 
