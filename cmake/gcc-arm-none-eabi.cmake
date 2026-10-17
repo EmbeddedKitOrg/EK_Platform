@@ -3,7 +3,6 @@ set(CMAKE_SYSTEM_PROCESSOR          arm)
 set(CMAKE_C_COMPILER_ID             GNU)
 set(CMAKE_CXX_COMPILER_ID           GNU)
 
-# 工具链前缀，确保在 PATH 中或使用绝对路径
 set(TOOLCHAIN_PREFIX                arm-none-eabi-)
 
 set(CMAKE_C_COMPILER                ${TOOLCHAIN_PREFIX}gcc)
@@ -24,7 +23,6 @@ if(NOT CMAKE_SOURCE_DIR MATCHES "CMakeScratch")
     endif()
 endif()
 
-# try_compile 期间 PLATFORM 不可用，跳过平台检查
 if(NOT CMAKE_SOURCE_DIR MATCHES "CMakeScratch")
     # 平台必填，不设默认值
     if(NOT PLATFORM)
