@@ -158,7 +158,7 @@ uint32_t ek_pt_schedule(uint32_t now)
     ek_list_node_t *pos, *n;
     ek_list_foreach_safe(pos, n, &s_block_list)
     {
-        ek_pt_t *pt = ek_list_container(pos, ek_pt_t, state_node);
+        ek_pt_t *pt = EK_CONTAINER_OF(pos, ek_pt_t, state_node);
         if (pt->tick > now)
         {
             break;
@@ -220,7 +220,7 @@ uint32_t ek_pt_schedule(uint32_t now)
     // 空则 0 表示可无限休眠
     if (ek_list_is_empty(&s_block_list)) return 0;
     ek_list_node_t *head = ek_list_get_first(&s_block_list);
-    ek_pt_t *first_blocked = ek_list_container(head, ek_pt_t, state_node);
+    ek_pt_t *first_blocked = EK_CONTAINER_OF(head, ek_pt_t, state_node);
     return first_blocked->tick;
 }
 
@@ -292,7 +292,7 @@ void ek_pt_sem_deinit_static(ek_pt_sem_t *sem)
     ek_list_node_t *pos, *n;
     ek_list_foreach_safe(pos, n, &sem->wait_list)
     {
-        ek_pt_t *pt = ek_list_container(pos, ek_pt_t, event_node);
+        ek_pt_t *pt = EK_CONTAINER_OF(pos, ek_pt_t, event_node);
         ek_list_remove(pos);
         ek_list_remove(&pt->state_node);
         pt->wait_sem = NULL;
@@ -320,7 +320,7 @@ void ek_pt_sem_destroy(ek_pt_sem_t *sem)
     ek_list_node_t *pos, *n;
     ek_list_foreach_safe(pos, n, &sem->wait_list)
     {
-        ek_pt_t *pt = ek_list_container(pos, ek_pt_t, event_node);
+        ek_pt_t *pt = EK_CONTAINER_OF(pos, ek_pt_t, event_node);
         ek_list_remove(pos);
         ek_list_remove(&pt->state_node);
         pt->wait_sem = NULL;
@@ -358,7 +358,7 @@ void ek_pt_sem_give(ek_pt_sem_t *sem)
     if (!ek_list_is_empty(&sem->wait_list))
     {
         ek_list_node_t *node = ek_list_get_first(&sem->wait_list);
-        ek_pt_t *pt = ek_list_container(node, ek_pt_t, event_node);
+        ek_pt_t *pt = EK_CONTAINER_OF(node, ek_pt_t, event_node);
         ek_list_remove(node);
         ek_list_remove(&pt->state_node);
         pt->wait_sem = NULL;
@@ -394,7 +394,7 @@ void ek_pt_msg_deinit_static(ek_pt_msg_t *msg)
     ek_list_node_t *pos, *n;
     ek_list_foreach_safe(pos, n, &msg->recv_wait)
     {
-        ek_pt_t *pt = ek_list_container(pos, ek_pt_t, event_node);
+        ek_pt_t *pt = EK_CONTAINER_OF(pos, ek_pt_t, event_node);
         ek_list_remove(pos);
         ek_list_remove(&pt->state_node);
         pt->wait_msg = NULL;
@@ -405,7 +405,7 @@ void ek_pt_msg_deinit_static(ek_pt_msg_t *msg)
 
     ek_list_foreach_safe(pos, n, &msg->send_wait)
     {
-        ek_pt_t *pt = ek_list_container(pos, ek_pt_t, event_node);
+        ek_pt_t *pt = EK_CONTAINER_OF(pos, ek_pt_t, event_node);
         ek_list_remove(pos);
         ek_list_remove(&pt->state_node);
         pt->wait_msg = NULL;
@@ -446,7 +446,7 @@ void ek_pt_msg_destroy(ek_pt_msg_t *msg)
     ek_list_node_t *pos, *n;
     ek_list_foreach_safe(pos, n, &msg->recv_wait)
     {
-        ek_pt_t *pt = ek_list_container(pos, ek_pt_t, event_node);
+        ek_pt_t *pt = EK_CONTAINER_OF(pos, ek_pt_t, event_node);
         ek_list_remove(pos);
         ek_list_remove(&pt->state_node);
         pt->wait_msg = NULL;
@@ -457,7 +457,7 @@ void ek_pt_msg_destroy(ek_pt_msg_t *msg)
 
     ek_list_foreach_safe(pos, n, &msg->send_wait)
     {
-        ek_pt_t *pt = ek_list_container(pos, ek_pt_t, event_node);
+        ek_pt_t *pt = EK_CONTAINER_OF(pos, ek_pt_t, event_node);
         ek_list_remove(pos);
         ek_list_remove(&pt->state_node);
         pt->wait_msg = NULL;
@@ -481,7 +481,7 @@ bool ek_pt_msg_send(ek_pt_msg_t *msg, const void *data)
         if (!ek_list_is_empty(&msg->recv_wait))
         {
             ek_list_node_t *node = ek_list_get_first(&msg->recv_wait);
-            ek_pt_t *pt = ek_list_container(node, ek_pt_t, event_node);
+            ek_pt_t *pt = EK_CONTAINER_OF(node, ek_pt_t, event_node);
             ek_list_remove(node);
             ek_list_remove(&pt->state_node);
             pt->wait_msg = NULL;
@@ -510,7 +510,7 @@ bool ek_pt_msg_recv(ek_pt_msg_t *msg, void *data)
         if (!ek_list_is_empty(&msg->send_wait))
         {
             ek_list_node_t *node = ek_list_get_first(&msg->send_wait);
-            ek_pt_t *pt = ek_list_container(node, ek_pt_t, event_node);
+            ek_pt_t *pt = EK_CONTAINER_OF(node, ek_pt_t, event_node);
             ek_list_remove(node);
             ek_list_remove(&pt->state_node);
             pt->wait_msg = NULL;
@@ -553,7 +553,7 @@ __EK_STATIC_INLINE void _insert_event_by_prio(ek_list_node_t *list, ek_pt_t *pt)
     ek_list_node_t *i;
     ek_list_foreach(i, list)
     {
-        ek_pt_t *cur_pt = ek_list_container(i, ek_pt_t, event_node);
+        ek_pt_t *cur_pt = EK_CONTAINER_OF(i, ek_pt_t, event_node);
         if (cur_pt->prio > pt->prio)
         {
             ek_list_insert_before(i, &pt->event_node);
@@ -573,7 +573,7 @@ __EK_STATIC_INLINE void _insert_state_by_time(ek_list_node_t *list, ek_pt_t *pt)
     ek_list_node_t *i;
     ek_list_foreach(i, list)
     {
-        ek_pt_t *cur_pt = ek_list_container(i, ek_pt_t, state_node);
+        ek_pt_t *cur_pt = EK_CONTAINER_OF(i, ek_pt_t, state_node);
         if (cur_pt->tick > pt->tick || (cur_pt->tick == pt->tick && cur_pt->prio > pt->prio))
         {
             ek_list_insert_before(i, &pt->state_node);
@@ -588,7 +588,7 @@ static ek_pt_t *_pt_next_ready(void)
     if (s_ready_mask == 0U) return NULL;
     const uint8_t prio = (uint8_t)__builtin_ctz(s_ready_mask);
     ek_list_node_t *head = ek_list_get_first(&s_ready_list[prio]);
-    return ek_list_container(head, ek_pt_t, state_node);
+    return EK_CONTAINER_OF(head, ek_pt_t, state_node);
 }
 
 #endif // EKCFG_PICOTHREAD

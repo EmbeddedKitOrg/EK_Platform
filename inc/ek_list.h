@@ -29,24 +29,6 @@ struct ek_list_node
 /* clang-format off */
 
 /**
- * @brief 根据链表节点指针获取包含它的结构体指针
- * @param ptr 链表节点指针
- * @param type 包含该节点的结构体类型
- * @param member 链表节点在结构体中的成员名
- * @return 包含该节点的结构体指针
- *
- * @example
- * struct user_t {
- *     char name[32];
- *     ek_list_node_t list;  // 链表节点成员
- * };
- * ek_list_node_t *node = ...;
- * struct user_t *user = ek_list_container(node, struct user_t, list);
- */
-#define ek_list_container(ptr, type, member) \
-    ((type *)((char *)(ptr) - offsetof(type, member)))
-
-/**
  * @brief 正向遍历链表
  * @param pos 当前节点指针（迭代变量）
  * @param head 链表头节点

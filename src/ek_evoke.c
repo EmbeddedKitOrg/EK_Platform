@@ -148,7 +148,7 @@ void ek_evoke_event_deinit_static(ek_evoke_event_t *evt)
     while (!ek_list_is_empty(&evt->wait_list))
     {
         ek_list_node_t *node = ek_list_get_first(&evt->wait_list);
-        ek_evoke_task_t *tsk = ek_list_container(node, ek_evoke_task_t, node);
+        ek_evoke_task_t *tsk = EK_CONTAINER_OF(node, ek_evoke_task_t, node);
         ek_list_remove(&tsk->node);
         tsk->wait_event = NULL;
         tsk->state = EK_EVOKE_STATE_IDLE;
@@ -202,7 +202,7 @@ void ek_evoke_event_destroy(ek_evoke_event_t *evt)
     while (!ek_list_is_empty(&evt->wait_list))
     {
         ek_list_node_t *node = ek_list_get_first(&evt->wait_list);
-        ek_evoke_task_t *tsk = ek_list_container(node, ek_evoke_task_t, node);
+        ek_evoke_task_t *tsk = EK_CONTAINER_OF(node, ek_evoke_task_t, node);
         ek_list_remove(&tsk->node);
         tsk->wait_event = NULL;
         tsk->state = EK_EVOKE_STATE_IDLE;
@@ -251,7 +251,7 @@ void ek_evoke_event_broadcast(ek_evoke_event_t *evt, void *payload)
     while (!ek_list_is_empty(&evt->wait_list))
     {
         ek_list_node_t *node = ek_list_get_first(&evt->wait_list);
-        ek_evoke_task_t *tsk = ek_list_container(node, ek_evoke_task_t, node);
+        ek_evoke_task_t *tsk = EK_CONTAINER_OF(node, ek_evoke_task_t, node);
         ek_list_remove(node);
         ek_list_insert_tail(&s_ready_task_list, node);
         tsk->state = EK_EVOKE_STATE_READY;
@@ -267,7 +267,7 @@ void ek_evoke_event_publish(ek_evoke_event_t *evt, void *payload)
     if (!ek_list_is_empty(&evt->wait_list))
     {
         ek_list_node_t *node = ek_list_get_first(&evt->wait_list);
-        ek_evoke_task_t *tsk = ek_list_container(node, ek_evoke_task_t, node);
+        ek_evoke_task_t *tsk = EK_CONTAINER_OF(node, ek_evoke_task_t, node);
         ek_list_remove(node);
         ek_list_insert_tail(&s_ready_task_list, node);
         tsk->state = EK_EVOKE_STATE_READY;
@@ -305,7 +305,7 @@ void ek_evoke_event_defer(ek_evoke_event_t *evt, void *payload, uint32_t delay, 
     ek_list_node_t *pos;
     ek_list_foreach(pos, &s_defer_evt_list)
     {
-        _defer_req_t *pos_req = ek_list_container(pos, _defer_req_t, node);
+        _defer_req_t *pos_req = EK_CONTAINER_OF(pos, _defer_req_t, node);
         if (pos_req->wakeup_tick >= wakeup_tick) break;
     }
     ek_list_insert_before(pos, &req->node);
@@ -400,7 +400,7 @@ void ek_evoke_event_loop(void)
         while (!ek_list_is_empty(&s_ready_task_list))
         {
             ek_list_node_t *node = ek_list_get_first(&s_ready_task_list);
-            ek_evoke_task_t *tsk = ek_list_container(node, ek_evoke_task_t, node);
+            ek_evoke_task_t *tsk = EK_CONTAINER_OF(node, ek_evoke_task_t, node);
             ek_list_remove(&tsk->node);
             tsk->state = EK_EVOKE_STATE_RUNNING;
             tsk->cb(tsk->wait_event, tsk->arg);
@@ -413,7 +413,7 @@ void ek_evoke_event_loop(void)
         if (!ek_list_is_empty(&s_defer_evt_list))
         {
             ek_list_node_t *node = ek_list_get_first(&s_defer_evt_list);
-            _defer_req_t *req = ek_list_container(node, _defer_req_t, node);
+            _defer_req_t *req = EK_CONTAINER_OF(node, _defer_req_t, node);
             if (req->wakeup_tick != s_defer_earliest_tick)
             {
                 s_defer_earliest_tick = req->wakeup_tick;
@@ -436,7 +436,7 @@ void ek_evoke_event_loop(void)
             while (!ek_list_is_empty(&s_defer_evt_list))
             {
                 ek_list_node_t *node = ek_list_get_first(&s_defer_evt_list);
-                _defer_req_t *req = ek_list_container(node, _defer_req_t, node);
+                _defer_req_t *req = EK_CONTAINER_OF(node, _defer_req_t, node);
 
                 if (req->wakeup_tick > s_defer_earliest_tick) break;
 
@@ -464,7 +464,7 @@ static _defer_req_t *_defer_req_malloc(void)
     {
         ek_list_node_t *node = ek_list_get_first(&s_defer_pool_free_list);
         ek_list_remove(node);
-        _defer_req_t *req = ek_list_container(node, _defer_req_t, node);
+        _defer_req_t *req = EK_CONTAINER_OF(node, _defer_req_t, node);
         return req;
     }
     return NULL;

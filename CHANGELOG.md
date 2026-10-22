@@ -11,6 +11,7 @@
 - 错误返回体系改为 POSIX errno：所有原返回 `ek_err_t` 的接口改为返回 `int`，成功返回 0（有数量语义时直接返回数量），失败返回负 errno（如 `-EINVAL`、`-ENOSPC`、`-ETIMEDOUT`）。
 - 错误传播宏 `EK_ERR_RETURN` / `EK_ERR_GOTO` 移入 `ek_def.h`，改为按返回值 `< 0` 判断。
 - 版本宏更新：`EK_VERSION_MAJOR` 4 → 5。
+- 容器反查宏从 `ek_list.h` 移至 `ek_def.h`，由 `ek_list_container` 更名为 `EK_CONTAINER_OF`，不再依赖 `EKCFG_LIST`。
 
 ### 移除
 
@@ -22,6 +23,7 @@
 - `ek_static_alloc_get_init_error()` 返回 `int`，成功为 0。
 - `ek_pt_t::wait_result` 改为 `int`，取值为 0 或负 errno。
 - 移除 `ek_strerror()`，可改用标准 `strerror(-err)`。
+- `ek_list_container(ptr, type, member)` 更名为 `EK_CONTAINER_OF(ptr, type, member)`，宏已移至 `ek_def.h`，调用点需改名。
 
 ## [4.0.0] - 2026-10-17
 

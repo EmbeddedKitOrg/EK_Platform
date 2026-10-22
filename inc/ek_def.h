@@ -109,10 +109,11 @@
 #endif
 
 /* ========== 功能宏 ========== */
-#define EK_STATIC_ASSERT(expr, msg) static_assert(expr, msg)
-#define EK_FREQ_K(x)                ((x) * 1000UL)
-#define EK_FREQ_M(x)                ((x) * 1000UL * 1000UL)
-#define EK_ARRAY_LEN(x)             (sizeof(x) / (sizeof((x)[0])))
+#define EK_STATIC_ASSERT(expr, msg)        static_assert(expr, msg)
+#define EK_FREQ_K(x)                       ((x) * 1000UL)
+#define EK_FREQ_M(x)                       ((x) * 1000UL * 1000UL)
+#define EK_ARRAY_LEN(x)                    (sizeof(x) / (sizeof((x)[0])))
+#define EK_CONTAINER_OF(ptr, type, member) ((type *)((char *)(ptr) - offsetof(type, member)))
 
 #define EK_DIV_CEIL(x, div)             \
     ({                                  \
@@ -157,10 +158,10 @@
     } while (0)
 
 /** 表达式返回负错误码时跳转到指定标签 */
-#define EK_ERR_GOTO(expr, label)  \
-    do                            \
-    {                             \
-        int _err_ = (expr);       \
+#define EK_ERR_GOTO(expr, label)   \
+    do                             \
+    {                              \
+        int _err_ = (expr);        \
         if (_err_ < 0) goto label; \
     } while (0)
 

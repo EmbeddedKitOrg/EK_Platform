@@ -695,12 +695,12 @@ ek_list_insert_tail(&head, &a.node);
 // 遍历
 ek_list_node_t *pos;
 ek_list_foreach(pos, &head) {
-    my_item_t *item = ek_list_container(pos, my_item_t, node);
+    my_item_t *item = EK_CONTAINER_OF(pos, my_item_t, node);
 }
 ```
 
 **注意事项**：
-- 节点必须嵌入用户结构体，通过 `ek_list_container` 反查父结构体地址
+- 节点必须嵌入用户结构体，通过 `EK_CONTAINER_OF` 反查父结构体地址
 - `ek_list_remove` 后将节点 prev/next 置 NULL，可用于检测节点是否在链表中
 - 删除遍历时使用 `ek_list_foreach_safe`
 
