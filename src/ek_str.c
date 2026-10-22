@@ -19,7 +19,7 @@
             if ((idx) > (len)) (idx) = (len); \
         } while (0)
 
-static ek_err_t _str_ensure_cap(ek_str_t *s, uint32_t len);
+static int _str_ensure_cap(ek_str_t *s, uint32_t len);
 
 ek_str_t *ek_str_create(const char *str)
 {
@@ -33,7 +33,7 @@ ek_str_t *ek_str_create(const char *str)
     // 传入 NULL 则创建一个空的字符串
     if (str == NULL) return s;
 
-    if (ek_str_append(s, str) != EK_OK)
+    if (ek_str_append(s, str) != 0)
     {
         ek_free(s);
         return NULL;
@@ -59,14 +59,14 @@ void ek_str_clear(ek_str_t *s)
     s->len = 0;
 }
 
-ek_err_t ek_str_append_len(ek_str_t *s, const char *str, uint32_t len)
+int ek_str_append_len(ek_str_t *s, const char *str, uint32_t len)
 {
-    if (s == NULL) return EK_ERR_INVAL;
+    if (s == NULL) return -EINVAL;
 
     // 如果传入追加内容为空，并且字符长度也为空
     // 什么也不做
-    if (str == NULL && len == 0) return EK_OK;
-    if (str == NULL || len == 0) return EK_ERR_INVAL;
+    if (str == NULL && len == 0) return 0;
+    if (str == NULL || len == 0) return -EINVAL;
 
     EK_ERR_RETURN(_str_ensure_cap(s, s->len + len + 1));
     memcpy(s->buf + s->len, str, len);
@@ -74,12 +74,12 @@ ek_err_t ek_str_append_len(ek_str_t *s, const char *str, uint32_t len)
     s->len += len;
     s->buf[s->len] = '\0';
 
-    return EK_OK;
+    return 0;
 }
 
-ek_err_t ek_str_append_fmt(ek_str_t *s, const char *fmt, ...)
+int ek_str_append_fmt(ek_str_t *s, const char *fmt, ...)
 {
-    if (s == NULL || fmt == NULL) return EK_ERR_INVAL;
+    if (s == NULL || fmt == NULL) return -EINVAL;
 
     // 获取格式化字符串的长度
     va_list args;
@@ -87,7 +87,7 @@ ek_err_t ek_str_append_fmt(ek_str_t *s, const char *fmt, ...)
     int len = ek_vsnprintf(NULL, 0, fmt, args);
     va_end(args);
 
-    if (len < 0) return EK_ERR_PARSE;
+    if (len < 0) return -EBADMSG;
 
     EK_ERR_RETURN(_str_ensure_cap(s, s->len + len));
 
@@ -99,17 +99,17 @@ ek_err_t ek_str_append_fmt(ek_str_t *s, const char *fmt, ...)
     s->len += len;
     s->buf[s->len] = '\0';
 
-    return EK_OK;
+    return 0;
 }
 
-ek_err_t ek_str_append(ek_str_t *s, const char *str)
+int ek_str_append(ek_str_t *s, const char *str)
 {
     return ek_str_append_len(s, str, strlen(str));
 }
 
-ek_err_t ek_str_cat(ek_str_t *dst, ek_str_t *src)
+int ek_str_cat(ek_str_t *dst, ek_str_t *src)
 {
-    if (dst == NULL || src == NULL) return EK_ERR_INVAL;
+    if (dst == NULL || src == NULL) return -EINVAL;
     return ek_str_append_len(dst, src->buf, src->len);
 }
 
@@ -144,9 +144,9 @@ ek_str_t *ek_str_slice(const ek_str_t *s, int32_t start, int32_t end)
     return new_s;
 }
 
-ek_err_t ek_str_reverse(ek_str_t *s)
+int ek_str_reverse(ek_str_t *s)
 {
-    if (s == NULL || s->buf == NULL) return EK_ERR_INVAL;
+    if (s == NULL || s->buf == NULL) return -EINVAL;
 
     char *left = s->buf;
     char *right = s->buf + s->len - 1;
@@ -160,7 +160,7 @@ ek_err_t ek_str_reverse(ek_str_t *s)
         right--;
     }
 
-    return EK_OK;
+    return 0;
 }
 
 const char *ek_str_get_cstring(ek_str_t *s)
@@ -200,11 +200,11 @@ int ek_str_ncmp(ek_str_t *s1, ek_str_t *s2, size_t n)
     return strncmp(ek_str_get_cstring(s1), ek_str_get_cstring(s2), n);
 }
 
-static ek_err_t _str_ensure_cap(ek_str_t *s, uint32_t len)
+static int _str_ensure_cap(ek_str_t *s, uint32_t len)
 {
-    if (s == NULL) return EK_ERR_INVAL;
+    if (s == NULL) return -EINVAL;
 
-    if (s->cap >= len) return EK_OK;
+    if (s->cap >= len) return 0;
 
     uint32_t new_cap = s->cap;
     do
@@ -218,12 +218,12 @@ static ek_err_t _str_ensure_cap(ek_str_t *s, uint32_t len)
     if (s->buf == NULL) buf = ek_malloc(len);
     else buf = ek_realloc(s->buf, new_cap);
 
-    if (buf == NULL) return EK_ERR_NOMEM;
+    if (buf == NULL) return -ENOMEM;
 
     s->buf = buf;
     s->cap = new_cap;
 
-    return EK_OK;
+    return 0;
 }
 
 #endif // EKCFG_STR

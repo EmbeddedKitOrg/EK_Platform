@@ -16,7 +16,7 @@
 #define EK_DEF_H
 
 /* ========== 软件版本号 ========== */
-#define EK_VERSION_MAJOR 4
+#define EK_VERSION_MAJOR 5
 #define EK_VERSION_MINOR 0
 #define EK_VERSION_PATCH 0
 
@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <inttypes.h>
+#include <errno.h>
 
 /* lwprintf 自带 va_list 支持，使用 lwprintf 时不需要 stdarg */
 #include "ek_conf_internal.h"
@@ -145,5 +146,22 @@
 #define EK_GET_FILE_NAME(file_path)                            \
     (strrchr((file_path), '/') ? strrchr((file_path), '/') + 1 \
                                : (strrchr((file_path), '\\') ? strrchr((file_path), '\\') + 1 : (file_path)))
+
+/* ========== 错误传播宏 ========== */
+/** 表达式返回负错误码时直接返回该错误码 */
+#define EK_ERR_RETURN(expr)          \
+    do                               \
+    {                                \
+        int _err_ = (expr);          \
+        if (_err_ < 0) return _err_; \
+    } while (0)
+
+/** 表达式返回负错误码时跳转到指定标签 */
+#define EK_ERR_GOTO(expr, label)  \
+    do                            \
+    {                             \
+        int _err_ = (expr);       \
+        if (_err_ < 0) goto label; \
+    } while (0)
 
 #endif /* EK_DEF_H */

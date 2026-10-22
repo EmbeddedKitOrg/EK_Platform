@@ -17,7 +17,6 @@
 
 #if EKCFG_STR_VIEW == 1
 
-#    include "ek_err.h"
 #    include "ek_def.h"
 
 /**
@@ -48,28 +47,28 @@ ek_str_view_t ek_str_view_create(const char *cstr);
  * @brief 从左侧切掉 n 个字符
  * @param sv 字符串视图指针
  * @param n 切掉的字符数，超过视图长度时全部切掉
- * @return EK_OK 成功
- * @return EK_ERR_INVAL sv 为 NULL
+ * @return 0 成功
+ * @return -EINVAL sv 为 NULL
  */
-ek_err_t ek_str_view_chop_left(ek_str_view_t *sv, size_t n);
+int ek_str_view_chop_left(ek_str_view_t *sv, size_t n);
 
 /**
  * @brief 从右侧切掉 n 个字符
  * @param sv 字符串视图指针
  * @param n 切掉的字符数，超过视图长度时全部切掉
- * @return EK_OK 成功
- * @return EK_ERR_INVAL sv 为 NULL
+ * @return 0 成功
+ * @return -EINVAL sv 为 NULL
  */
-ek_err_t ek_str_view_chop_right(ek_str_view_t *sv, size_t n);
+int ek_str_view_chop_right(ek_str_view_t *sv, size_t n);
 
 /**
  * @brief 去掉视图两端的空白字符
  * @param sv 字符串视图指针
- * @return EK_OK 成功
- * @return EK_ERR_INVAL sv 为 NULL
+ * @return 0 成功
+ * @return -EINVAL sv 为 NULL
  * @note 使用 isspace() 判断空白字符
  */
-ek_err_t ek_str_view_trim(ek_str_view_t *sv);
+int ek_str_view_trim(ek_str_view_t *sv);
 
 /**
  * @brief 按分隔符切出一段

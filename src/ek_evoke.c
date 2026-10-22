@@ -107,16 +107,16 @@ void ek_evoke_init(void)
 EK_EXPORT_COMPONENTS(ek_evoke_init, 0);
 
 #    if EKCFG_STATIC_ALLOC == 1
-ek_err_t ek_evoke_task_init_static(ek_evoke_task_t *tsk, ek_evoke_cb_t cb, void *arg)
+int ek_evoke_task_init_static(ek_evoke_task_t *tsk, ek_evoke_cb_t cb, void *arg)
 {
-    if (tsk == NULL || cb == NULL) return EK_ERR_INVAL;
+    if (tsk == NULL || cb == NULL) return -EINVAL;
 
     ek_list_init(&tsk->node);
     tsk->cb = cb;
     tsk->arg = arg;
     tsk->state = EK_EVOKE_STATE_IDLE;
     tsk->wait_event = NULL;
-    return EK_OK;
+    return 0;
 }
 
 void ek_evoke_task_deinit_static(ek_evoke_task_t *tsk)
@@ -132,14 +132,14 @@ void ek_evoke_task_deinit_static(ek_evoke_task_t *tsk)
     tsk->arg = NULL;
 }
 
-ek_err_t ek_evoke_event_init_static(ek_evoke_event_t *evt, uint32_t init)
+int ek_evoke_event_init_static(ek_evoke_event_t *evt, uint32_t init)
 {
-    if (evt == NULL) return EK_ERR_INVAL;
+    if (evt == NULL) return -EINVAL;
 
     ek_list_init(&evt->wait_list);
     evt->count = init;
     evt->data = NULL;
-    return EK_OK;
+    return 0;
 }
 
 void ek_evoke_event_deinit_static(ek_evoke_event_t *evt)
@@ -311,9 +311,9 @@ void ek_evoke_event_defer(ek_evoke_event_t *evt, void *payload, uint32_t delay, 
     ek_list_insert_before(pos, &req->node);
 }
 
-ek_err_t ek_evoke_event_broadcast_from_isr(ek_evoke_event_t *evt, void *payload)
+int ek_evoke_event_broadcast_from_isr(ek_evoke_event_t *evt, void *payload)
 {
-    if (evt == NULL) return EK_ERR_INVAL;
+    if (evt == NULL) return -EINVAL;
 
     ek_evoke_enter_critical();
 
@@ -322,7 +322,7 @@ ek_err_t ek_evoke_event_broadcast_from_isr(ek_evoke_event_t *evt, void *payload)
         .evt = evt,
         .payload = payload,
     };
-    ek_err_t err = ek_ringbuf_write_spsc(s_isr_fifo, &req);
+    int err = ek_ringbuf_write_spsc(s_isr_fifo, &req);
     EK_ERR_GOTO(err, defer);
 
 defer:
@@ -330,9 +330,9 @@ defer:
     return err;
 }
 
-ek_err_t ek_evoke_event_publish_from_isr(ek_evoke_event_t *evt, void *payload)
+int ek_evoke_event_publish_from_isr(ek_evoke_event_t *evt, void *payload)
 {
-    if (evt == NULL) return EK_ERR_INVAL;
+    if (evt == NULL) return -EINVAL;
 
     ek_evoke_enter_critical();
 
@@ -341,7 +341,7 @@ ek_err_t ek_evoke_event_publish_from_isr(ek_evoke_event_t *evt, void *payload)
         .evt = evt,
         .payload = payload,
     };
-    ek_err_t err = ek_ringbuf_write_spsc(s_isr_fifo, &req);
+    int err = ek_ringbuf_write_spsc(s_isr_fifo, &req);
     EK_ERR_GOTO(err, defer);
 
 defer:
@@ -349,9 +349,9 @@ defer:
     return err;
 }
 
-ek_err_t ek_evoke_event_defer_from_isr(ek_evoke_event_t *evt, void *payload, uint32_t delay, bool broadcast)
+int ek_evoke_event_defer_from_isr(ek_evoke_event_t *evt, void *payload, uint32_t delay, bool broadcast)
 {
-    if (evt == NULL) return EK_ERR_INVAL;
+    if (evt == NULL) return -EINVAL;
 
     ek_evoke_enter_critical();
 
@@ -362,7 +362,7 @@ ek_err_t ek_evoke_event_defer_from_isr(ek_evoke_event_t *evt, void *payload, uin
         .payload = payload,
         .delay = delay,
     };
-    ek_err_t err = ek_ringbuf_write_spsc(s_isr_fifo, &req);
+    int err = ek_ringbuf_write_spsc(s_isr_fifo, &req);
     EK_ERR_GOTO(err, defer);
 
 defer:
@@ -379,7 +379,7 @@ void ek_evoke_event_loop(void)
         while (!ek_ringbuf_empty_spsc(s_isr_fifo))
         {
             _isr_req_t req = { 0 };
-            if (ek_ringbuf_read_spsc(s_isr_fifo, &req) == EK_OK)
+            if (ek_ringbuf_read_spsc(s_isr_fifo, &req) == 0)
             {
                 if (req.type & ISR_REQ_PUBLISH)
                 {

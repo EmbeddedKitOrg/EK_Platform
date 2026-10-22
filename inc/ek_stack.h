@@ -20,7 +20,6 @@
 
 #if EKCFG_STACK == 1
 
-#    include "ek_err.h"
 #    include "ek_def.h"
 
 /**
@@ -99,7 +98,7 @@ void ek_stack_destroy(ek_stack_t *sk);
 #    if EKCFG_STATIC_ALLOC == 1
 #        include "ek_static_alloc.h"
 
-ek_err_t ek_stack_init_static(ek_stack_t *sk, size_t item_size, uint32_t item_amount);
+int ek_stack_init_static(ek_stack_t *sk, size_t item_size, uint32_t item_amount);
 void ek_stack_deinit_static(ek_stack_t *sk);
 
 #        define EK_DEFINE_STACK(handle, type, amount)                          \
@@ -110,7 +109,7 @@ void ek_stack_deinit_static(ek_stack_t *sk);
                 uint8_t storage[sizeof(ek_stack_t) + sizeof(type) * (amount)]; \
             } handle##_mem;                                                    \
             static ek_stack_t *const handle = &handle##_mem.sk;                \
-            static ek_err_t _static_alloc_init_##handle(void)                  \
+            static int _static_alloc_init_##handle(void)                       \
             {                                                                  \
                 return ek_stack_init_static(handle, sizeof(type), (amount));   \
             }                                                                  \
@@ -135,15 +134,15 @@ void ek_stack_deinit_static(ek_stack_t *sk);
  *
  * @param sk 栈指针
  * @param item 指向要压入的元素的指针
- * @return EK_OK 成功压入
- * @return EK_ERR_FULL 栈已满
- * @return EK_ERR_BUSY 资源忙（RTOS 模式）
+ * @return 0 成功压入
+ * @return -ENOSPC 栈已满
+ * @return -EBUSY 资源忙（RTOS 模式）
  *
- * @warning sk 和 item 为 NULL 时返回 EK_ERR_INVAL
+ * @warning sk 和 item 为 NULL 时返回 -EINVAL
  * @note 复杂度：O(1)
  * @note 会按 item_size 字节数复制数据
  */
-ek_err_t ek_stack_push(ek_stack_t *sk, const void *item);
+int ek_stack_push(ek_stack_t *sk, const void *item);
 
 /**
  * @brief 从栈顶弹出一个元素
@@ -152,15 +151,15 @@ ek_err_t ek_stack_push(ek_stack_t *sk, const void *item);
  *
  * @param sk 栈指针
  * @param item 指向接收弹出元素的缓冲区的指针
- * @return EK_OK 成功弹出
- * @return EK_ERR_EMPTY 栈为空
- * @return EK_ERR_BUSY 资源忙（RTOS 模式）
+ * @return 0 成功弹出
+ * @return -ENODATA 栈为空
+ * @return -EBUSY 资源忙（RTOS 模式）
  *
- * @warning sk 和 item 为 NULL 时返回 EK_ERR_INVAL
+ * @warning sk 和 item 为 NULL 时返回 -EINVAL
  * @note 复杂度：O(1)
  * @note 会按 item_size 字节数复制数据
  */
-ek_err_t ek_stack_pop(ek_stack_t *sk, void *item);
+int ek_stack_pop(ek_stack_t *sk, void *item);
 
 #    ifdef __cplusplus
 }

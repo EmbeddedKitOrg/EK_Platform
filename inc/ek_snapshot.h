@@ -18,7 +18,6 @@
 
 #if EKCFG_SNAPSHOT == 1
 
-#    include "ek_err.h"
 #    include "ek_def.h"
 
 /**
@@ -55,9 +54,9 @@ extern "C"
  * @brief 静态初始化快照
  * @param snapshot 快照对象指针
  * @param data_size 快照数据大小（字节）
- * @return EK_ERR_INVAL 参数为空或 data_size 为 0
+ * @return -EINVAL 参数为空或 data_size 为 0
  */
-ek_err_t ek_snapshot_init_static(ek_snapshot_t *snapshot, size_t data_size);
+int ek_snapshot_init_static(ek_snapshot_t *snapshot, size_t data_size);
 
 /**
  * @brief 反初始化静态快照，清空数据并复位配置
@@ -79,7 +78,7 @@ void ek_snapshot_deinit_static(ek_snapshot_t *snapshot);
                 uint8_t storage[sizeof(ek_snapshot_t) + (size)];         \
             } handle##_mem;                                              \
             static ek_snapshot_t *const handle = &handle##_mem.snapshot; \
-            static ek_err_t _static_alloc_init_##handle(void)            \
+            static int _static_alloc_init_##handle(void)                 \
             {                                                            \
                 return ek_snapshot_init_static(handle, (size));          \
             }                                                            \
@@ -118,21 +117,21 @@ void ek_snapshot_destroy(ek_snapshot_t *snapshot);
  * @param snapshot 快照对象指针
  * @param data 数据源指针，按 data_size 整块拷贝
  * @param unique 本次快照的唯一 id，不得为 0 或与当前 id 相同
- * @return EK_OK 成功
- * @return EK_ERR_INVAL unique 与当前 id 相同
- * @return EK_ERR_BUSY 资源忙（RTOS 模式）
+ * @return 0 成功
+ * @return -EINVAL unique 与当前 id 相同
+ * @return -EBUSY 资源忙（RTOS 模式）
  */
-ek_err_t ek_snapshot_set(ek_snapshot_t *snapshot, void *data, uint32_t unique);
+int ek_snapshot_set(ek_snapshot_t *snapshot, void *data, uint32_t unique);
 
 /**
  * @brief 读取快照
  * @param snapshot 快照对象指针
  * @param data 接收缓冲区指针，拷出 data_size 字节
- * @return EK_OK 成功
- * @return EK_ERR_NODATA 快照为空（尚未写入或已被清空）
- * @return EK_ERR_BUSY 资源忙（RTOS 模式）
+ * @return 0 成功
+ * @return -ENODATA 快照为空（尚未写入或已被清空）
+ * @return -EBUSY 资源忙（RTOS 模式）
  */
-ek_err_t ek_snapshot_get(ek_snapshot_t *snapshot, void *data);
+int ek_snapshot_get(ek_snapshot_t *snapshot, void *data);
 
 /**
  * @brief 获取当前快照的唯一 id

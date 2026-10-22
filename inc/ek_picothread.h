@@ -5,7 +5,6 @@
 
 #if EKCFG_PICOTHREAD == 1
 
-#    include "ek_err.h"
 #    include "ek_list.h"
 
 #    if EKCFG_PICOTHREAD_SEM == 1
@@ -87,7 +86,7 @@ struct ek_pt
     void *arg; // 用户参数
     ek_pt_cb_t cb; // 回调函数
 #    if EKCFG_PICOTHREAD_SEM || EKCFG_PICOTHREAD_MSG
-    ek_err_t wait_result; // 事件等待结果：EK_OK=成功，EK_ERR_TIMEOUT=超时
+    int wait_result; // 事件等待结果：0=成功，-ETIMEDOUT=超时
 #    endif
 #    if EKCFG_PICOTHREAD_SEM
     ek_pt_sem_t *wait_sem;
@@ -181,24 +180,24 @@ void ek_pt_destroy(ek_pt_t *pt);
 #    if EKCFG_STATIC_ALLOC == 1
 #        include "ek_static_alloc.h"
 
-ek_err_t ek_pt_init_static(ek_pt_t *pt, ek_pt_cb_t cb, uint8_t prio, void *arg);
+int ek_pt_init_static(ek_pt_t *pt, ek_pt_cb_t cb, uint8_t prio, void *arg);
 void ek_pt_deinit_static(ek_pt_t *pt);
 
 #        define EK_DEFINE_PT(handle, cb, prio, arg)                       \
             static ek_pt_t handle;                                        \
-            static ek_err_t _static_alloc_init_##handle(void)             \
+            static int     _static_alloc_init_##handle(void)             \
             {                                                             \
                 return ek_pt_init_static(&(handle), (cb), (prio), (arg)); \
             }                                                             \
             EK_STATIC_ALLOC_REGISTER(handle, 20, _static_alloc_init_##handle)
 
 #        if EKCFG_PICOTHREAD_SEM == 1
-ek_err_t ek_pt_sem_init_static(ek_pt_sem_t *sem, uint8_t count);
+int ek_pt_sem_init_static(ek_pt_sem_t *sem, uint8_t count);
 void ek_pt_sem_deinit_static(ek_pt_sem_t *sem);
 
 #            define EK_DEFINE_PT_SEM(handle, count)                   \
                 static ek_pt_sem_t handle;                            \
-                static ek_err_t _static_alloc_init_##handle(void)     \
+                static int     _static_alloc_init_##handle(void)     \
                 {                                                     \
                     return ek_pt_sem_init_static(&(handle), (count)); \
                 }                                                     \
@@ -206,7 +205,7 @@ void ek_pt_sem_deinit_static(ek_pt_sem_t *sem);
 #        endif /* EKCFG_PICOTHREAD_SEM */
 
 #        if EKCFG_PICOTHREAD_MSG == 1
-ek_err_t ek_pt_msg_init_static(ek_pt_msg_t *msg, size_t item_size, uint32_t item_amount);
+int ek_pt_msg_init_static(ek_pt_msg_t *msg, size_t item_size, uint32_t item_amount);
 void ek_pt_msg_deinit_static(ek_pt_msg_t *msg);
 
 #            define EK_DEFINE_PT_MSG(handle, type, amount)                          \
@@ -217,7 +216,7 @@ void ek_pt_msg_deinit_static(ek_pt_msg_t *msg);
                     uint8_t storage[sizeof(ek_pt_msg_t) + sizeof(type) * (amount)]; \
                 } handle##_mem;                                                     \
                 static ek_pt_msg_t *const handle = &handle##_mem.msg;               \
-                static ek_err_t _static_alloc_init_##handle(void)                   \
+                static int     _static_alloc_init_##handle(void)                   \
                 {                                                                   \
                     return ek_pt_msg_init_static(handle, sizeof(type), (amount));   \
                 }                                                                   \
@@ -353,7 +352,7 @@ void ek_pt_sem_give(ek_pt_sem_t *sem);
  *
  * 若信号量可用则立即返回；否则阻塞当前任务并让出执行权，
  * 由 EK_PT_SEM_GIVE 唤醒或超时自动唤醒。
- * 恢复后通过 err 判断结果：EK_OK=成功，EK_ERR_TIMEOUT=超时。
+ * 恢复后通过 err 判断结果：0=成功，-ETIMEDOUT=超时。
  *
  * @param sem  信号量句柄
  * @param tick 超时 tick 数
@@ -366,7 +365,7 @@ void ek_pt_sem_give(ek_pt_sem_t *sem);
                 {                                                    \
                     ek_pt_block(ek_pt_active(), (tick));             \
                     EK_PT_YEILD(ek_pt_active());                     \
-                    if (ek_pt_active()->wait_result != EK_OK) break; \
+                    if (ek_pt_active()->wait_result != 0) break;     \
                 }                                                    \
                 (err) = ek_pt_active()->wait_result;                 \
             } while (0)
@@ -428,7 +427,7 @@ bool ek_pt_msg_recv(ek_pt_msg_t *msg, void *data);
  *
  * 若队列有空位则立即返回；否则阻塞当前任务并让出执行权，
  * 由 EK_PT_MSG_RECV 消费后唤醒或超时自动唤醒。
- * 恢复后通过 err 判断结果：EK_OK=成功，EK_ERR_TIMEOUT=超时。
+ * 恢复后通过 err 判断结果：0=成功，-ETIMEDOUT=超时。
  *
  * @param msg  消息队列句柄
  * @param data 指向消息数据的指针
@@ -442,7 +441,7 @@ bool ek_pt_msg_recv(ek_pt_msg_t *msg, void *data);
                 {                                                    \
                     ek_pt_block(ek_pt_active(), (tick));             \
                     EK_PT_YEILD(ek_pt_active());                     \
-                    if (ek_pt_active()->wait_result != EK_OK) break; \
+                    if (ek_pt_active()->wait_result != 0) break;     \
                 }                                                    \
                 (err) = ek_pt_active()->wait_result;                 \
             } while (0)
@@ -452,7 +451,7 @@ bool ek_pt_msg_recv(ek_pt_msg_t *msg, void *data);
  *
  * 若队列有数据则立即返回；否则阻塞当前任务并让出执行权，
  * 由 EK_PT_MSG_SEND 写入后唤醒或超时自动唤醒。
- * 恢复后通过 err 判断结果：EK_OK=成功，EK_ERR_TIMEOUT=超时。
+ * 恢复后通过 err 判断结果：0=成功，-ETIMEDOUT=超时。
  *
  * @param msg  消息队列句柄
  * @param data 接收消息数据的缓冲区指针
@@ -466,7 +465,7 @@ bool ek_pt_msg_recv(ek_pt_msg_t *msg, void *data);
                 {                                                    \
                     ek_pt_block(ek_pt_active(), (tick));             \
                     EK_PT_YEILD(ek_pt_active());                     \
-                    if (ek_pt_active()->wait_result != EK_OK) break; \
+                    if (ek_pt_active()->wait_result != 0) break;     \
                 }                                                    \
                 (err) = ek_pt_active()->wait_result;                 \
             } while (0)

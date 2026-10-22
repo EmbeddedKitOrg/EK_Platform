@@ -23,9 +23,9 @@ bool ek_stack_empty(ek_stack_t *sk)
 }
 
 #    if EKCFG_STATIC_ALLOC == 1
-ek_err_t ek_stack_init_static(ek_stack_t *sk, size_t item_size, uint32_t item_amount)
+int ek_stack_init_static(ek_stack_t *sk, size_t item_size, uint32_t item_amount)
 {
-    if (sk == NULL || item_size == 0U || item_amount == 0U) return EK_ERR_INVAL;
+    if (sk == NULL || item_size == 0U || item_amount == 0U) return -EINVAL;
 
     sk->sp = 0U;
     sk->cap = item_amount;
@@ -33,7 +33,7 @@ ek_err_t ek_stack_init_static(ek_stack_t *sk, size_t item_size, uint32_t item_am
 #        if EKCFG_RTOS == 1
     EK_LOCK_INIT(sk->lock);
 #        endif /* EKCFG_RTOS */
-    return EK_OK;
+    return 0;
 }
 
 void ek_stack_deinit_static(ek_stack_t *sk)
@@ -82,16 +82,16 @@ void ek_stack_destroy(ek_stack_t *sk)
     ek_free(sk);
 }
 
-ek_err_t ek_stack_push(ek_stack_t *sk, const void *item)
+int ek_stack_push(ek_stack_t *sk, const void *item)
 {
-    if (sk == NULL || item == NULL) return EK_ERR_INVAL;
+    if (sk == NULL || item == NULL) return -EINVAL;
 
-    if (!EK_LOCK_TRY(sk)) return EK_ERR_BUSY;
+    if (!EK_LOCK_TRY(sk)) return -EBUSY;
 
     if (ek_stack_full(sk) == true)
     {
         EK_LOCK_RELEASE(sk);
-        return EK_ERR_FULL;
+        return -ENOSPC;
     }
 
     uint8_t *target = sk->data + sk->sp * sk->item_size;
@@ -100,19 +100,19 @@ ek_err_t ek_stack_push(ek_stack_t *sk, const void *item)
 
     EK_LOCK_RELEASE(sk);
 
-    return EK_OK;
+    return 0;
 }
 
-ek_err_t ek_stack_pop(ek_stack_t *sk, void *item)
+int ek_stack_pop(ek_stack_t *sk, void *item)
 {
-    if (sk == NULL || item == NULL) return EK_ERR_INVAL;
+    if (sk == NULL || item == NULL) return -EINVAL;
 
-    if (!EK_LOCK_TRY(sk)) return EK_ERR_BUSY;
+    if (!EK_LOCK_TRY(sk)) return -EBUSY;
 
     if (ek_stack_empty(sk) == true)
     {
         EK_LOCK_RELEASE(sk);
-        return EK_ERR_EMPTY;
+        return -ENODATA;
     }
 
     sk->sp--;
@@ -121,7 +121,7 @@ ek_err_t ek_stack_pop(ek_stack_t *sk, void *item)
 
     EK_LOCK_RELEASE(sk);
 
-    return EK_OK;
+    return 0;
 }
 
 #endif /* EKCFG_STACK */

@@ -32,7 +32,6 @@
 #if EKCFG_STATIC_ALLOC == 1
 
 #    include "ek_def.h"
-#    include "ek_err.h"
 
 #    ifdef __cplusplus
 extern "C"
@@ -41,9 +40,9 @@ extern "C"
 
 /**
  * @brief 静态对象初始化回调
- * @return EK_OK 成功，非零表示该对象初始化失败
+ * @return 0 成功，负值表示该对象初始化失败
  */
-typedef ek_err_t (*_ek_static_alloc_init_fn_t)(void);
+typedef int (*_ek_static_alloc_init_fn_t)(void);
 
 /**
  * @brief 静态对象注册项
@@ -64,7 +63,7 @@ typedef struct
  * @brief 将静态对象初始化回调登记到 .ek_static_alloc 段
  * @param instance 对象实例名，同一翻译单元内必须唯一
  * @param order    初始化顺序，数值越小越先执行
- * @param fn       返回 ek_err_t 的初始化函数
+ * @param fn       返回 int（0 成功、负值失败）的初始化函数
  */
 #    define EK_STATIC_ALLOC_REGISTER(instance, order, fn)                                             \
         static const _ek_static_alloc_item_t _EK_STATIC_ALLOC_JOIN(__ek_static_alloc_item_, instance) \
@@ -80,9 +79,9 @@ void ek_static_alloc_init(void);
 
 /**
  * @brief 查询最近一次静态初始化的首个错误
- * @return EK_OK 全部成功，否则为第一个失败项的错误码
+ * @return 0 全部成功，否则为第一个失败项的错误码
  */
-ek_err_t ek_static_alloc_get_init_error(void);
+int ek_static_alloc_get_init_error(void);
 
 #    ifdef __cplusplus
 }

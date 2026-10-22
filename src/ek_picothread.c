@@ -36,9 +36,9 @@ void ek_pt_init(void)
 EK_EXPORT_COMPONENTS(ek_pt_init, 0);
 
 #    if EKCFG_STATIC_ALLOC == 1
-ek_err_t ek_pt_init_static(ek_pt_t *pt, ek_pt_cb_t cb, uint8_t prio, void *arg)
+int ek_pt_init_static(ek_pt_t *pt, ek_pt_cb_t cb, uint8_t prio, void *arg)
 {
-    if (pt == NULL || cb == NULL || s_init == false || prio > EKCFG_PT_PRIO_LOWEST) return EK_ERR_INVAL;
+    if (pt == NULL || cb == NULL || s_init == false || prio > EKCFG_PT_PRIO_LOWEST) return -EINVAL;
 
     pt->cb = cb;
     pt->arg = arg;
@@ -49,7 +49,7 @@ ek_err_t ek_pt_init_static(ek_pt_t *pt, ek_pt_cb_t cb, uint8_t prio, void *arg)
     ek_list_init(&pt->event_node);
     ek_list_init(&pt->state_node);
 #        if EKCFG_PICOTHREAD_SEM || EKCFG_PICOTHREAD_MSG
-    pt->wait_result = EK_OK;
+    pt->wait_result = 0;
 #        endif
 #        if EKCFG_PICOTHREAD_SEM
     pt->wait_sem = NULL;
@@ -59,7 +59,7 @@ ek_err_t ek_pt_init_static(ek_pt_t *pt, ek_pt_cb_t cb, uint8_t prio, void *arg)
 #        endif
 
     _ready_enqueue(pt);
-    return EK_OK;
+    return 0;
 }
 
 void ek_pt_deinit_static(ek_pt_t *pt)
@@ -83,7 +83,7 @@ void ek_pt_deinit_static(ek_pt_t *pt)
     }
 #        endif
 #        if EKCFG_PICOTHREAD_SEM || EKCFG_PICOTHREAD_MSG
-    pt->wait_result = EK_ERR_ABORTED;
+    pt->wait_result = -ECANCELED;
 #        endif
     pt->state = EK_PT_STATE_SUSPEND;
 }
@@ -104,7 +104,7 @@ ek_pt_t *ek_pt_create(ek_pt_cb_t cb, uint8_t prio, void *arg)
     ek_list_init(&pt->event_node);
     ek_list_init(&pt->state_node);
 #    if EKCFG_PICOTHREAD_SEM || EKCFG_PICOTHREAD_MSG
-    pt->wait_result = EK_OK;
+    pt->wait_result = 0;
 #    endif
 #    if EKCFG_PICOTHREAD_SEM
     pt->wait_sem = NULL;
@@ -142,7 +142,7 @@ void ek_pt_destroy(ek_pt_t *pt)
     }
 #    endif
 #    if EKCFG_PICOTHREAD_SEM || EKCFG_PICOTHREAD_MSG
-    pt->wait_result = EK_ERR_ABORTED;
+    pt->wait_result = -ECANCELED;
 #    endif
 
     ek_free(pt);
@@ -172,7 +172,7 @@ uint32_t ek_pt_schedule(uint32_t now)
         {
             ek_list_remove(&pt->event_node);
             pt->wait_sem = NULL;
-            pt->wait_result = EK_ERR_TIMEOUT;
+            pt->wait_result = -ETIMEDOUT;
         }
 #        endif
 #        if EKCFG_PICOTHREAD_MSG
@@ -180,7 +180,7 @@ uint32_t ek_pt_schedule(uint32_t now)
         {
             ek_list_remove(&pt->event_node);
             pt->wait_msg = NULL;
-            pt->wait_result = EK_ERR_TIMEOUT;
+            pt->wait_result = -ETIMEDOUT;
         }
 #        endif
 #    endif
@@ -277,12 +277,12 @@ ek_pt_t *ek_pt_active(void)
 
 #    if EKCFG_PICOTHREAD_SEM == 1
 #        if EKCFG_STATIC_ALLOC == 1
-ek_err_t ek_pt_sem_init_static(ek_pt_sem_t *sem, uint8_t count)
+int ek_pt_sem_init_static(ek_pt_sem_t *sem, uint8_t count)
 {
-    if (sem == NULL) return EK_ERR_INVAL;
+    if (sem == NULL) return -EINVAL;
     sem->count = count;
     ek_list_init(&sem->wait_list);
-    return EK_OK;
+    return 0;
 }
 
 void ek_pt_sem_deinit_static(ek_pt_sem_t *sem)
@@ -296,7 +296,7 @@ void ek_pt_sem_deinit_static(ek_pt_sem_t *sem)
         ek_list_remove(pos);
         ek_list_remove(&pt->state_node);
         pt->wait_sem = NULL;
-        pt->wait_result = EK_ERR_ABORTED;
+        pt->wait_result = -ECANCELED;
         _ready_enqueue(pt);
         pt->state = EK_PT_STATE_READY;
     }
@@ -324,7 +324,7 @@ void ek_pt_sem_destroy(ek_pt_sem_t *sem)
         ek_list_remove(pos);
         ek_list_remove(&pt->state_node);
         pt->wait_sem = NULL;
-        pt->wait_result = EK_ERR_ABORTED;
+        pt->wait_result = -ECANCELED;
         _ready_enqueue(pt);
         pt->state = EK_PT_STATE_READY;
     }
@@ -362,7 +362,7 @@ void ek_pt_sem_give(ek_pt_sem_t *sem)
         ek_list_remove(node);
         ek_list_remove(&pt->state_node);
         pt->wait_sem = NULL;
-        pt->wait_result = EK_OK;
+        pt->wait_result = 0;
         _ready_enqueue(pt);
         pt->state = EK_PT_STATE_READY;
         return;
@@ -378,13 +378,13 @@ void ek_pt_sem_give(ek_pt_sem_t *sem)
 #        include "ek_ringbuf.h"
 
 #        if EKCFG_STATIC_ALLOC == 1
-ek_err_t ek_pt_msg_init_static(ek_pt_msg_t *msg, size_t item_size, uint32_t item_amount)
+int ek_pt_msg_init_static(ek_pt_msg_t *msg, size_t item_size, uint32_t item_amount)
 {
-    if (msg == NULL) return EK_ERR_INVAL;
+    if (msg == NULL) return -EINVAL;
     EK_ERR_RETURN(ek_ringbuf_init_static(&msg->rb, item_size, item_amount));
     ek_list_init(&msg->recv_wait);
     ek_list_init(&msg->send_wait);
-    return EK_OK;
+    return 0;
 }
 
 void ek_pt_msg_deinit_static(ek_pt_msg_t *msg)
@@ -398,7 +398,7 @@ void ek_pt_msg_deinit_static(ek_pt_msg_t *msg)
         ek_list_remove(pos);
         ek_list_remove(&pt->state_node);
         pt->wait_msg = NULL;
-        pt->wait_result = EK_ERR_ABORTED;
+        pt->wait_result = -ECANCELED;
         _ready_enqueue(pt);
         pt->state = EK_PT_STATE_READY;
     }
@@ -409,7 +409,7 @@ void ek_pt_msg_deinit_static(ek_pt_msg_t *msg)
         ek_list_remove(pos);
         ek_list_remove(&pt->state_node);
         pt->wait_msg = NULL;
-        pt->wait_result = EK_ERR_ABORTED;
+        pt->wait_result = -ECANCELED;
         _ready_enqueue(pt);
         pt->state = EK_PT_STATE_READY;
     }
@@ -450,7 +450,7 @@ void ek_pt_msg_destroy(ek_pt_msg_t *msg)
         ek_list_remove(pos);
         ek_list_remove(&pt->state_node);
         pt->wait_msg = NULL;
-        pt->wait_result = EK_ERR_ABORTED;
+        pt->wait_result = -ECANCELED;
         _ready_enqueue(pt);
         pt->state = EK_PT_STATE_READY;
     }
@@ -461,7 +461,7 @@ void ek_pt_msg_destroy(ek_pt_msg_t *msg)
         ek_list_remove(pos);
         ek_list_remove(&pt->state_node);
         pt->wait_msg = NULL;
-        pt->wait_result = EK_ERR_ABORTED;
+        pt->wait_result = -ECANCELED;
         _ready_enqueue(pt);
         pt->state = EK_PT_STATE_READY;
     }
@@ -474,8 +474,8 @@ bool ek_pt_msg_send(ek_pt_msg_t *msg, const void *data)
     if (msg == NULL || data == NULL) return false;
     ek_assert_param(s_cur_pt != NULL);
 
-    ek_err_t ret = ek_ringbuf_write(&msg->rb, data);
-    if (ret == EK_OK)
+    int ret = ek_ringbuf_write(&msg->rb, data);
+    if (ret == 0)
     {
         // 写入成功，唤醒一个等待接收的任务
         if (!ek_list_is_empty(&msg->recv_wait))
@@ -485,7 +485,7 @@ bool ek_pt_msg_send(ek_pt_msg_t *msg, const void *data)
             ek_list_remove(node);
             ek_list_remove(&pt->state_node);
             pt->wait_msg = NULL;
-            pt->wait_result = EK_OK;
+            pt->wait_result = 0;
             _ready_enqueue(pt);
             pt->state = EK_PT_STATE_READY;
         }
@@ -503,8 +503,8 @@ bool ek_pt_msg_recv(ek_pt_msg_t *msg, void *data)
     if (msg == NULL) return false;
     ek_assert_param(s_cur_pt != NULL);
 
-    ek_err_t ret = ek_ringbuf_read(&msg->rb, data);
-    if (ret == EK_OK)
+    int ret = ek_ringbuf_read(&msg->rb, data);
+    if (ret == 0)
     {
         // 读取成功，唤醒一个等待发送的任务
         if (!ek_list_is_empty(&msg->send_wait))
@@ -514,7 +514,7 @@ bool ek_pt_msg_recv(ek_pt_msg_t *msg, void *data)
             ek_list_remove(node);
             ek_list_remove(&pt->state_node);
             pt->wait_msg = NULL;
-            pt->wait_result = EK_OK;
+            pt->wait_result = 0;
             _ready_enqueue(pt);
             pt->state = EK_PT_STATE_READY;
         }

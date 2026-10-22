@@ -12,9 +12,9 @@
 
 #    if EKCFG_STATIC_ALLOC == 1
 #        include "ek_static_alloc.h"
-ek_err_t ek_snapshot_init_static(ek_snapshot_t *snapshot, size_t data_size)
+int ek_snapshot_init_static(ek_snapshot_t *snapshot, size_t data_size)
 {
-    if (!snapshot || !data_size) return EK_ERR_INVAL;
+    if (!snapshot || !data_size) return -EINVAL;
 
     snapshot->data_size = data_size;
     snapshot->unique = 0;
@@ -24,7 +24,7 @@ ek_err_t ek_snapshot_init_static(ek_snapshot_t *snapshot, size_t data_size)
     EK_LOCK_INIT(snapshot->lock);
 #        endif /* EKCFG_RTOS */
 
-    return EK_OK;
+    return 0;
 }
 
 void ek_snapshot_deinit_static(ek_snapshot_t *snapshot)
@@ -68,12 +68,12 @@ void ek_snapshot_destroy(ek_snapshot_t *snapshot)
     ek_free(snapshot);
 }
 
-ek_err_t ek_snapshot_set(ek_snapshot_t *snapshot, void *data, uint32_t unique)
+int ek_snapshot_set(ek_snapshot_t *snapshot, void *data, uint32_t unique)
 {
-    if (snapshot == NULL || data == NULL) return EK_ERR_INVAL;
-    if (unique == snapshot->unique) return EK_ERR_INVAL;
+    if (snapshot == NULL || data == NULL) return -EINVAL;
+    if (unique == snapshot->unique) return -EINVAL;
 
-    if (!EK_LOCK_TRY(snapshot)) return EK_ERR_BUSY;
+    if (!EK_LOCK_TRY(snapshot)) return -EBUSY;
 
     memcpy(snapshot->data, data, snapshot->data_size);
 
@@ -81,25 +81,25 @@ ek_err_t ek_snapshot_set(ek_snapshot_t *snapshot, void *data, uint32_t unique)
 
     EK_LOCK_RELEASE(snapshot);
 
-    return EK_OK;
+    return 0;
 }
 
-ek_err_t ek_snapshot_get(ek_snapshot_t *snapshot, void *data)
+int ek_snapshot_get(ek_snapshot_t *snapshot, void *data)
 {
-    if (snapshot == NULL || data == NULL) return EK_ERR_INVAL;
+    if (snapshot == NULL || data == NULL) return -EINVAL;
 
-    if (!EK_LOCK_TRY(snapshot)) return EK_ERR_BUSY;
+    if (!EK_LOCK_TRY(snapshot)) return -EBUSY;
 
     if (!snapshot->unique)
     {
-        return EK_ERR_NODATA;
+        return -ENODATA;
     }
 
     memcpy(data, snapshot->data, snapshot->data_size);
 
     EK_LOCK_RELEASE(snapshot);
 
-    return EK_OK;
+    return 0;
 }
 
 uint32_t ek_snapshot_get_unique(ek_snapshot_t *snapshot)

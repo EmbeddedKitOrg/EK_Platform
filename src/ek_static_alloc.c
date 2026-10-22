@@ -18,7 +18,7 @@ extern const _ek_static_alloc_item_t _ek_static_alloc_end;
 
 static int _static_alloc_compare(const void *lhs, const void *rhs);
 
-static ek_err_t s_static_alloc_error;
+static int s_static_alloc_error;
 
 void ek_static_alloc_init(void)
 {
@@ -26,7 +26,7 @@ void ek_static_alloc_init(void)
     const _ek_static_alloc_item_t *end = &_ek_static_alloc_end;
     const size_t count = (size_t)(end - start);
 
-    s_static_alloc_error = EK_OK;
+    s_static_alloc_error = 0;
     if (count == 0U) return;
 
     _ek_static_alloc_item_t items[count];
@@ -37,12 +37,12 @@ void ek_static_alloc_init(void)
     for (size_t i = 0; i < count; i++)
     {
         if (items[i].fn == NULL) continue;
-        const ek_err_t err = items[i].fn();
-        if (err != EK_OK)
+        const int err = items[i].fn();
+        if (err < 0)
         {
-            if (s_static_alloc_error == EK_OK) s_static_alloc_error = err;
+            if (s_static_alloc_error == 0) s_static_alloc_error = err;
 #    if EKCFG_LOG == 1
-            EK_LOG_ERROR("static allocation init failed: %s: %s", items[i].name, ek_strerror(err));
+            EK_LOG_ERROR("static allocation init failed: %s: %s", items[i].name, strerror(-err));
 #    endif
         }
     }
@@ -50,7 +50,7 @@ void ek_static_alloc_init(void)
 
 EK_EXPORT_COMPONENTS(ek_static_alloc_init, 1);
 
-ek_err_t ek_static_alloc_get_init_error(void)
+int ek_static_alloc_get_init_error(void)
 {
     return s_static_alloc_error;
 }

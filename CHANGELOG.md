@@ -4,6 +4,25 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [5.0.0] - 2026-10-22
+
+### 变更
+
+- 错误返回体系改为 POSIX errno：所有原返回 `ek_err_t` 的接口改为返回 `int`，成功返回 0（有数量语义时直接返回数量），失败返回负 errno（如 `-EINVAL`、`-ENOSPC`、`-ETIMEDOUT`）。
+- 错误传播宏 `EK_ERR_RETURN` / `EK_ERR_GOTO` 移入 `ek_def.h`，改为按返回值 `< 0` 判断。
+- 版本宏更新：`EK_VERSION_MAJOR` 4 → 5。
+
+### 移除
+
+- 移除 `ek_utils/inc/ek_err.h`：删除 `ek_err_t` 类型、`EK_OK` / `EK_ERR_*` 错误码与 `ek_strerror()`。
+
+### 破坏性变更
+
+- 所有返回错误码的 API 返回类型由 `ek_err_t` 变为 `int`，调用点需改用 `0` / `-E*`（`<errno.h>` 现已由 `ek_def.h` 引入）。
+- `ek_static_alloc_get_init_error()` 返回 `int`，成功为 0。
+- `ek_pt_t::wait_result` 改为 `int`，取值为 0 或负 errno。
+- 移除 `ek_strerror()`，可改用标准 `strerror(-err)`。
+
 ## [4.0.0] - 2026-10-17
 
 ### 变更
@@ -100,3 +119,4 @@
 [2.0.0rc]: https://github.com/EmbeddedKitOrg/EK_UTILS/compare/v1.2.0...v2.0.0rc
 [2.2.0]: https://github.com/EmbeddedKitOrg/EK_UTILS/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/EmbeddedKitOrg/EK_UTILS/compare/v2.0.0rc...v2.1.0
+[5.0.0]: https://github.com/EmbeddedKitOrg/EK_UTILS/compare/v4.0.0...v5.0.0

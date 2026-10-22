@@ -10,10 +10,9 @@
 #define EK_RINGBUF_H
 
 #include "ek_conf_internal.h"
+#include "ek_def.h"
 
 #if (EKCFG_RINGBUF == 1) || (EKCFG_RINGBUF_SPSC == 1)
-
-#    include "ek_err.h"
 
 /**
  * @brief 环形缓冲区结构
@@ -88,7 +87,7 @@ void ek_ringbuf_destroy(ek_ringbuf_t *rb);
 #        if EKCFG_STATIC_ALLOC == 1
 #            include "ek_static_alloc.h"
 
-ek_err_t ek_ringbuf_init_static(ek_ringbuf_t *rb, size_t item_size, uint32_t item_amount);
+int ek_ringbuf_init_static(ek_ringbuf_t *rb, size_t item_size, uint32_t item_amount);
 void ek_ringbuf_deinit_static(ek_ringbuf_t *rb);
 
 #            define EK_DEFINE_RINGBUF(handle, type, amount)                          \
@@ -99,7 +98,7 @@ void ek_ringbuf_deinit_static(ek_ringbuf_t *rb);
                     uint8_t storage[sizeof(ek_ringbuf_t) + sizeof(type) * (amount)]; \
                 } handle##_mem;                                                      \
                 static ek_ringbuf_t *const handle = &handle##_mem.rb;                \
-                static ek_err_t _static_alloc_init_##handle(void)                    \
+                static int _static_alloc_init_##handle(void)                         \
                 {                                                                    \
                     return ek_ringbuf_init_static(handle, sizeof(type), (amount));   \
                 }                                                                    \
@@ -122,31 +121,31 @@ void ek_ringbuf_deinit_static(ek_ringbuf_t *rb);
  * @brief 向环形缓冲区写入一个元素
  * @param rb 环形缓冲区指针
  * @param item 要写入的元素指针
- * @return EK_OK 写入成功
- * @return EK_ERR_FULL 缓冲区已满
- * @return EK_ERR_BUSY 资源忙（RTOS 模式）
+ * @return 0 写入成功
+ * @return -ENOSPC 缓冲区已满
+ * @return -EBUSY 资源忙（RTOS 模式）
  */
-ek_err_t ek_ringbuf_write(ek_ringbuf_t *rb, const void *item);
+int ek_ringbuf_write(ek_ringbuf_t *rb, const void *item);
 
 /**
  * @brief 从环形缓冲区读取一个元素
  * @param rb 环形缓冲区指针
  * @param item 存储读取结果的缓冲区指针，传入 NULL 则直接丢弃数据
- * @return EK_OK 读取成功
- * @return EK_ERR_EMPTY 缓冲区为空
- * @return EK_ERR_BUSY 资源忙（RTOS 模式）
+ * @return 0 读取成功
+ * @return -ENODATA 缓冲区为空
+ * @return -EBUSY 资源忙（RTOS 模式）
  */
-ek_err_t ek_ringbuf_read(ek_ringbuf_t *rb, void *item);
+int ek_ringbuf_read(ek_ringbuf_t *rb, void *item);
 
 /**
  * @brief 查看环形缓冲区首个元素（不移动读指针）
  * @param rb 环形缓冲区指针
  * @param item 存储查看结果的缓冲区指针
- * @return EK_OK 查看成功
- * @return EK_ERR_EMPTY 缓冲区为空
- * @return EK_ERR_BUSY 资源忙（RTOS 模式）
+ * @return 0 查看成功
+ * @return -ENODATA 缓冲区为空
+ * @return -EBUSY 资源忙（RTOS 模式）
  */
-ek_err_t ek_ringbuf_peek(ek_ringbuf_t *rb, void *item);
+int ek_ringbuf_peek(ek_ringbuf_t *rb, void *item);
 #    endif /* EKCFG_RINGBUF */
 
 #    if EKCFG_RINGBUF_SPSC == 1
@@ -181,7 +180,7 @@ ek_ringbuf_spsc_t *ek_ringbuf_create_spsc(size_t item_size, uint32_t item_amount
 void ek_ringbuf_destroy_spsc(ek_ringbuf_spsc_t *rb);
 
 #        if EKCFG_STATIC_ALLOC == 1
-ek_err_t ek_ringbuf_init_spsc_static(ek_ringbuf_spsc_t *rb, size_t item_size, uint32_t amount);
+int ek_ringbuf_init_spsc_static(ek_ringbuf_spsc_t *rb, size_t item_size, uint32_t amount);
 void ek_ringbuf_deinit_spsc_static(ek_ringbuf_spsc_t *rb);
 
 #            define EK_DEFINE_RINGBUF_SPSC(handle, type, amount)                          \
@@ -192,7 +191,7 @@ void ek_ringbuf_deinit_spsc_static(ek_ringbuf_spsc_t *rb);
                     uint8_t storage[sizeof(ek_ringbuf_spsc_t) + sizeof(type) * (amount)]; \
                 } handle##_mem;                                                           \
                 static ek_ringbuf_spsc_t *const handle = &handle##_mem.rb;                \
-                static ek_err_t _static_alloc_init_##handle(void)                         \
+                static int _static_alloc_init_##handle(void)                         \
                 {                                                                         \
                     return ek_ringbuf_init_spsc_static(handle, sizeof(type), (amount));   \
                 }                                                                         \
@@ -214,28 +213,28 @@ void ek_ringbuf_deinit_spsc_static(ek_ringbuf_spsc_t *rb);
  * @brief 向 SPSC 环形缓冲区写入一个元素
  * @param rb 环形缓冲区指针
  * @param item 要写入的元素指针
- * @return EK_OK 写入成功
- * @return EK_ERR_FULL 缓冲区已满
+ * @return 0 写入成功
+ * @return -ENOSPC 缓冲区已满
  */
-ek_err_t ek_ringbuf_write_spsc(ek_ringbuf_spsc_t *rb, const void *item);
+int ek_ringbuf_write_spsc(ek_ringbuf_spsc_t *rb, const void *item);
 
 /**
  * @brief 从 SPSC 环形缓冲区读取一个元素
  * @param rb 环形缓冲区指针
  * @param item 存储读取结果的缓冲区指针，传入 NULL 则直接丢弃数据
- * @return EK_OK 读取成功
- * @return EK_ERR_EMPTY 缓冲区为空
+ * @return 0 读取成功
+ * @return -ENODATA 缓冲区为空
  */
-ek_err_t ek_ringbuf_read_spsc(ek_ringbuf_spsc_t *rb, void *item);
+int ek_ringbuf_read_spsc(ek_ringbuf_spsc_t *rb, void *item);
 
 /**
  * @brief 查看 SPSC 环形缓冲区首个元素（不移动读指针）
  * @param rb 环形缓冲区指针
  * @param item 存储查看结果的缓冲区指针
- * @return EK_OK 查看成功
- * @return EK_ERR_EMPTY 缓冲区为空
+ * @return 0 查看成功
+ * @return -ENODATA 缓冲区为空
  */
-ek_err_t ek_ringbuf_peek_spsc(ek_ringbuf_spsc_t *rb, void *item);
+int ek_ringbuf_peek_spsc(ek_ringbuf_spsc_t *rb, void *item);
 #    endif /* EKCFG_RINGBUF_SPSC */
 
 #    ifdef __cplusplus

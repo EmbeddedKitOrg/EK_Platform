@@ -18,28 +18,28 @@ ek_str_view_t ek_str_view_create(const char *cstr)
     };
 }
 
-ek_err_t ek_str_view_chop_left(ek_str_view_t *sv, size_t n)
+int ek_str_view_chop_left(ek_str_view_t *sv, size_t n)
 {
-    if (sv == NULL) return EK_ERR_INVAL;
+    if (sv == NULL) return -EINVAL;
     if (n > sv->str_len) n = sv->str_len;
     sv->str += n;
     sv->str_len -= n;
 
-    return EK_OK;
+    return 0;
 }
 
-ek_err_t ek_str_view_chop_right(ek_str_view_t *sv, size_t n)
+int ek_str_view_chop_right(ek_str_view_t *sv, size_t n)
 {
-    if (sv == NULL) return EK_ERR_INVAL;
+    if (sv == NULL) return -EINVAL;
     if (n > sv->str_len) n = sv->str_len;
     sv->str_len -= n;
 
-    return EK_OK;
+    return 0;
 }
 
-ek_err_t ek_str_view_trim(ek_str_view_t *sv)
+int ek_str_view_trim(ek_str_view_t *sv)
 {
-    if (sv == NULL) return EK_ERR_INVAL;
+    if (sv == NULL) return -EINVAL;
 
     while (sv->str_len > 0 && isspace(sv->str[0]))
     {
@@ -50,7 +50,7 @@ ek_err_t ek_str_view_trim(ek_str_view_t *sv)
         ek_str_view_chop_right(sv, 1);
     }
 
-    return EK_OK;
+    return 0;
 }
 
 ek_str_view_t ek_str_view_split(ek_str_view_t *sv, char c)
