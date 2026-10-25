@@ -6,8 +6,13 @@
 
 ## [6.0.0] - 2026-10-25
 
+### 新增
+
+- 新增 MIT 许可证文件 `LICENSE`，README 的许可章节同步说明；`third_party/` 下的代码仍遵循各自许可证。
+
 ### 变更
 
+- README 重写为集成指南：保留目录结构、集成方式、CMake 配置、链接脚本、配置项和弱函数说明，删除逐模块移植章节。
 - 目录结构按模块重组：公共头文件由 `inc/` 移至 `include/ek/`（`core` / `mem` / `container` / `sched` 四个子目录），源文件由 `src/*.c` 同步移入对应模块目录。
 - picolibc 适配层由 `src/ek_picolibc_port.c` 移至 `port/clib/picolibc/picolibc_port.c`。
 - 库内头文件引用统一为带模块前缀的形式（如 `#include "ek/core/ek_def.h"`）；`EK_INCLUDE_DIRS` 增加 `include/` 根目录，同时保留原有子目录条目以兼容使用方的扁平引用（如 `#include "ek_log.h"`）。
