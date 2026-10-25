@@ -9,8 +9,8 @@
 #ifndef EK_HEAP_H
 #define EK_HEAP_H
 
-#include "ek_def.h"
-#include "ek_conf_internal.h"
+#include "ek/core/ek_def.h"
+#include "ek/ek_conf_internal.h"
 
 #ifdef __cplusplus
 extern "C"

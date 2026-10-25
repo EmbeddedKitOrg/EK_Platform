@@ -4,10 +4,10 @@
  * @author N1netyNine99
  */
 
-#include "ek_heap.h"
+#include "ek/mem/ek_heap.h"
 
 #if EKCFG_HEAP_TLSF == 1
-#    include "ek_export.h"
+#    include "ek/core/ek_export.h"
 /*
  * TLSF 索引配置由 ek_conf.h 中的下列宏控制：
  * - EKCFG_TLSF_FL_INDEX_MAX：最大连续内存块为 2 的该值次方字节。

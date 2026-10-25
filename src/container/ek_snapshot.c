@@ -4,14 +4,14 @@
  * @author N1netyNine99
  */
 
-#include "ek_snapshot.h"
+#include "ek/container/ek_snapshot.h"
 
 #if EKCFG_SNAPSHOT == 1
 
-#    include "ek_heap.h"
+#    include "ek/mem/ek_heap.h"
 
 #    if EKCFG_STATIC_ALLOC == 1
-#        include "ek_static_alloc.h"
+#        include "ek/mem/ek_static_alloc.h"
 int ek_snapshot_init_static(ek_snapshot_t *snapshot, size_t data_size)
 {
     if (!snapshot || !data_size) return -EINVAL;

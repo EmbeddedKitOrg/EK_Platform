@@ -4,7 +4,7 @@
  * @author N1netyNine99
  */
 
-#include "ek_str_view.h"
+#include "ek/container/ek_str_view.h"
 
 #if EKCFG_STR_VIEW == 1
 

@@ -9,11 +9,11 @@
 #ifndef EK_LIST_H
 #define EK_LIST_H
 
-#include "ek_conf_internal.h"
+#include "ek/ek_conf_internal.h"
 
 #if EKCFG_LIST == 1
 
-#    include "ek_def.h"
+#    include "ek/core/ek_def.h"
 
 /**
  * @brief 链表节点结构

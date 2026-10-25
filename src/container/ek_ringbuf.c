@@ -4,11 +4,11 @@
  * @author N1netyNine99
  */
 
-#include "ek_ringbuf.h"
+#include "ek/container/ek_ringbuf.h"
 
 #if (EKCFG_RINGBUF == 1) || (EKCFG_RINGBUF_SPSC == 1)
 
-#    include "ek_heap.h"
+#    include "ek/mem/ek_heap.h"
 
 #    if EKCFG_RINGBUF == 1
 

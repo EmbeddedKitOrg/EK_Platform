@@ -1,9 +1,9 @@
-#include "ek_picothread.h"
+#include "ek/sched/ek_picothread.h"
 #if EKCFG_PICOTHREAD == 1
 
-#    include "ek_heap.h"
-#    include "ek_assert.h"
-#    include "ek_export.h"
+#    include "ek/mem/ek_heap.h"
+#    include "ek/core/ek_assert.h"
+#    include "ek/core/ek_export.h"
 
 __EK_STATIC_INLINE void _ready_enqueue(ek_pt_t *pt);
 __EK_STATIC_INLINE void _ready_dequeue(ek_pt_t *pt);
@@ -375,7 +375,7 @@ void ek_pt_sem_give(ek_pt_sem_t *sem)
 #    endif /* EKCFG_PICOTHREAD_SEM */
 
 #    if EKCFG_PICOTHREAD_MSG == 1
-#        include "ek_ringbuf.h"
+#        include "ek/container/ek_ringbuf.h"
 
 #        if EKCFG_STATIC_ALLOC == 1
 int ek_pt_msg_init_static(ek_pt_msg_t *msg, size_t item_size, uint32_t item_amount)

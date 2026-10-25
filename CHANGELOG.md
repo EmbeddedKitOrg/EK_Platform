@@ -4,6 +4,22 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [6.0.0] - 2026-10-25
+
+### 变更
+
+- 目录结构按模块重组：公共头文件由 `inc/` 移至 `include/ek/`（`core` / `mem` / `container` / `sched` 四个子目录），源文件由 `src/*.c` 同步移入对应模块目录。
+- picolibc 适配层由 `src/ek_picolibc_port.c` 移至 `port/clib/picolibc/picolibc_port.c`。
+- 库内头文件引用统一为带模块前缀的形式（如 `#include "ek/core/ek_def.h"`）；`EK_INCLUDE_DIRS` 增加 `include/` 根目录，同时保留原有子目录条目以兼容使用方的扁平引用（如 `#include "ek_log.h"`）。
+- CMake 工程与 OBJECT 库 target 由 `ek_utils` 更名为 `ek_platform`；源文件列表按模块显式列出，替代 `file(GLOB src/*.c)`。
+- 版本宏更新：`EK_VERSION_MAJOR` 5 → 6。
+
+### 破坏性变更
+
+- 头文件路径变更：`inc/ek_def.h` 等 → `include/ek/<module>/<name>.h`。使用方需将 `-I` 指向 `include/`，建议改用 `#include "ek/<module>/<name>.h"`。
+- CMake target 更名：`target_link_libraries(<target> PRIVATE ek_utils)` → `ek_platform`。
+- 直接引用源文件路径的构建脚本需同步更新：`src/ek_evoke.c` → `src/sched/ek_evoke.c`、`src/ek_heap.c` → `src/mem/ek_heap.c`、`src/ek_picolibc_port.c` → `port/clib/picolibc/picolibc_port.c`。
+
 ## [5.0.0] - 2026-10-22
 
 ### 变更

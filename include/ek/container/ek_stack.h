@@ -16,11 +16,11 @@
 #ifndef EK_STACK_H
 #define EK_STACK_H
 
-#include "ek_conf_internal.h"
+#include "ek/ek_conf_internal.h"
 
 #if EKCFG_STACK == 1
 
-#    include "ek_def.h"
+#    include "ek/core/ek_def.h"
 
 /**
  * @brief 栈结构体
@@ -96,7 +96,7 @@ ek_stack_t *ek_stack_create(size_t item_size, uint32_t item_amount);
 void ek_stack_destroy(ek_stack_t *sk);
 
 #    if EKCFG_STATIC_ALLOC == 1
-#        include "ek_static_alloc.h"
+#        include "ek/mem/ek_static_alloc.h"
 
 int ek_stack_init_static(ek_stack_t *sk, size_t item_size, uint32_t item_amount);
 void ek_stack_deinit_static(ek_stack_t *sk);

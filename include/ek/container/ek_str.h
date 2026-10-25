@@ -15,8 +15,8 @@
 #ifndef EK_STR_H
 #define EK_STR_H
 
-#include "ek_conf_internal.h"
-#include "ek_def.h"
+#include "ek/ek_conf_internal.h"
+#include "ek/core/ek_def.h"
 
 #if EKCFG_STR == 1
 

@@ -13,11 +13,11 @@
 #ifndef EK_STR_VIEW_H
 #define EK_STR_VIEW_H
 
-#include "ek_conf_internal.h"
+#include "ek/ek_conf_internal.h"
 
 #if EKCFG_STR_VIEW == 1
 
-#    include "ek_def.h"
+#    include "ek/core/ek_def.h"
 
 /**
  * @brief 字符串视图结构体

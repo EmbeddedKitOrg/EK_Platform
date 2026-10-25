@@ -27,11 +27,11 @@
 #ifndef EK_STATIC_ALLOC_H
 #define EK_STATIC_ALLOC_H
 
-#include "ek_conf_internal.h"
+#include "ek/ek_conf_internal.h"
 
 #if EKCFG_STATIC_ALLOC == 1
 
-#    include "ek_def.h"
+#    include "ek/core/ek_def.h"
 
 #    ifdef __cplusplus
 extern "C"

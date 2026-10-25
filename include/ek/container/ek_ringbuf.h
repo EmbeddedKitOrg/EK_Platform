@@ -9,8 +9,8 @@
 #ifndef EK_RINGBUF_H
 #define EK_RINGBUF_H
 
-#include "ek_conf_internal.h"
-#include "ek_def.h"
+#include "ek/ek_conf_internal.h"
+#include "ek/core/ek_def.h"
 
 #if (EKCFG_RINGBUF == 1) || (EKCFG_RINGBUF_SPSC == 1)
 
@@ -85,7 +85,7 @@ ek_ringbuf_t *ek_ringbuf_create(size_t item_size, uint32_t item_amount);
 void ek_ringbuf_destroy(ek_ringbuf_t *rb);
 
 #        if EKCFG_STATIC_ALLOC == 1
-#            include "ek_static_alloc.h"
+#            include "ek/mem/ek_static_alloc.h"
 
 int ek_ringbuf_init_static(ek_ringbuf_t *rb, size_t item_size, uint32_t item_amount);
 void ek_ringbuf_deinit_static(ek_ringbuf_t *rb);
@@ -191,7 +191,7 @@ void ek_ringbuf_deinit_spsc_static(ek_ringbuf_spsc_t *rb);
                     uint8_t storage[sizeof(ek_ringbuf_spsc_t) + sizeof(type) * (amount)]; \
                 } handle##_mem;                                                           \
                 static ek_ringbuf_spsc_t *const handle = &handle##_mem.rb;                \
-                static int _static_alloc_init_##handle(void)                         \
+                static int _static_alloc_init_##handle(void)                              \
                 {                                                                         \
                     return ek_ringbuf_init_spsc_static(handle, sizeof(type), (amount));   \
                 }                                                                         \

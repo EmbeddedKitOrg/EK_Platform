@@ -15,12 +15,12 @@
 #ifndef EK_LOG_H
 #define EK_LOG_H
 
-#include "ek_conf_internal.h"
+#include "ek/ek_conf_internal.h"
 
 #if EKCFG_LOG == 1
 
-#    include "ek_io.h"
-#    include "ek_def.h"
+#    include "ek/core/ek_io.h"
+#    include "ek/core/ek_def.h"
 
 /**
  * @brief 是否启用彩色打印

@@ -13,12 +13,12 @@
 #ifndef EK_EVOKE_H
 #define EK_EVOKE_H
 
-#include "ek_conf_internal.h"
+#include "ek/ek_conf_internal.h"
 
 #if EKCFG_RTOS == 0 && EKCFG_EVOKE == 1
 
-#    include "ek_def.h"
-#    include "ek_list.h"
+#    include "ek/core/ek_def.h"
+#    include "ek/container/ek_list.h"
 
 /**
  * @brief ISR 请求队列最大容量
@@ -128,7 +128,7 @@ ek_evoke_event_t *ek_evoke_event_create(uint32_t init);
 void ek_evoke_event_destroy(ek_evoke_event_t *evt);
 
 #    if EKCFG_STATIC_ALLOC == 1
-#        include "ek_static_alloc.h"
+#        include "ek/mem/ek_static_alloc.h"
 
 int ek_evoke_task_init_static(ek_evoke_task_t *tsk, ek_evoke_cb_t cb, void *arg);
 void ek_evoke_task_deinit_static(ek_evoke_task_t *tsk);
@@ -137,7 +137,7 @@ void ek_evoke_event_deinit_static(ek_evoke_event_t *evt);
 
 #        define EK_DEFINE_EVOKE_TASK(handle, cb, arg)                     \
             static ek_evoke_task_t handle;                                \
-            static int _static_alloc_init_##handle(void)             \
+            static int _static_alloc_init_##handle(void)                  \
             {                                                             \
                 return ek_evoke_task_init_static(&(handle), (cb), (arg)); \
             }                                                             \
@@ -145,7 +145,7 @@ void ek_evoke_event_deinit_static(ek_evoke_event_t *evt);
 
 #        define EK_DEFINE_EVOKE_EVENT(handle, init_count)                   \
             static ek_evoke_event_t handle;                                 \
-            static int _static_alloc_init_##handle(void)               \
+            static int _static_alloc_init_##handle(void)                    \
             {                                                               \
                 return ek_evoke_event_init_static(&(handle), (init_count)); \
             }                                                               \

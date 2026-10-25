@@ -11,7 +11,7 @@
 #ifndef EK_IO_H
 #define EK_IO_H
 
-#include "ek_conf_internal.h"
+#include "ek/ek_conf_internal.h"
 
 #ifdef __cplusplus
 extern "C"

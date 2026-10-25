@@ -21,7 +21,7 @@
 #ifndef EK_EXPORT_H
 #define EK_EXPORT_H
 
-#include "ek_conf_internal.h"
+#include "ek/ek_conf_internal.h"
 
 #if (EKCFG_EXPORT == 1)
 

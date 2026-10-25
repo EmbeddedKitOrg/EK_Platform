@@ -4,11 +4,11 @@
  * @author N1netyNine99
  */
 
-#include "ek_export.h"
+#include "ek/core/ek_export.h"
 
 #if (EKCFG_EXPORT == 1)
 
-#    include "ek_assert.h"
+#    include "ek/core/ek_assert.h"
 
 extern const _ek_export_item_t _ek_export_fn_start;
 extern const _ek_export_item_t _ek_export_fn_end;

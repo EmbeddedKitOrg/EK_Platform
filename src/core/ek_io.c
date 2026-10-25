@@ -4,12 +4,12 @@
  * @author N1netyNine99
  */
 
-#include "ek_io.h"
+#include "ek/core/ek_io.h"
 
 #if EKCFG_IO_LWPRTF == 1
 
-#    include "ek_def.h"
-#    include "ek_export.h"
+#    include "ek/core/ek_def.h"
+#    include "ek/core/ek_export.h"
 
 /* 前向声明 */
 static int _ek_io_printf(int ch, lwprintf_t *lwp);
@@ -40,7 +40,7 @@ static int _ek_io_printf(int ch, lwprintf_t *lwp)
 
 #elif EKCFG_PICOLIBC == 1
 
-#    include "../inc/ek_def.h"
+#    include "ek/core/ek_def.h"
 
 __EK_WEAK int ek_port_io_fputc(int ch)
 {

@@ -4,12 +4,12 @@
  * @author N1netyNine99
  */
 
-#include "ek_str.h"
+#include "ek/container/ek_str.h"
 
 #if EKCFG_STR == 1
 
-#    include "ek_io.h"
-#    include "ek_heap.h"
+#    include "ek/core/ek_io.h"
+#    include "ek/mem/ek_heap.h"
 
 #    define INDEX_CLAMP(idx, len)             \
         do                                    \

@@ -4,11 +4,11 @@
  * @author N1netyNine99
  */
 
-#include "ek_assert.h"
+#include "ek/core/ek_assert.h"
 
 #if EKCFG_ASSERT
 
-#    include "ek_log.h"
+#    include "ek/core/ek_log.h"
 
 void ek_assert_fault(const char *file, uint32_t line, const char *expr)
 {

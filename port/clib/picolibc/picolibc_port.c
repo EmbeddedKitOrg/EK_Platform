@@ -9,12 +9,12 @@
  * - stdout: putchar → ek_port_io_fputc
  */
 
-#include "ek_conf_internal.h"
+#include "ek/ek_conf_internal.h"
 
 #if EKCFG_PICOLIBC == 1
 
-#    include "ek_heap.h"
-#    include "ek_io.h"
+#    include "ek/mem/ek_heap.h"
+#    include "ek/core/ek_io.h"
 
 #    if EKCFG_HEAP_TLSF == 1
 

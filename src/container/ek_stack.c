@@ -4,11 +4,11 @@
  * @author N1netyNine99
  */
 
-#include "ek_stack.h"
+#include "ek/container/ek_stack.h"
 
 #if EKCFG_STACK == 1
 
-#    include "ek_heap.h"
+#    include "ek/mem/ek_heap.h"
 
 bool ek_stack_full(ek_stack_t *sk)
 {

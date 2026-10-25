@@ -14,11 +14,11 @@
 #ifndef EK_SNAPSHOT_H
 #define EK_SNAPSHOT_H
 
-#include "ek_conf_internal.h"
+#include "ek/ek_conf_internal.h"
 
 #if EKCFG_SNAPSHOT == 1
 
-#    include "ek_def.h"
+#    include "ek/core/ek_def.h"
 
 /**
  * @brief 快照结构体前向声明
@@ -48,7 +48,7 @@ extern "C"
 #    endif /* __cplusplus */
 
 #    if EKCFG_STATIC_ALLOC == 1
-#        include "ek_static_alloc.h"
+#        include "ek/mem/ek_static_alloc.h"
 
 /**
  * @brief 静态初始化快照

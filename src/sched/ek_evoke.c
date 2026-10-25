@@ -4,14 +4,14 @@
  * @author N1netyNine99
  */
 
-#include "ek_evoke.h"
+#include "ek/sched/ek_evoke.h"
 
 #if EKCFG_RTOS == 0 && EKCFG_EVOKE == 1
 
-#    include "ek_ringbuf.h"
-#    include "ek_heap.h"
-#    include "ek_export.h"
-#    include "ek_log.h"
+#    include "ek/container/ek_ringbuf.h"
+#    include "ek/mem/ek_heap.h"
+#    include "ek/core/ek_export.h"
+#    include "ek/core/ek_log.h"
 
 EK_LOG_FILE_TAG("ek_evoke.c");
 

@@ -14,10 +14,10 @@
 #ifndef EK_ASSERT_H
 #define EK_ASSERT_H
 
-#include "ek_conf_internal.h"
+#include "ek/ek_conf_internal.h"
 
 #if EKCFG_ASSERT
-#    include "ek_def.h"
+#    include "ek/core/ek_def.h"
 
 /**
  * @brief 是否使用轻量级断言

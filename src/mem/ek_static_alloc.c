@@ -4,12 +4,12 @@
  * @author N1netyNine99
  */
 
-#include "ek_static_alloc.h"
+#include "ek/mem/ek_static_alloc.h"
 
 #if EKCFG_STATIC_ALLOC == 1
-#    include "ek_export.h"
+#    include "ek/core/ek_export.h"
 #    if EKCFG_LOG == 1
-#        include "ek_log.h"
+#        include "ek/core/ek_log.h"
 EK_LOG_MODULE("ek_static_alloc.c", EK_LOG_LEVEL_ERROR);
 #    endif
 

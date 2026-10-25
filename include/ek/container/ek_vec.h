@@ -13,12 +13,12 @@
 #ifndef EK_VEC_H
 #define EK_VEC_H
 
-#include "ek_conf_internal.h"
+#include "ek/ek_conf_internal.h"
 
 #if EKCFG_VEC == 1
 
-#    include "ek_def.h"
-#    include "ek_heap.h"
+#    include "ek/core/ek_def.h"
+#    include "ek/mem/ek_heap.h"
 
 /**
  * @brief 大数组扩容阈值

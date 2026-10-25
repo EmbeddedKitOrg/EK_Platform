@@ -4,7 +4,7 @@
  * @author N1netyNine99
  */
 
-#include "ek_log.h"
+#include "ek/core/ek_log.h"
 
 #if EKCFG_LOG == 1
 
