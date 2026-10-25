@@ -16,7 +16,7 @@
 #define EK_DEF_H
 
 /* ========== 软件版本号 ========== */
-#define EK_VERSION_MAJOR 5
+#define EK_VERSION_MAJOR 6
 #define EK_VERSION_MINOR 0
 #define EK_VERSION_PATCH 0
 
