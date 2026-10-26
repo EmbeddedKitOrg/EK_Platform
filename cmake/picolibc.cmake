@@ -222,9 +222,7 @@ function(ek_picolibc_resolve)
 
         set(_url "${PICOLIBC_URL}")
         if(NOT _url)
-            set(_url
-                "https://github.com/EmbeddedKitOrg/EK_Platform/releases/download/"
-                "picolibc-${PICOLIBC_VERSION}/picolibc-${PICOLIBC_VERSION}-${PICOLIBC_PLATFORM}.tar.gz")
+            set(_url "https://github.com/EmbeddedKitOrg/EK_Platform/releases/download/picolibc-${PICOLIBC_VERSION}/picolibc-${PICOLIBC_VERSION}-${PICOLIBC_PLATFORM}.tar.gz")
         endif()
 
         set(_archive
