@@ -54,6 +54,14 @@ void ek_io_init(void)
 
 #else
 
+#    include "ek/core/ek_def.h"
+
+__EK_WEAK int ek_port_io_fputc(int ch)
+{
+    __EK_UNUSED(ch);
+    return ch;
+}
+
 void ek_io_init(void)
 {
 }
