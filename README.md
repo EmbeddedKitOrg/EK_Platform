@@ -37,7 +37,8 @@ ek_platform/
 ├── third_party/
 │   ├── tlsf/                      # O(1) 内存分配器
 │   └── lwprintf/                  # 轻量 printf
-└── README.md
+├── README.md
+└── README.en.md
 ```
 
 ## 支持平台
