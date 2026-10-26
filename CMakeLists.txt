@@ -73,6 +73,7 @@ set(EK_SCHED_SRCS
 
 set(PORT_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/port/clib/picolibc/picolibc_port.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/port/clib/newlib/newlib_port.c
 )
 
 set(TP_SRCS

@@ -68,15 +68,13 @@ void ek_io_init(void);
 #    include <stdio.h>
 
 void ek_io_init(void);
+int ek_port_io_fputc(int ch);
 
-#    define EK_IO_FPUTC()
-
-// 如果不需要使用lwprintf 需要补全下列的宏
-// #    define ek_printf
-// #    define ek_vsprintf
-// #    define ek_sprintf
-// #    define ek_snprintf
-// #    define ek_vsnprintf
+#    define ek_printf    printf
+#    define ek_vprintf   vprintf
+#    define ek_sprintf   sprintf
+#    define ek_snprintf  snprintf
+#    define ek_vsnprintf vsnprintf
 
 #endif /* EKCFG_IO_LWPRTF */
 

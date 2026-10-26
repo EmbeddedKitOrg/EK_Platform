@@ -32,6 +32,7 @@
  */
 #define EKCFG_PICOLIBC     (0) /**< 是否使用 picolibc 替代标准 libc */
 #define EKCFG_IO_LWPRTF    (1) /**< IO 是否使用 lwprintf (1=使用, 0=不使用) */
+#define EKCFG_NEWLIB       (0) /**< 是否启用 newlib/nanolibc syscall port */
 #define EKCFG_STATIC_ALLOC (0) /**< 是否开启静态分配 (1=使用, 0=不使用) */
 
 /* ========================================================================

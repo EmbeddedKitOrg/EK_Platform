@@ -46,6 +46,9 @@
 #ifndef EKCFG_IO_LWPRTF
 #    define EKCFG_IO_LWPRTF (0) /**< IO 是否使用 lwprintf (1=使用, 0=不使用) */
 #endif
+#ifndef EKCFG_NEWLIB
+#    define EKCFG_NEWLIB (0) /**< 是否启用 newlib/nanolibc syscall port */
+#endif
 #ifndef EKCFG_STATIC_ALLOC
 #    define EKCFG_STATIC_ALLOC (0) /**< 是否开启静态分配 (1=使用, 0=不使用) */
 #endif
@@ -202,6 +205,9 @@
 #if EKCFG_PICOLIBC == 1
 #    undef EKCFG_IO_LWPRTF
 #    define EKCFG_IO_LWPRTF (0) /* picolibc 接管 printf，关闭 lwprintf */
+#endif
+#if EKCFG_PICOLIBC == 1 && EKCFG_NEWLIB == 1
+#    error "EKCFG_PICOLIBC and EKCFG_NEWLIB are mutually exclusive"
 #endif
 
 #if EKCFG_EVOKE == 1 && EKCFG_RTOS == 1

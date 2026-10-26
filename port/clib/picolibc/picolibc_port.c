@@ -63,7 +63,7 @@ static FILE __stdio = FDEV_SETUP_STREAM(_ek_picolibc_putc, NULL, NULL, _FDEV_SET
 FILE *const stdout = &__stdio;
 FILE *const stderr = &__stdio;
 
-void _exit(int status)
+__EK_WEAK void _exit(int status)
 {
     __EK_UNUSED(status);
     while (1)

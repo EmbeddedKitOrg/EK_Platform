@@ -31,6 +31,7 @@ ek_platform/
 │   ├── container/
 │   └── sched/
 ├── port/clib/picolibc/            # picolibc 的 stdout/stderr 适配
+├── port/clib/newlib/              # newlib/nanolibc syscall 适配
 ├── third_party/
 │   ├── tlsf/                      # O(1) 内存分配器
 │   └── lwprintf/                  # 轻量 printf
@@ -231,28 +232,16 @@ target_include_directories(ek_platform PUBLIC Core/Inc)
 
 ### IO 后端选择
 
-`ek_io.h` 按以下优先级选择后端：`EKCFG_IO_LWPRTF=1` → lwprintf；否则 `EKCFG_PICOLIBC=1` → picolibc；两者都为 0 时使用系统 libc，需要自行定义输出宏。
+`ek_io.h` 按以下优先级选择后端：`EKCFG_IO_LWPRTF=1` → lwprintf；否则 `EKCFG_PICOLIBC=1` → picolibc；否则使用系统 libc（glibc/newlib 的 `printf`）。
 
 | 后端 | ek_conf.h 配置 | `ek_printf` 等宏 | 需要实现 |
 |------|---------------|------------------|----------|
 | picolibc（内部默认） | `EKCFG_PICOLIBC=1` | 自动映射到 `printf` / `vsnprintf` | `int ek_port_io_fputc(int ch)` |
 | lwprintf（模板默认） | `EKCFG_IO_LWPRTF=1`、`EKCFG_PICOLIBC=0` | 自动映射到 `lwprintf` / `lwvsnprintf` | `int ek_port_io_fputc(int ch)` |
-| 系统 libc | `EKCFG_PICOLIBC=0`、`EKCFG_IO_LWPRTF=0` | 未定义，需在 `ek_conf.h` 中补全 | 无 |
+| 裸机 newlib/nanolibc | `EKCFG_NEWLIB=1`、`EKCFG_PICOLIBC=0`、`EKCFG_IO_LWPRTF=0` | 自动映射到系统 `printf` | `_write` 等由 `port/clib/newlib/newlib_port.c` 提供，可覆盖 `ek_port_io_fputc` |
+| 系统 libc（host） | `EKCFG_PICOLIBC=0`、`EKCFG_IO_LWPRTF=0`、`EKCFG_NEWLIB=0` | 自动映射到系统 `printf` | 无 |
 
-系统 libc 直通时，在 `ek_conf.h` 中补全：
-
-```c
-#define EKCFG_PICOLIBC  (0)
-#define EKCFG_IO_LWPRTF (0)
-
-#include <stdio.h>
-
-#define ek_printf    printf
-#define ek_vprintf   vprintf
-#define ek_sprintf   sprintf
-#define ek_snprintf  snprintf
-#define ek_vsnprintf vsnprintf
-```
+`EKCFG_PICOLIBC` 与 `EKCFG_NEWLIB` 互斥。裸机 newlib 的 syscall port 提供弱符号 `_write` / `_read` / `_close` / `_fstat` / `_isatty` / `_lseek` / `_sbrk`，BSP 可按需覆盖；`_sbrk` 使用链接脚本的 `__heap_start` / `__heap_end`。
 
 `EKCFG_PICOLIBC=1` 时，`EKCFG_IO_LWPRTF` 会被强制设为 0，不需要手动关闭。
 
