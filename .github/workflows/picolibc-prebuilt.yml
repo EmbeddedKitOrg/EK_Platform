@@ -73,19 +73,25 @@ jobs:
 
       - name: Install base tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y meson ninja-build curl
+          timeout 300 sudo apt-get -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          timeout 300 sudo apt-get -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends meson ninja-build curl
 
       - name: Install ARM toolchain
         if: matrix.toolchain == 'arm'
         run: |
-          sudo apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi
+          for i in 1 2 3; do
+            if timeout 300 sudo apt-get -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends gcc-arm-none-eabi binutils-arm-none-eabi; then break; fi
+            sleep 5
+          done
           arm-none-eabi-gcc --version | head -1
 
       - name: Install RISC-V toolchain
         if: matrix.toolchain == 'riscv'
         run: |
-          sudo apt-get install -y gcc-riscv64-unknown-elf binutils-riscv64-unknown-elf
+          for i in 1 2 3; do
+            if timeout 600 sudo apt-get -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends gcc-riscv64-unknown-elf binutils-riscv64-unknown-elf; then break; fi
+            sleep 5
+          done
           riscv64-unknown-elf-gcc --version | head -1
 
       - name: Build ${{ matrix.platform }}
