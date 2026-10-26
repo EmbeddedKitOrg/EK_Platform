@@ -101,7 +101,7 @@ function(ek_picolibc_resolve)
 
     if(NOT _found AND PICOLIBC_BUILD)
         if(NOT PLATFORM)
-            message(FATAL_ERROR "PICOLIBC_BUILD=ON 需要 -DPLATFORM=cm0..cm55")
+            message(FATAL_ERROR "PICOLIBC_BUILD=ON requires -DPLATFORM=cm0..cm55")
         endif()
 
         if(PLATFORM STREQUAL "cm0")
@@ -119,7 +119,7 @@ function(ek_picolibc_resolve)
         elseif(PLATFORM STREQUAL "cm55")
             set(_cflags "-mcpu=cortex-m55 -mfpu=fpv5-auto -mfloat-abi=hard")
         else()
-            message(FATAL_ERROR "PICOLIBC_BUILD 不支持 PLATFORM=${PLATFORM}")
+            message(FATAL_ERROR "PICOLIBC_BUILD does not support PLATFORM=${PLATFORM}")
         endif()
 
         set(_src "${PICOLIBC_SOURCE_DIR}")
@@ -137,7 +137,7 @@ function(ek_picolibc_resolve)
                 file(DOWNLOAD "${_src_url}" "${_src_archive}" TLS_VERIFY ON STATUS _dl)
                 list(GET _dl 0 _dl_code)
                 if(NOT _dl_code EQUAL 0)
-                    message(FATAL_ERROR "picolibc 源码下载失败: ${_dl}")
+                    message(FATAL_ERROR "Failed to download picolibc source: ${_dl}")
                 endif()
                 file(ARCHIVE_EXTRACT INPUT "${_src_archive}" DESTINATION "${_src}")
                 file(GLOB _meson_files "${_src}/*/meson.build")
@@ -149,7 +149,7 @@ function(ek_picolibc_resolve)
         endif()
 
         if(NOT EXISTS "${_src}/meson.build")
-            message(FATAL_ERROR "picolibc 源码目录无效: ${_src}")
+            message(FATAL_ERROR "Invalid picolibc source directory: ${_src}")
         endif()
 
         find_program(_ek_meson meson REQUIRED)
@@ -179,19 +179,19 @@ function(ek_picolibc_resolve)
                     "-Dc_args=${_cflags}"
                 RESULT_VARIABLE _rc OUTPUT_VARIABLE _out ERROR_VARIABLE _err)
             if(NOT _rc EQUAL 0)
-                message(FATAL_ERROR "picolibc meson setup 失败:\n${_err}")
+                message(FATAL_ERROR "picolibc meson setup failed:\n${_err}")
             endif()
             execute_process(
                 COMMAND "${_ek_ninja}" -C "${_build}"
                 RESULT_VARIABLE _rc OUTPUT_VARIABLE _out ERROR_VARIABLE _err)
             if(NOT _rc EQUAL 0)
-                message(FATAL_ERROR "picolibc 构建失败:\n${_err}")
+                message(FATAL_ERROR "picolibc build failed:\n${_err}")
             endif()
             execute_process(
                 COMMAND "${_ek_ninja}" -C "${_build}" install
                 RESULT_VARIABLE _rc OUTPUT_VARIABLE _out ERROR_VARIABLE _err)
             if(NOT _rc EQUAL 0)
-                message(FATAL_ERROR "picolibc 安装失败:\n${_err}")
+                message(FATAL_ERROR "picolibc install failed:\n${_err}")
             endif()
         endif()
 
@@ -206,15 +206,15 @@ function(ek_picolibc_resolve)
         if(NOT PICOLIBC_FETCH)
             message(FATAL_ERROR
                 "picolibc not found.\n"
-                "  1) -DPICOLIBC_ROOT=<prefix>     使用已安装的 picolibc\n"
-                "  2) 工具链加 --specs=picolibc.specs\n"
-                "  3) -DPICOLIBC_FETCH=ON          下载预编译包（SHA256 可选）\n"
-                "  4) -DPICOLIBC_BUILD=ON          从源码构建（需要 meson/ninja）\n"
-                "  Debian/Ubuntu 也可以先安装：sudo apt install picolibc-arm-none-eabi")
+                "  1) -DPICOLIBC_ROOT=<prefix>     use an installed picolibc\n"
+                "  2) add --specs=picolibc.specs to the toolchain\n"
+                "  3) -DPICOLIBC_FETCH=ON          download a prebuilt package (SHA256 optional)\n"
+                "  4) -DPICOLIBC_BUILD=ON          build from source (requires meson/ninja)\n"
+                "  On Debian/Ubuntu: sudo apt install picolibc-arm-none-eabi")
         endif()
 
         if(NOT PICOLIBC_PLATFORM)
-            message(FATAL_ERROR "PICOLIBC_FETCH=ON 需要 -DPLATFORM 或 -DPICOLIBC_PLATFORM")
+            message(FATAL_ERROR "PICOLIBC_FETCH=ON requires -DPLATFORM or -DPICOLIBC_PLATFORM")
         endif()
         if(NOT PICOLIBC_SHA256 AND PICOLIBC_SHA256_${PICOLIBC_PLATFORM})
             set(PICOLIBC_SHA256 "${PICOLIBC_SHA256_${PICOLIBC_PLATFORM}}")
@@ -281,7 +281,7 @@ function(ek_picolibc_resolve)
                 file(DOWNLOAD "${_url}" "${_archive}" TLS_VERIFY ON STATUS _dl)
                 list(GET _dl 0 _dl_code)
                 if(NOT _dl_code EQUAL 0)
-                    message(FATAL_ERROR "picolibc 下载失败: ${_dl}")
+                    message(FATAL_ERROR "Failed to download picolibc: ${_dl}")
                 endif()
             endif()
 
@@ -289,10 +289,10 @@ function(ek_picolibc_resolve)
             if(PICOLIBC_SHA256)
                 if(NOT _sha STREQUAL PICOLIBC_SHA256)
                     message(FATAL_ERROR
-                        "picolibc SHA256 不匹配\n  期望: ${PICOLIBC_SHA256}\n  实际: ${_sha}")
+                        "picolibc SHA256 mismatch\n  expected: ${PICOLIBC_SHA256}\n  actual: ${_sha}")
                 endif()
             else()
-                message(STATUS "picolibc: sha256=${_sha}（未校验，可用 -DPICOLIBC_SHA256 固定）")
+                message(STATUS "picolibc: sha256=${_sha} (not verified; pin it with -DPICOLIBC_SHA256)")
             endif()
         endif()
 
@@ -328,7 +328,7 @@ function(ek_picolibc_resolve)
         endif()
 
         if(NOT PICOLIBC_SPECS AND NOT PICOLIBC_LIBC_A)
-            message(FATAL_ERROR "picolibc 包内未找到 specs/include/lib: ${_dest}")
+            message(FATAL_ERROR "picolibc package has no specs/include/lib: ${_dest}")
         endif()
 
         if(PICOLIBC_SPECS)
