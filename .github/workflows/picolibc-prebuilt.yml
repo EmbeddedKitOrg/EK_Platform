@@ -1,0 +1,129 @@
+name: Picolibc Prebuilt
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "picolibc version (e.g. 1.8.11); empty = latest release"
+        required: false
+      force:
+        description: "Rebuild even if the release already exists"
+        type: boolean
+        default: false
+  schedule:
+    # 每周一 03:00 UTC 检查 picolibc 最新 release
+    - cron: "0 3 * * 1"
+
+permissions:
+  contents: write
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      should_build: ${{ steps.v.outputs.should_build }}
+    steps:
+      - id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          INPUT_FORCE: ${{ github.event.inputs.force }}
+        run: |
+          set -euo pipefail
+          if [ -n "${INPUT_VERSION}" ]; then
+            version="${INPUT_VERSION}"
+          else
+            version="$(gh api repos/picolibc/picolibc/releases/latest --jq .tag_name)"
+          fi
+          if [ "${INPUT_FORCE}" = "true" ]; then
+            should_build=true
+          elif gh release view "picolibc-${version}" >/dev/null 2>&1; then
+            should_build=false
+          else
+            should_build=true
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "should_build=${should_build}" >> "$GITHUB_OUTPUT"
+          echo "picolibc ${version}, build=${should_build}"
+
+  build:
+    needs: resolve
+    if: needs.resolve.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: cm0,       toolchain: arm }
+          - { platform: cm3,       toolchain: arm }
+          - { platform: cm4,       toolchain: arm }
+          - { platform: cm7,       toolchain: arm }
+          - { platform: cm23,      toolchain: arm }
+          - { platform: cm33,      toolchain: arm }
+          - { platform: cm55,      toolchain: arm }
+          - { platform: rv32imac,  toolchain: riscv }
+          - { platform: rv32imafc, toolchain: riscv }
+          - { platform: rv64imac,  toolchain: riscv }
+          - { platform: rv64gc,    toolchain: riscv }
+          - { platform: x86_64,    toolchain: host }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install base tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build curl
+
+      - name: Install ARM toolchain
+        if: matrix.toolchain == 'arm'
+        run: |
+          sudo apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi
+          arm-none-eabi-gcc --version | head -1
+
+      - name: Install RISC-V toolchain
+        if: matrix.toolchain == 'riscv'
+        run: |
+          sudo apt-get install -y gcc-riscv64-unknown-elf binutils-riscv64-unknown-elf
+          riscv64-unknown-elf-gcc --version | head -1
+
+      - name: Build ${{ matrix.platform }}
+        run: ./scripts/build-picolibc.sh "${{ needs.resolve.outputs.version }}" "${{ matrix.platform }}" out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: picolibc-${{ matrix.platform }}
+          path: |
+            out/picolibc-*.tar.gz
+            out/picolibc-*.tar.gz.sha256
+          if-no-files-found: error
+
+  release:
+    needs: [resolve, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum *.tar.gz > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.resolve.outputs.version }}
+        run: |
+          tag="picolibc-${VERSION}"
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" \
+              --title "picolibc ${VERSION}" \
+              --notes "Prebuilt picolibc ${VERSION}: ARM (cm0, cm3, cm4, cm7, cm23, cm33, cm55), RISC-V (rv32imac, rv32imafc, rv64imac, rv64gc), x86_64 (freestanding, -no-pie)."
+          fi
+          gh release upload "$tag" dist/* --clobber
