@@ -49,7 +49,7 @@ ek_platform/
 | cm7 | Cortex-M7 | fpv5-d16 (hard) |
 | cm23 | Cortex-M23 | 无 |
 | cm33 | Cortex-M33 | fpv5-sp-d16 (hard) |
-| cm55 | Cortex-M55 | fpv5-auto (hard) |
+| cm55 | Cortex-M55 | auto (hard) |
 
 `PICOLIBC_BUILD=ON` 会按 `PLATFORM` 自动选择 `-mcpu` / `-mfpu` / `-mfloat-abi`，用 meson 构建一份对应 ABI 的 picolibc，无需预先准备预编译包。
 
