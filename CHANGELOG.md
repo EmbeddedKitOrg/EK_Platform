@@ -4,6 +4,30 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 新增
+
+- 新增 `cmake/picolibc.cmake` 定位模块，按 `PICOLIBC_SPECS` → `PICOLIBC_ROOT` → 工具链自带 → 系统安装（`/usr/lib/picolibc/<triple>`）→ `PICOLIBC_BUILD` → `PICOLIBC_FETCH` 的顺序解析 picolibc，失败时给出可操作的错误提示。
+- `PICOLIBC_BUILD=ON`：按 `PLATFORM` 自动映射 `-mcpu` / `-mfpu` / `-mfloat-abi`，用 meson + ninja 从 picolibc 官方源码构建，安装到 `<build>/_deps/`。
+- `PICOLIBC_FETCH=ON`：按 `PICOLIBC_PLATFORM` 下载预编译包，支持 http(s)、`file://` 和本地路径；下载归档、解压结果带缓存，重复 configure 不会重复下载或解压；支持自动读取 `${URL}.sha256` 校验。
+- 新增配置项：`PICOLIBC_PLATFORM`、`PICOLIBC_PREFIX`、`PICOLIBC_SOURCE_DIR`、`PICOLIBC_SOURCE_URL`、`PICOLIBC_SHA256_<platform>`。
+- 新增 `scripts/build-picolibc.sh`：单平台打包脚本，支持 ARM、RISC-V、x86_64，产出 `.tar.gz` + `.sha256`，并用生成的 specs 链接最小程序自检。
+- 新增 `.github/workflows/picolibc-prebuilt.yml`：手动或每周检查 picolibc 最新版本，矩阵构建 12 个平台并发布到 `picolibc-<version>` Release。
+
+### 变更
+
+- `PICOLIBC=ON` 时不再依赖仓库内的 `third_party/picolibc`，预编译库和生成头文件不再随仓库分发。
+- CMake 不再硬编码 `third_party/picolibc/libs/cortexm/<PLATFORM>` 与 `-lc -lnosys -lm`；有 specs 时使用 `--specs` + 可选的 `--picolibc-prefix`，无 specs 时回退到 `libcrt0` / `libc` / `libm` / `libnosys` 并自动查找 `picolibc.ld`。
+- `PICOLIBC_SHA256` 由必填改为可选：未提供时自动尝试 `<URL>.sha256`，仍没有则跳过校验并打印实际哈希。
+- 下载包解压目录与源码构建目录分开存放（`_deps/picolibc-fetch-*` / `_deps/picolibc-*`）。
+- README 更新 picolibc 定位方式、系统包安装提示、缓存说明和多架构平台表；错误提示补充 Debian/Ubuntu 的 `apt install picolibc-arm-none-eabi`。
+
+### 破坏性变更
+
+- 删除 `third_party/picolibc/`（244 个文件，约 39M）。直接引用该目录的构建脚本需要改用 `PICOLIBC_ROOT` / `PICOLIBC_SPECS` / `PICOLIBC_BUILD` / `PICOLIBC_FETCH`。
+- `PICOLIBC=ON` 但系统、工具链、`PICOLIBC_ROOT` 都没有 picolibc，且未开启 `PICOLIBC_BUILD` / `PICOLIBC_FETCH` 时，configure 直接失败。
+
 ## [6.0.0] - 2026-10-25
 
 ### 新增

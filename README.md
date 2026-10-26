@@ -33,14 +33,13 @@ ek_platform/
 ├── port/clib/picolibc/            # picolibc 的 stdout/stderr 适配
 ├── third_party/
 │   ├── tlsf/                      # O(1) 内存分配器
-│   ├── lwprintf/                  # 轻量 printf
-│   └── picolibc/                  # 预编译 C 库（Cortex-M）
+│   └── lwprintf/                  # 轻量 printf
 └── README.md
 ```
 
 ## 支持平台
 
-`PLATFORM` 用于选择 picolibc 预编译库：
+`PLATFORM` 用于选择 ARM 工具链 CPU 参数：
 
 | PLATFORM | CPU | FPU |
 |----------|-----|-----|
@@ -51,6 +50,18 @@ ek_platform/
 | cm23 | Cortex-M23 | 无 |
 | cm33 | Cortex-M33 | fpv5-sp-d16 (hard) |
 | cm55 | Cortex-M55 | fpv5-auto (hard) |
+
+`PICOLIBC_BUILD=ON` 会按 `PLATFORM` 自动选择 `-mcpu` / `-mfpu` / `-mfloat-abi`，用 meson 构建一份对应 ABI 的 picolibc，无需预先准备预编译包。
+
+picolibc 预编译包的平台名可以独立用 `PICOLIBC_PLATFORM` 指定（默认同 `PLATFORM`）：
+
+| 架构 | PICOLIBC_PLATFORM |
+|------|-------------------|
+| ARM | cm0, cm3, cm4, cm7, cm23, cm33, cm55 |
+| RISC-V | rv32imac, rv32imafc, rv64imac, rv64gc |
+| x86 | x86_64（裸机 freestanding，链接需要 `-no-pie`） |
+
+RISC-V 和 x86 目前通过 `PICOLIBC_FETCH=ON` 使用 CI 发布的预编译包；`PICOLIBC_BUILD=ON` 的本地源码构建只覆盖 ARM。
 
 ## 方式一：CMake 子模块（推荐）
 
@@ -74,11 +85,28 @@ cp lib/ek_platform/ek_conf_template.h Core/Inc/ek_conf.h
 cmake_minimum_required(VERSION 3.20)
 project(my_app C)
 
-# 目标平台，决定 picolibc 预编译库的选择
+# 目标平台，同时决定下载的 picolibc 预编译包
 set(PLATFORM cm4 CACHE STRING "cm0/cm3/cm4/cm7/cm23/cm33/cm55")
 
 # 使用 picolibc 时开启；改用 lwprintf 或系统 libc 时删除这一行
 set(PICOLIBC ON CACHE BOOL "使用 picolibc")
+
+# picolibc 定位（四选一）：
+#   1) 已安装：set(PICOLIBC_ROOT "/path/to/picolibc")
+#   2) 工具链自带 --specs=picolibc.specs：无需额外设置
+#   3) 从源码构建（需要 meson/ninja，按 PLATFORM 自动选参数）：
+#        set(PICOLIBC_BUILD ON)
+#        # set(PICOLIBC_SOURCE_DIR "/path/to/picolibc")  # 可选，留空则下载源码包
+#   4) 下载预编译包：
+#        set(PICOLIBC_FETCH ON)
+#        # set(PICOLIBC_SHA256 "<sha256>")  # 可选，提供则校验
+# 也可以用 PICOLIBC_SPECS 直接指定 specs 文件。
+
+# 装了系统 picolibc（如 apt install picolibc-arm-none-eabi）时，
+# PICOLIBC=ON 会自动检测 /usr/lib/picolibc/<triple>/picolibc.specs。
+# 传统 Arm GNU Toolchain / Ubuntu 的 arm-none-eabi-gcc 默认带 newlib，
+# 可用 arm-none-eabi-gcc -print-file-name=picolibc.specs 确认。
+# specs 默认路径与实际安装位置不同时，用 PICOLIBC_PREFIX 指定前缀。
 
 # 指定 ek_conf.h。必须在 add_subdirectory 之前设置
 set(EK_CONF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
@@ -90,6 +118,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform)
 ```
 
 `ek_platform` 是 OBJECT 库，它的 PUBLIC include 目录和链接项会自动传给主工程，不需要手动添加 `include/` 等路径，也不要用 `$<TARGET_OBJECTS:ek_platform>` 代替 `target_link_libraries`。
+
+下载和源码构建的产物都缓存在 `<build>/_deps/`：归档已存在（且 SHA 匹配）时不再下载，解压目录完整时不再解压，源码构建已完成时不再重新构建。删除对应目录即可强制刷新。
 
 ### 4. 添加链接脚本段
 
@@ -138,7 +168,7 @@ Include Paths:
   - include/
   - third_party/tlsf/
   - third_party/lwprintf/inc/
-  - third_party/picolibc/include/        （使用 picolibc 时）
+  - <picolibc 安装目录>/include/          （使用 picolibc 时，由你自己提供）
 
 源文件（按需选择）:
   - src/core/*.c
@@ -151,6 +181,8 @@ Include Paths:
   - third_party/tlsf/tlsf.c
   - third_party/lwprintf/lwprintf.c
 ```
+
+picolibc 不再随仓库分发。用 CMake 时见上方 `PICOLIBC_ROOT` / `PICOLIBC_FETCH`；手工编译时用 `--specs=picolibc.specs --picolibc-prefix=<安装前缀>`，或自行添加 `-I`/`-L`。
 
 源文件通过 `#include "ek/ek_conf_internal.h"` 引入配置，因此 `include/` 这一级必须在搜索路径中。
 
