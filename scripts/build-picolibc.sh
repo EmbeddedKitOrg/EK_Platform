@@ -22,9 +22,9 @@ case "$platform" in
     cm23) arch=arm; cc=arm-none-eabi-gcc; ar=arm-none-eabi-ar; cflags=(-mcpu=cortex-m23 -mfloat-abi=soft) ;;
     cm33) arch=arm; cc=arm-none-eabi-gcc; ar=arm-none-eabi-ar; cflags=(-mcpu=cortex-m33 -mfpu=fpv5-sp-d16 -mfloat-abi=hard) ;;
     cm55) arch=arm; cc=arm-none-eabi-gcc; ar=arm-none-eabi-ar; cflags=(-mcpu=cortex-m55 -mfpu=auto -mfloat-abi=hard) ;;
-    rv32imac)  arch=riscv; cc=riscv64-unknown-elf-gcc; ar=riscv64-unknown-elf-ar; cflags=(-march=rv32imac -mabi=ilp32) ;;
+    rv32imac)  arch=riscv; cc=riscv64-unknown-elf-gcc; ar=riscv64-unknown-elf-ar; cflags=(-march=rv32imac_zicsr_zifencei -mabi=ilp32) ;;
     rv32imafc) arch=riscv; cc=riscv64-unknown-elf-gcc; ar=riscv64-unknown-elf-ar; cflags=(-march=rv32imafc -mabi=ilp32f) ;;
-    rv64imac)  arch=riscv; cc=riscv64-unknown-elf-gcc; ar=riscv64-unknown-elf-ar; cflags=(-march=rv64imac -mabi=lp64) ;;
+    rv64imac)  arch=riscv; cc=riscv64-unknown-elf-gcc; ar=riscv64-unknown-elf-ar; cflags=(-march=rv64imac_zicsr_zifencei -mabi=lp64) ;;
     rv64gc)    arch=riscv; cc=riscv64-unknown-elf-gcc; ar=riscv64-unknown-elf-ar; cflags=(-march=rv64gc -mabi=lp64d) ;;
     x86_64)    arch=x86; cc=gcc; ar=ar ;;
     *) echo "unknown platform: $platform" >&2; exit 1 ;;
