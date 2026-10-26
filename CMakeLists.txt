@@ -4,6 +4,19 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(PICOLIBC "使用 picolibc 替代 nano.specs" OFF)
 
+# ---------- picolibc 定位 ----------
+set(PICOLIBC_ROOT "" CACHE PATH "picolibc 安装前缀（含 include/ 和 lib/）")
+set(PICOLIBC_SPECS "" CACHE FILEPATH "显式指定 picolibc.specs")
+set(PICOLIBC_PREFIX "" CACHE PATH "传给 --picolibc-prefix 的前缀（一般不用设）")
+set(PICOLIBC_PLATFORM "${PLATFORM}" CACHE STRING "picolibc 目标平台（默认同 PLATFORM，可设为 rv32imac/x86_64 等）")
+option(PICOLIBC_FETCH "找不到 picolibc 时下载预编译包" OFF)
+option(PICOLIBC_BUILD "找不到 picolibc 时从源码构建（需要 meson/ninja）" OFF)
+set(PICOLIBC_SOURCE_DIR "" CACHE PATH "picolibc 源码目录（留空则下载源码包）")
+set(PICOLIBC_SOURCE_URL "" CACHE STRING "picolibc 源码包 URL")
+set(PICOLIBC_VERSION "1.8.11" CACHE STRING "预编译包版本")
+set(PICOLIBC_URL "" CACHE STRING "预编译包 URL（本地路径也可）")
+set(PICOLIBC_SHA256 "" CACHE STRING "预编译包 SHA256")
+
 # ---------- EK_CONF_PATH: 用户指定 ek_conf.h 路径 ----------
 set(EK_CONF_PATH "" CACHE STRING "Path to user's ek_conf.h (e.g. Core/Inc/ek_conf.h)")
 
@@ -22,6 +35,14 @@ project(ek_platform C)
 if(PICOLIBC AND CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
     string(REPLACE "--specs=nano.specs" ""
         CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+endif()
+
+if(PICOLIBC)
+    if(CMAKE_EXE_LINKER_FLAGS MATCHES "nano\\.specs")
+        message(WARNING "nano.specs 与 picolibc.specs 同时存在，请在父项目移除 nano.specs")
+    endif()
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/picolibc.cmake)
+    ek_picolibc_resolve()
 endif()
 
 # ---------- 源文件 ----------
@@ -78,12 +99,15 @@ set(EK_INCLUDE_DIRS
 )
 
 if(PICOLIBC)
-    list(APPEND EK_INCLUDE_DIRS
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/picolibc/include
-    )
-    set(PICOLIBC_LIB_DIR
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/picolibc/libs/cortexm/${PLATFORM}
-    )
+    if(PICOLIBC_SPECS)
+        set(_ek_picolibc_flags "--specs=${PICOLIBC_SPECS}")
+        if(PICOLIBC_PREFIX)
+            list(APPEND _ek_picolibc_flags "--picolibc-prefix=${PICOLIBC_PREFIX}")
+        endif()
+        if(PICOLIBC_PLATFORM STREQUAL "x86_64")
+            list(APPEND _ek_picolibc_flags "-no-pie")
+        endif()
+    endif()
 endif()
 
 # ---------- 对象库（配置宏在用户项目中编译时生效） ----------
@@ -101,6 +125,25 @@ if(EK_CONF_PATH)
 endif()
 
 if(PICOLIBC)
-    target_link_directories(ek_platform PUBLIC ${PICOLIBC_LIB_DIR})
-    target_link_libraries(ek_platform PUBLIC c nosys m)
+    if(PICOLIBC_SPECS)
+        target_compile_options(ek_platform PUBLIC ${_ek_picolibc_flags})
+        target_link_options(ek_platform INTERFACE ${_ek_picolibc_flags})
+    else()
+        if(NOT PICOLIBC_CRT0_A OR NOT PICOLIBC_LIBM_A OR NOT PICOLIBC_NOSYS_A)
+            message(WARNING "picolibc 安装缺少 libcrt0.a/libm.a/libnosys.a，链接可能失败")
+        endif()
+        target_include_directories(ek_platform PUBLIC ${PICOLIBC_INCLUDE_DIR})
+        target_link_options(ek_platform INTERFACE -nostdlib)
+        if(PICOLIBC_LD)
+            target_link_options(ek_platform INTERFACE "-T${PICOLIBC_LD}")
+        endif()
+        target_link_libraries(ek_platform INTERFACE
+            -Wl,--start-group
+            "${PICOLIBC_CRT0_A}"
+            "${PICOLIBC_LIBC_A}"
+            "${PICOLIBC_LIBM_A}"
+            "${PICOLIBC_NOSYS_A}"
+            gcc
+            -Wl,--end-group)
+    endif()
 endif()
