@@ -1,0 +1,312 @@
+English | [简体中文](README.md)
+
+# EmbeddedKit (ek_platform)
+
+A lightweight embedded C library for resource-constrained MCUs. It provides data structures, memory management, logging, an event scheduler, and cooperative microthreads. It has no RTOS dependency and can be used in bare-metal projects; modules are enabled at compile time through configuration macros.
+
+This document only covers integration. See the individual headers for module APIs.
+
+## Features
+
+- No RTOS dependency; integrates directly into bare-metal projects
+- Configuration-driven: every module is enabled or disabled through `ek_conf.h`; disabled modules are not compiled
+- Supports GCC, ARM Compiler 5 (armcc), and ARM Compiler 6 (armclang)
+- Platform hooks are declared `__EK_WEAK`; provide a strong function with the same name to override
+
+## Directory layout
+
+```
+ek_platform/
+├── CMakeLists.txt
+├── ek_conf_template.h             # configuration template; copy to ek_conf.h
+├── cmake/
+│   └── gcc-arm-none-eabi.cmake    # cross-compilation toolchain
+├── include/ek/
+│   ├── ek_conf_internal.h         # config entry: includes ek_conf.h, defaults, dependency checks
+│   ├── core/                      # ek_def / ek_assert / ek_io / ek_log / ek_export
+│   ├── mem/                       # ek_heap / ek_static_alloc
+│   ├── container/                 # ek_list / ek_vec / ek_ringbuf / ek_stack / ek_snapshot / ek_str / ek_str_view
+│   └── sched/                     # ek_evoke / ek_picothread
+├── src/                           # same module split as include/ek
+│   ├── core/
+│   ├── mem/
+│   ├── container/
+│   └── sched/
+├── port/clib/picolibc/            # picolibc stdout/stderr adapter
+├── port/clib/newlib/              # newlib/nanolibc syscall adapter
+├── third_party/
+│   ├── tlsf/                      # O(1) memory allocator
+│   └── lwprintf/                  # lightweight printf
+├── README.md
+└── README.en.md
+```
+
+## Supported platforms
+
+`PLATFORM` selects the ARM toolchain CPU flags:
+
+| PLATFORM | CPU | FPU |
+|----------|-----|-----|
+| cm0 | Cortex-M0 | none |
+| cm3 | Cortex-M3 | none |
+| cm4 | Cortex-M4 | fpv4-sp-d16 (hard) |
+| cm7 | Cortex-M7 | fpv5-d16 (hard) |
+| cm23 | Cortex-M23 | none |
+| cm33 | Cortex-M33 | fpv5-sp-d16 (hard) |
+| cm55 | Cortex-M55 | auto (hard) |
+
+`PICOLIBC_BUILD=ON` maps `PLATFORM` to `-mcpu` / `-mfpu` / `-mfloat-abi` and builds a matching picolibc with meson; no prebuilt package is required.
+
+The picolibc package name can be selected independently with `PICOLIBC_PLATFORM` (defaults to `PLATFORM`):
+
+| Architecture | PICOLIBC_PLATFORM |
+|--------------|-------------------|
+| ARM | cm0, cm3, cm4, cm7, cm23, cm33, cm55 |
+| RISC-V | rv32imac, rv32imafc, rv64imac, rv64gc |
+| x86 | x86_64 (freestanding; link with `-no-pie`) |
+
+RISC-V and x86 currently use the prebuilt packages published by CI through `PICOLIBC_FETCH=ON`; the local `PICOLIBC_BUILD=ON` source build only covers ARM.
+
+## Option 1: CMake submodule (recommended)
+
+### 1. Add the submodule
+
+```bash
+git submodule add https://github.com/EmbeddedKitOrg/EK_Platform.git lib/ek_platform
+```
+
+### 2. Create ek_conf.h
+
+Copy `ek_conf_template.h` into your project (for example `Core/Inc/ek_conf.h`) and keep only the macros you need to override:
+
+```bash
+cp lib/ek_platform/ek_conf_template.h Core/Inc/ek_conf.h
+```
+
+### 3. Configure CMake
+
+```cmake
+cmake_minimum_required(VERSION 3.20)
+project(my_app C)
+
+# Target platform; also selects the prebuilt picolibc package
+set(PLATFORM cm4 CACHE STRING "cm0/cm3/cm4/cm7/cm23/cm33/cm55")
+
+# Enable when using picolibc; remove this line for lwprintf or the system libc
+set(PICOLIBC ON CACHE BOOL "use picolibc")
+
+# picolibc lookup (choose one):
+#   1) Installed: set(PICOLIBC_ROOT "/path/to/picolibc")
+#   2) Toolchain provides --specs=picolibc.specs: nothing else needed
+#   3) Build from source (requires meson/ninja; uses PLATFORM):
+#        set(PICOLIBC_BUILD ON)
+#        # set(PICOLIBC_SOURCE_DIR "/path/to/picolibc")  # optional; downloads if empty
+#   4) Download a prebuilt package:
+#        set(PICOLIBC_FETCH ON)
+#        # set(PICOLIBC_SHA256 "<sha256>")  # optional; verified when set
+# You can also point PICOLIBC_SPECS directly at a specs file.
+
+# With a system picolibc (for example apt install picolibc-arm-none-eabi),
+# PICOLIBC=ON automatically finds /usr/lib/picolibc/<triple>/picolibc.specs.
+# Traditional Arm GNU Toolchain / Ubuntu arm-none-eabi-gcc ship newlib, not
+# picolibc; check with: arm-none-eabi-gcc -print-file-name=picolibc.specs
+# If the specs default path differs from the install location, set PICOLIBC_PREFIX.
+
+# Path to ek_conf.h. Must be set before add_subdirectory
+set(EK_CONF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
+    CACHE FILEPATH "" FORCE)
+
+add_subdirectory(lib/ek_platform)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform)
+```
+
+`ek_platform` is an OBJECT library. Its PUBLIC include directories and link items propagate to the main project automatically. Do not add `include/` manually, and do not replace `target_link_libraries` with `$<TARGET_OBJECTS:ek_platform>`.
+
+Downloaded archives and source-build products are cached under `<build>/_deps/`: an existing archive (with a matching SHA) is not downloaded again, a complete extraction directory is not extracted again, and a finished source build is not rebuilt. Delete the corresponding directory to force a refresh.
+
+### 4. Add linker sections
+
+`EKCFG_EXPORT=1` requires a `.ek_export` section; `EKCFG_STATIC_ALLOC=1` requires a `.ek_static_alloc` section:
+
+```ld
+.ek_export :
+{
+    . = ALIGN(4);
+    _ek_export_fn_start = .;
+    KEEP(*(SORT(.ek_export_fn*)))
+    . = ALIGN(4);
+    _ek_export_fn_end = .;
+} > FLASH
+
+.ek_static_alloc :
+{
+    . = ALIGN(4);
+    _ek_static_alloc_start = .;
+    KEEP(*(SORT(.ek_static_alloc*)))
+    . = ALIGN(4);
+    _ek_static_alloc_end = .;
+} > FLASH
+```
+
+### 5. Initialization
+
+With `EKCFG_EXPORT=1`, call `ek_export_init()` once at the start of `main()`. The heap, IO, scheduler, and other modules are initialized automatically in `level → order` order:
+
+```c
+int main(void)
+{
+    ek_export_init();
+    // ...
+}
+```
+
+Without export, call the initializers manually in dependency order: `ek_heap_init()`, then `ek_io_init()` and the other `*_init()` functions, and finally `ek_static_alloc_init()`.
+
+## Option 2: compile sources directly
+
+Without CMake, add these include paths and the required sources:
+
+```
+Include paths:
+  - include/
+  - third_party/tlsf/
+  - third_party/lwprintf/inc/
+  - <picolibc install prefix>/include/     (when using picolibc; provided by you)
+
+Sources (choose what you need):
+  - src/core/*.c
+  - src/mem/*.c
+  - src/container/*.c
+  - src/sched/*.c
+  - port/clib/picolibc/picolibc_port.c   (when using picolibc)
+  - port/clib/newlib/newlib_port.c       (when using newlib/nanolibc)
+
+Third-party sources (always compiled; actual use is guarded by #if):
+  - third_party/tlsf/tlsf.c
+  - third_party/lwprintf/lwprintf.c
+```
+
+picolibc is no longer bundled with the repository. With CMake use `PICOLIBC_ROOT` / `PICOLIBC_FETCH` as shown above. For a manual build, use `--specs=picolibc.specs --picolibc-prefix=<install prefix>`, or add `-I` / `-L` yourself.
+
+Every source includes `#include "ek/ek_conf_internal.h"`, so `include/` must be on the include path.
+
+## Configuration
+
+### Two ways to provide ek_conf.h
+
+The include logic in `ek_conf_internal.h`:
+
+```c
+#ifdef EK_CONF_PATH
+#    include EK_CONF_PATH   // option A: path supplied by the build system
+#else
+#    include "ek_conf.h"    // option B: normal include search
+#endif
+```
+
+**Option A: `EK_CONF_PATH` (recommended)**
+
+Set it before `add_subdirectory`; the library CMakeLists passes it to the compiler as a definition:
+
+```cmake
+set(EK_CONF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
+    CACHE FILEPATH "" FORCE)
+add_subdirectory(lib/ek_platform)
+```
+
+It can also be passed on the command line:
+
+```bash
+cmake -DEK_CONF_PATH="$(pwd)/Core/Inc/ek_conf.h" -B build
+```
+
+Always use an absolute path. `#include EK_CONF_PATH` expands to a quoted path, and a relative path is first resolved under `include/ek/`, so it can easily fail to resolve.
+
+**Option B: include search path**
+
+When `EK_CONF_PATH` is not set, add the directory containing `ek_conf.h` to the library target. The OBJECT library also needs it while compiling its own sources, so use `PUBLIC`:
+
+```cmake
+add_subdirectory(lib/ek_platform)
+target_include_directories(ek_platform PUBLIC Core/Inc)
+```
+
+Setting `PRIVATE` on the main target only does not propagate to the subproject.
+
+### IO backend selection
+
+`ek_io.h` selects the backend in this order: `EKCFG_IO_LWPRTF=1` → lwprintf; otherwise `EKCFG_PICOLIBC=1` → picolibc; otherwise the system libc (`printf` from glibc/newlib).
+
+| Backend | ek_conf.h settings | `ek_printf` and friends | What to provide |
+|---------|-------------------|--------------------------|-----------------|
+| picolibc (library default) | `EKCFG_PICOLIBC=1` | mapped to `printf` / `vsnprintf` | `int ek_port_io_fputc(int ch)` |
+| lwprintf (template default) | `EKCFG_IO_LWPRTF=1`, `EKCFG_PICOLIBC=0` | mapped to `lwprintf` / `lwvsnprintf` | `int ek_port_io_fputc(int ch)` |
+| Bare-metal newlib/nanolibc | `EKCFG_NEWLIB=1`, `EKCFG_PICOLIBC=0`, `EKCFG_IO_LWPRTF=0` | mapped to the system `printf` | `_write` etc. from `port/clib/newlib/newlib_port.c`; `ek_port_io_fputc` can be overridden |
+| System libc (host) | `EKCFG_PICOLIBC=0`, `EKCFG_IO_LWPRTF=0`, `EKCFG_NEWLIB=0` | mapped to the system `printf` | nothing |
+
+`EKCFG_PICOLIBC` and `EKCFG_NEWLIB` are mutually exclusive. The bare-metal newlib syscall port provides weak `_write` / `_read` / `_close` / `_fstat` / `_isatty` / `_lseek` / `_sbrk`; override them as needed in the BSP. `_sbrk` uses `__heap_start` / `__heap_end` from the linker script.
+
+When `EKCFG_PICOLIBC=1`, `EKCFG_IO_LWPRTF` is forced to 0; no manual change is required.
+
+### Configuration macros
+
+See `ek_conf_template.h` for the full list and defaults. Macros not defined in `ek_conf.h` take their defaults, and unmet dependencies are reported at compile time (for example, enabling `EKCFG_PICOTHREAD_SEM` without `EKCFG_PICOTHREAD`, or enabling `EKCFG_EVOKE` in RTOS mode).
+
+## Platform adaptation: weak functions
+
+The following functions have weak implementations. Provide strong functions with the same names as needed:
+
+```c
+// ek_io: character output (lwprintf / picolibc backends)
+int ek_port_io_fputc(int ch);
+
+// ek_log: system timestamp
+uint32_t ek_port_log_get_tick(void);
+
+// ek_evoke: critical sections, timer, sleep
+void ek_evoke_enter_critical(void);
+void ek_evoke_exit_critical(void);
+void ek_evoke_set_timer(uint32_t xtick);
+void ek_evoke_light_sleep(void);
+void ek_evoke_deep_sleep(void);
+
+// ek_assert: assertion hook (full mode)
+void ek_assert_hook(const char *file, uint32_t line, const char *expr);
+
+// ek_heap: only needed when EKCFG_HEAP_TLSF=0
+void *ek_malloc(size_t size);
+void *ek_realloc(void *ptr, size_t size);
+void ek_free(void *ptr);
+```
+
+Example for STM32:
+
+```c
+// ek_port.c
+#include "ek/core/ek_io.h"
+#include "ek/core/ek_log.h"
+
+int ek_port_io_fputc(int ch)
+{
+    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+    return ch;
+}
+
+uint32_t ek_port_log_get_tick(void)
+{
+    return HAL_GetTick();
+}
+```
+
+## Third-party dependencies
+
+| Library | Purpose | License |
+|---------|---------|---------|
+| [TLSF](http://tlsf.baisoku.org) v3.1 | real-time memory allocator (O(1) malloc/free) | BSD-style |
+| [lwprintf](https://github.com/MaJerle/lwprintf) | lightweight printf | MIT |
+| [picolibc](https://github.com/picolibc/picolibc) | embedded C standard library (optional, not bundled) | BSD |
+
+## License
+
+Original code in this project is licensed under MIT; see [LICENSE](LICENSE). Code under `third_party/` follows its own licenses.

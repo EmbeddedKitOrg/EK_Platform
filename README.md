@@ -1,3 +1,5 @@
+[English](README.en.md) | 简体中文
+
 # EmbeddedKit (ek_platform)
 
 面向资源受限 MCU 的轻量级嵌入式 C 库，提供数据结构、内存管理、日志、事件调度和微线程等基础设施。不依赖 RTOS，可直接用于裸机项目；模块通过配置宏在编译期按需启用。

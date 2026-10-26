@@ -24,6 +24,7 @@
 - `PICOLIBC_SHA256` 由必填改为可选：未提供时自动尝试 `<URL>.sha256`，仍没有则跳过校验并打印实际哈希。
 - 下载包解压目录与源码构建目录分开存放（`_deps/picolibc-fetch-*` / `_deps/picolibc-*`）。
 - README 更新 picolibc 定位方式、系统包安装提示、缓存说明和多架构平台表；错误提示补充 Debian/Ubuntu 的 `apt install picolibc-arm-none-eabi`。
+- 新增英文版集成文档 `README.en.md`，中英文 README 顶部增加语言切换链接。
 
 ### 破坏性变更
 
