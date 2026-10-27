@@ -4,6 +4,12 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [6.2.1] - 2026-10-27
+
+### 修复
+
+- 修复 `ek_set_toolchain()` 在已有 CMake 缓存时误报 `must be called before project()`：`CMAKE_PROJECT_NAME` 会在二次 configure 时从缓存预加载，不能用来判断 `project()` 是否已执行。
+
 ## [6.2.0] - 2026-10-27
 
 ### 新增
@@ -198,3 +204,4 @@
 [6.1.0]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.0.0...v6.1.0
 [6.1.1]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.1.0...v6.1.1
 [6.2.0]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.1.1...v6.2.0
+[6.2.1]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.2.0...v6.2.1
