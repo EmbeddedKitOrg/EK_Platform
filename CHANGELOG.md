@@ -4,6 +4,20 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [6.3.0] - 2026-10-27
+
+### 变更
+
+- `port/clib` 按 `PICOLIBC` 选择实现：`PICOLIBC=ON` 只编译 `port/clib/picolibc/picolibc_port.c`，否则只编译 `port/clib/newlib/newlib_port.c`；newlib 端口是否实际生效仍由 `EKCFG_NEWLIB` 控制。
+
+### 修复
+
+- 链接模板补齐 picolibc 的 `__bothinit_array_start` / `__bothinit_array_end`：picolibc 的 `__libc_init_array()` 使用这两个符号，缺失时不会执行 `.init_array`，导致 `ek_export_init()` 及所有导出初始化被跳过。
+- `newlib_port.c` 补齐 `_init` / `_fini` / `_exit` / `_kill` / `_getpid` 弱桩，修复 newlib/nanolibc 链接时的未定义引用。
+- 链接模板的 `/DISCARD/` 仅在 `EKCFG_PICOLIBC != 0` 时生成，避免 newlib/lwprintf 路径丢弃 `libc.a` / `libm.a` / `libgcc.a`。
+- `._user_heap_stack` 增加 `__heap_start` / `__heap_end`，供 newlib `_sbrk` 使用；picolibc 路径下未被引用时不会生成。
+- `ek_static_alloc_init()` 的导出 order 调整为 20，确保在 `ek_heap_init` / `ek_io_init` / `ek_evoke_init` / `ek_pt_init`（order 10）之后执行，避免静态对象在依赖组件初始化前注册。
+
 ## [6.2.1] - 2026-10-27
 
 ### 修复
@@ -205,3 +219,4 @@
 [6.1.1]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.1.0...v6.1.1
 [6.2.0]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.1.1...v6.2.0
 [6.2.1]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.2.0...v6.2.1
+[6.3.0]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.2.1...v6.3.0

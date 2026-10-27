@@ -22,6 +22,35 @@
 #    include "ek/core/ek_def.h"
 #    include "ek/core/ek_io.h"
 
+/* newlib 的 __libc_init_array() 会调用 _init/_fini；自定义 startup 没有提供 */
+__EK_WEAK void _init(void)
+{
+}
+__EK_WEAK void _fini(void)
+{
+}
+
+__EK_WEAK void _exit(int status)
+{
+    __EK_UNUSED(status);
+    while (1)
+    {
+    }
+}
+
+__EK_WEAK int _kill(int pid, int sig)
+{
+    __EK_UNUSED(pid);
+    __EK_UNUSED(sig);
+    errno = ENOSYS;
+    return -1;
+}
+
+__EK_WEAK int _getpid(void)
+{
+    return 1;
+}
+
 __EK_WEAK int _write(int fd, const void *buf, size_t len)
 {
     __EK_UNUSED(fd);

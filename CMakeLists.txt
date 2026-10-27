@@ -82,10 +82,15 @@ set(EK_SCHED_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sched/ek_picothread.c
 )
 
-set(PORT_SRCS
-    ${CMAKE_CURRENT_SOURCE_DIR}/port/clib/picolibc/picolibc_port.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/port/clib/newlib/newlib_port.c
-)
+set(PORT_SRCS)
+if(PICOLIBC)
+    list(APPEND PORT_SRCS
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/clib/picolibc/picolibc_port.c)
+else()
+    # newlib/nanolibc 端口；是否真正参与编译由 EKCFG_NEWLIB 决定
+    list(APPEND PORT_SRCS
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/clib/newlib/newlib_port.c)
+endif()
 
 set(TP_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tlsf/tlsf.c

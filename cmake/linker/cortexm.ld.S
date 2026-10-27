@@ -111,6 +111,7 @@ SECTIONS
     {
         . = ALIGN(4);
         PROVIDE_HIDDEN (__preinit_array_start = .);
+        PROVIDE_HIDDEN (__bothinit_array_start = .);
         KEEP (*(.preinit_array*))
         PROVIDE_HIDDEN (__preinit_array_end = .);
         . = ALIGN(4);
@@ -123,6 +124,7 @@ SECTIONS
         KEEP (*(SORT(.init_array.*)))
         KEEP (*(.init_array*))
         PROVIDE_HIDDEN (__init_array_end = .);
+        PROVIDE_HIDDEN (__bothinit_array_end = .);
         . = ALIGN(4);
     } >FLASH
 
@@ -176,6 +178,8 @@ SECTIONS
         . = ALIGN(8);
         PROVIDE ( end = . );
         PROVIDE ( _end = . );
+        PROVIDE ( __heap_start = end );
+        PROVIDE ( __heap_end = end + _Min_Heap_Size );
         . = . + _Min_Heap_Size;
         . = . + _Min_Stack_Size;
         . = ALIGN(8);
@@ -202,12 +206,14 @@ SECTIONS
 #endif
 
     /* Remove information from the compiler libraries */
+#if defined(EKCFG_PICOLIBC) && (EKCFG_PICOLIBC != 0)
     /DISCARD/ :
     {
         libc.a ( * )
         libm.a ( * )
         libgcc.a ( * )
     }
+#endif
 
     .ARM.attributes 0 : { *(.ARM.attributes) }
 
