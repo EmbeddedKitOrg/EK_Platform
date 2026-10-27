@@ -4,6 +4,12 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [6.1.1] - 2026-10-27
+
+### 修复
+
+- ARM 工具链仅在未启用 picolibc 时追加 `--specs=nano.specs`；`PICOLIBC=ON` 时由 `cmake/picolibc.cmake` 注入 picolibc specs，父工程无需再复制或修改工具链。
+
 ## [6.1.0] - 2026-10-27
 
 ### 新增
@@ -184,3 +190,4 @@
 [2.1.0]: https://github.com/EmbeddedKitOrg/EK_UTILS/compare/v2.0.0rc...v2.1.0
 [5.0.0]: https://github.com/EmbeddedKitOrg/EK_UTILS/compare/v4.0.0...v5.0.0
 [6.1.0]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.0.0...v6.1.0
+[6.1.1]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.1.0...v6.1.1
