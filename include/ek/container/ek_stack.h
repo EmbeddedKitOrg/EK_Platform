@@ -95,11 +95,11 @@ ek_stack_t *ek_stack_create(size_t item_size, uint32_t item_amount);
  */
 void ek_stack_destroy(ek_stack_t *sk);
 
-#    if EKCFG_STATIC_ALLOC == 1
-#        include "ek/mem/ek_static_alloc.h"
-
 int ek_stack_init_static(ek_stack_t *sk, size_t item_size, uint32_t item_amount);
 void ek_stack_deinit_static(ek_stack_t *sk);
+
+#    if EKCFG_STATIC_ALLOC == 1
+#        include "ek/mem/ek_static_alloc.h"
 
 #        define EK_DEFINE_STACK(handle, type, amount)                          \
             static union                                                       \

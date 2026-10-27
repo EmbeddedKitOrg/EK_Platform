@@ -106,7 +106,6 @@ void ek_evoke_init(void)
 
 EK_EXPORT_COMPONENTS(ek_evoke_init, 0);
 
-#    if EKCFG_STATIC_ALLOC == 1
 int ek_evoke_task_init_static(ek_evoke_task_t *tsk, ek_evoke_cb_t cb, void *arg)
 {
     if (tsk == NULL || cb == NULL) return -EINVAL;
@@ -156,7 +155,6 @@ void ek_evoke_event_deinit_static(ek_evoke_event_t *evt)
     evt->count = 0U;
     evt->data = NULL;
 }
-#    endif /* EKCFG_STATIC_ALLOC */
 
 ek_evoke_task_t *ek_evoke_task_create(ek_evoke_cb_t cb, void *arg)
 {

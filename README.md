@@ -19,8 +19,15 @@
 ek_platform/
 ├── CMakeLists.txt
 ├── ek_conf_template.h             # 配置模板，复制为 ek_conf.h
+├── ek_board_template.h            # 板级内存模板，复制为 ek_board.h
 ├── cmake/
-│   └── gcc-arm-none-eabi.cmake    # 交叉编译工具链
+│   ├── ek_config.cmake            # CMake 配置函数
+│   ├── ek_linker.cmake            # 链接脚本生成与注入
+│   ├── linker/
+│   │   ├── cortexm.ld.S           # Cortex-M 链接脚本模板
+│   │   └── riscv.ld.S             # RISC-V 链接脚本模板
+│   ├── gcc-arm-none-eabi.cmake    # ARM 交叉编译工具链
+│   └── gcc-riscv-none-elf.cmake   # RISC-V 交叉编译工具链
 ├── include/ek/
 │   ├── ek_conf_internal.h         # 配置入口：引入 ek_conf.h、填充默认值、依赖校验
 │   ├── core/                      # ek_def / ek_assert / ek_io / ek_log / ek_export
@@ -43,10 +50,10 @@ ek_platform/
 
 ## 支持平台
 
-`PLATFORM` 用于选择 ARM 工具链 CPU 参数：
+`PLATFORM` 用于选择工具链 CPU/ISA 参数。ARM 使用 `cmake/gcc-arm-none-eabi.cmake`，RISC-V 使用 `cmake/gcc-riscv-none-elf.cmake`：
 
-| PLATFORM | CPU | FPU |
-|----------|-----|-----|
+| PLATFORM | CPU / ISA | FPU / ABI |
+|----------|-----------|-----------|
 | cm0 | Cortex-M0 | 无 |
 | cm3 | Cortex-M3 | 无 |
 | cm4 | Cortex-M4 | fpv4-sp-d16 (hard) |
@@ -54,6 +61,19 @@ ek_platform/
 | cm23 | Cortex-M23 | 无 |
 | cm33 | Cortex-M33 | fpv5-sp-d16 (hard) |
 | cm55 | Cortex-M55 | auto (hard) |
+| rv32imac | RISC-V RV32IMAC | ilp32 |
+| rv32imafc | RISC-V RV32IMAFC | ilp32f |
+| rv64imac | RISC-V RV64IMAC | lp64 |
+| rv64gc | RISC-V RV64GC | lp64d |
+
+RISC-V 编译器不在 PATH 时，用 `RISCV_TOOLCHAIN_PREFIX` 指定前缀（包含目录和末尾 `-`）：
+
+```bash
+cmake -DCMAKE_TOOLCHAIN_FILE=lib/ek_platform/cmake/gcc-riscv-none-elf.cmake \
+      -DPLATFORM=rv32imac \
+      -DRISCV_TOOLCHAIN_PREFIX=/opt/xpack-riscv-none-elf-gcc-<version>/bin/riscv-none-elf- \
+      -B build
+```
 
 `PICOLIBC_BUILD=ON` 会按 `PLATFORM` 自动选择 `-mcpu` / `-mfpu` / `-mfloat-abi`，用 meson 构建一份对应 ABI 的 picolibc，无需预先准备预编译包。
 
@@ -75,25 +95,30 @@ RISC-V 和 x86 目前通过 `PICOLIBC_FETCH=ON` 使用 CI 发布的预编译包�
 git submodule add https://github.com/EmbeddedKitOrg/EK_Platform.git lib/ek_platform
 ```
 
-### 2. 创建 ek_conf.h
+### 2. 创建 ek_conf.h 与 ek_board.h
 
-复制 `ek_conf_template.h` 到你的项目（如 `Core/Inc/ek_conf.h`），只保留需要修改的宏，其余保持默认：
+复制两个模板到你的项目：`ek_conf.h` 只保留需要修改的宏，其余保持默认；`ek_board.h` 按芯片手册填写 `EKLD_*` 内存参数：
 
 ```bash
-cp lib/ek_platform/ek_conf_template.h Core/Inc/ek_conf.h
+cp lib/ek_platform/ek_conf_template.h  Core/Inc/ek_conf.h
+cp lib/ek_platform/ek_board_template.h Core/Inc/ek_board.h
 ```
 
 ### 3. 配置 CMake
 
 ```cmake
 cmake_minimum_required(VERSION 3.20)
-project(my_app C)
+
+# 配置函数必须在 project()/add_subdirectory() 之前 include
+include(${CMAKE_CURRENT_SOURCE_DIR}/lib/ek_platform/cmake/ek_config.cmake)
 
 # 目标平台，同时决定下载的 picolibc 预编译包
-set(PLATFORM cm4 CACHE STRING "cm0/cm3/cm4/cm7/cm23/cm33/cm55")
+ek_set_arch(cm4)
 
-# 使用 picolibc 时开启；改用 lwprintf 或系统 libc 时删除这一行
-set(PICOLIBC ON CACHE BOOL "使用 picolibc")
+# 使用 picolibc 时开启；改用 lwprintf 或系统 libc 时关闭
+ek_set_picolibc(ON)
+
+project(my_app C)
 
 # picolibc 定位（四选一）：
 #   1) 已安装：set(PICOLIBC_ROOT "/path/to/picolibc")
@@ -112,51 +137,48 @@ set(PICOLIBC ON CACHE BOOL "使用 picolibc")
 # 可用 arm-none-eabi-gcc -print-file-name=picolibc.specs 确认。
 # specs 默认路径与实际安装位置不同时，用 PICOLIBC_PREFIX 指定前缀。
 
-# 指定 ek_conf.h。必须在 add_subdirectory 之前设置
-set(EK_CONF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
-    CACHE FILEPATH "" FORCE)
+ek_set_conf_file("${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h")
+ek_set_linker_file("${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board.h")
 
 add_subdirectory(lib/ek_platform)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform)
 ```
 
+`ek_set_arch()` / `ek_set_picolibc()` 必须在 `project()` 之前调用；`ek_set_conf_file()` / `ek_set_linker_file()` 必须在 `add_subdirectory(ek_platform)` 之前调用。
+
 `ek_platform` 是 OBJECT 库，它的 PUBLIC include 目录和链接项会自动传给主工程，不需要手动添加 `include/` 等路径，也不要用 `$<TARGET_OBJECTS:ek_platform>` 代替 `target_link_libraries`。
 
 下载和源码构建的产物都缓存在 `<build>/_deps/`：归档已存在（且 SHA 匹配）时不再下载，解压目录完整时不再解压，源码构建已完成时不再重新构建。删除对应目录即可强制刷新。
 
-### 4. 添加链接脚本段
+### 4. 链接脚本
 
-启用 `EKCFG_EXPORT` 时必须有 `.ek_export` 段，启用 `EKCFG_STATIC_ALLOC` 时必须有 `.ek_static_alloc` 段：
+链接脚本由 `ek_platform` 自动生成，不需要手写。第 2 步复制出的 `ek_board.h` 提供内存布局，CMake 里通过 `EK_BOARD_PATH` 指向它（上面的 `ek_set_linker_file()` 已设置）。
 
-```ld
-.ek_export :
-{
-    . = ALIGN(4);
-    _ek_export_fn_start = .;
-    KEEP(*(SORT(.ek_export_fn*)))
-    . = ALIGN(4);
-    _ek_export_fn_end = .;
-} > FLASH
+`EK_LINKER_AUTO` 默认开启：库会用 C 预处理器把 `ek_conf.h`、`ek_conf_internal.h`、`ek_board.h` 和 `cmake/linker/cortexm.ld.S` 合成为 `${build}/ek_platform/ek_platform.ld`，并通过 `INTERFACE_LINK_OPTIONS` / `INTERFACE_LINK_DEPENDS` 自动挂到链接 `ek_platform` 的目标上。生成脚本已经包含 `.ek_export`、`.ek_static_alloc`、TCMRAM 以及 SDRAM0/SDRAM1 段，`EKCFG_EXPORT` / `EKCFG_STATIC_ALLOC` 关闭时对应段会自动省略。
 
-.ek_static_alloc :
-{
-    . = ALIGN(4);
-    _ek_static_alloc_start = .;
-    KEEP(*(SORT(.ek_static_alloc*)))
-    . = ALIGN(4);
-    _ek_static_alloc_end = .;
-} > FLASH
+若 `ek_conf.h` 在 RTOS 配置里 include 了其他头，把对应目录加入 `EK_LINKER_INCLUDE_DIRS`；预处理器仍只保留宏，不会把 C 声明写进 `.ld`。
+
+RISC-V 项目设置 `PLATFORM=rv...` 或调用 `ek_set_linker_arch(riscv)`，库会自动选择 `cmake/linker/riscv.ld.S`；需要自定义模板时才调用 `ek_set_linker_template(...)`。该模板默认入口是 `_start`，TCMRAM 为可选段（`EKLD_TCMRAM_LENGTH` 为 0 时不生成）。
+
+多 target 或多板子时关闭自动模式，给每个目标单独生成：
+
+```cmake
+set(EK_LINKER_AUTO OFF)
+...
+ek_linker_attach(app BOARD_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board_a.h")
 ```
+
+不使用 CMake 集成时，可以用 `${CMAKE_C_COMPILER} -E -P -x c` 手动预处理 `cmake/linker/cortexm.ld.S`，或直接参考生成结果。
 
 ### 5. 初始化
 
-启用 `EKCFG_EXPORT=1` 时，`main()` 起始调用一次即可，堆、IO、调度器等模块会按 `level → order` 自动初始化：
+启用 `EKCFG_EXPORT=1` 时，`ek_export_init()` 标记为 `__attribute__((constructor))`，由启动代码的 `__libc_init_array()` 在 `main()` 之前自动调用，堆、IO、调度器等模块会按 `level → order` 自动初始化。不要重复调用：
 
 ```c
 int main(void)
 {
-    ek_export_init();
+    // ek_export_init() 已由 __libc_init_array() 自动调用
     // ...
 }
 ```
@@ -204,15 +226,25 @@ picolibc 不再随仓库分发。用 CMake 时见上方 `PICOLIBC_ROOT` / `PICOL
 #endif
 ```
 
-**方式 A：`EK_CONF_PATH`（推荐）**
+**方式 A：`ek_set_conf_file()` / `EK_CONF_PATH`（推荐）**
 
-在 `add_subdirectory` 之前设置，库的 CMakeLists 会把它作为编译宏传给编译器：
+先 include 配置函数，再在 `add_subdirectory` 之前指定：
+
+```cmake
+include(${CMAKE_CURRENT_SOURCE_DIR}/lib/ek_platform/cmake/ek_config.cmake)
+ek_set_conf_file("${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h")
+add_subdirectory(lib/ek_platform)
+```
+
+`ek_set_conf_file()` 写入的就是 `EK_CONF_PATH` cache；等价的底层写法：
 
 ```cmake
 set(EK_CONF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
-    CACHE FILEPATH "" FORCE)
+    CACHE STRING "" FORCE)
 add_subdirectory(lib/ek_platform)
 ```
+
+库的 CMakeLists 会把 `EK_CONF_PATH` 作为编译宏传给编译器。
 
 也可以用命令行传入：
 

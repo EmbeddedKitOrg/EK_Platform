@@ -177,11 +177,21 @@ ek_pt_t *ek_pt_create(ek_pt_cb_t cb, uint8_t prio, void *arg);
  */
 void ek_pt_destroy(ek_pt_t *pt);
 
-#    if EKCFG_STATIC_ALLOC == 1
-#        include "ek/mem/ek_static_alloc.h"
-
 int ek_pt_init_static(ek_pt_t *pt, ek_pt_cb_t cb, uint8_t prio, void *arg);
 void ek_pt_deinit_static(ek_pt_t *pt);
+
+#    if EKCFG_PICOTHREAD_SEM == 1
+int ek_pt_sem_init_static(ek_pt_sem_t *sem, uint8_t count);
+void ek_pt_sem_deinit_static(ek_pt_sem_t *sem);
+#    endif /* EKCFG_PICOTHREAD_SEM */
+
+#    if EKCFG_PICOTHREAD_MSG == 1
+int ek_pt_msg_init_static(ek_pt_msg_t *msg, size_t item_size, uint32_t item_amount);
+void ek_pt_msg_deinit_static(ek_pt_msg_t *msg);
+#    endif /* EKCFG_PICOTHREAD_MSG */
+
+#    if EKCFG_STATIC_ALLOC == 1
+#        include "ek/mem/ek_static_alloc.h"
 
 #        define EK_DEFINE_PT(handle, cb, prio, arg)                       \
             static ek_pt_t handle;                                        \
@@ -192,9 +202,6 @@ void ek_pt_deinit_static(ek_pt_t *pt);
             EK_STATIC_ALLOC_REGISTER(handle, 20, _static_alloc_init_##handle)
 
 #        if EKCFG_PICOTHREAD_SEM == 1
-int ek_pt_sem_init_static(ek_pt_sem_t *sem, uint8_t count);
-void ek_pt_sem_deinit_static(ek_pt_sem_t *sem);
-
 #            define EK_DEFINE_PT_SEM(handle, count)                   \
                 static ek_pt_sem_t handle;                            \
                 static int _static_alloc_init_##handle(void)          \
@@ -205,9 +212,6 @@ void ek_pt_sem_deinit_static(ek_pt_sem_t *sem);
 #        endif /* EKCFG_PICOTHREAD_SEM */
 
 #        if EKCFG_PICOTHREAD_MSG == 1
-int ek_pt_msg_init_static(ek_pt_msg_t *msg, size_t item_size, uint32_t item_amount);
-void ek_pt_msg_deinit_static(ek_pt_msg_t *msg);
-
 #            define EK_DEFINE_PT_MSG(handle, type, amount)                          \
                 static union                                                        \
                 {                                                                   \

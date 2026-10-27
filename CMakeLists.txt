@@ -24,12 +24,23 @@ set(EK_CONF_PATH "" CACHE STRING "Path to user's ek_conf.h (e.g. Core/Inc/ek_con
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
     if(NOT PLATFORM)
         message(FATAL_ERROR "PLATFORM is required. Usage: cmake -DPLATFORM=cm4 -B build\n"
-                            "Valid values: cm0, cm3, cm4, cm7, cm23, cm33, cm55")
+                            "Valid values: cm0, cm3, cm4, cm7, cm23, cm33, cm55,\n"
+                            "              rv32imac, rv32imafc, rv64imac, rv64gc")
     endif()
-    set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/gcc-arm-none-eabi.cmake)
+    if(NOT CMAKE_TOOLCHAIN_FILE)
+        set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/gcc-arm-none-eabi.cmake)
+    endif()
 endif()
 
 project(ek_platform C)
+
+# ---------- 链接脚本 ----------
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ek_linker.cmake)
+
+set(_ek_linker_enabled FALSE)
+if(EK_LINKER_AUTO AND EK_CONF_PATH AND EK_BOARD_PATH AND CMAKE_CROSSCOMPILING)
+    set(_ek_linker_enabled TRUE)
+endif()
 
 # ---------- picolibc 链接标志 ----------
 if(PICOLIBC AND CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
@@ -125,6 +136,10 @@ if(EK_CONF_PATH)
     target_compile_definitions(ek_platform PUBLIC EK_CONF_PATH="${EK_CONF_PATH}")
 endif()
 
+if(_ek_linker_enabled)
+    _ek_linker_auto_apply()
+endif()
+
 if(PICOLIBC)
     if(PICOLIBC_SPECS)
         target_compile_options(ek_platform PUBLIC ${_ek_picolibc_flags})
@@ -135,7 +150,7 @@ if(PICOLIBC)
         endif()
         target_include_directories(ek_platform PUBLIC ${PICOLIBC_INCLUDE_DIR})
         target_link_options(ek_platform INTERFACE -nostdlib)
-        if(PICOLIBC_LD)
+        if(PICOLIBC_LD AND NOT _ek_linker_enabled)
             target_link_options(ek_platform INTERFACE "-T${PICOLIBC_LD}")
         endif()
         target_link_libraries(ek_platform INTERFACE

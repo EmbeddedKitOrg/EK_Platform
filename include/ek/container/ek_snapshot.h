@@ -47,9 +47,6 @@ extern "C"
 {
 #    endif /* __cplusplus */
 
-#    if EKCFG_STATIC_ALLOC == 1
-#        include "ek/mem/ek_static_alloc.h"
-
 /**
  * @brief 静态初始化快照
  * @param snapshot 快照对象指针
@@ -63,6 +60,9 @@ int ek_snapshot_init_static(ek_snapshot_t *snapshot, size_t data_size);
  * @param snapshot 快照对象指针
  */
 void ek_snapshot_deinit_static(ek_snapshot_t *snapshot);
+
+#    if EKCFG_STATIC_ALLOC == 1
+#        include "ek/mem/ek_static_alloc.h"
 
 /**
  * @brief 定义静态初始化的快照对象

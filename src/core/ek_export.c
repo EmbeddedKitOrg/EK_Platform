@@ -15,7 +15,7 @@ extern const _ek_export_item_t _ek_export_fn_end;
 
 static int _ek_export_item_compare(const void *lhs, const void *rhs);
 
-void ek_export_init(void)
+__attribute__((constructor)) void ek_export_init(void)
 {
     const _ek_export_item_t *items_start = &_ek_export_fn_start;
     const _ek_export_item_t *items_end = &_ek_export_fn_end;
