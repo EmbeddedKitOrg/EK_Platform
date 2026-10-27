@@ -151,12 +151,12 @@ Downloaded archives and source-build products are cached under `<build>/_deps/`:
 
 ### 5. Initialization
 
-With `EKCFG_EXPORT=1`, call `ek_export_init()` once at the start of `main()`. The heap, IO, scheduler, and other modules are initialized automatically in `level → order` order:
+With `EKCFG_EXPORT=1`, `ek_export_init()` is marked `__attribute__((constructor))` and runs automatically from `__libc_init_array()` before `main()`. The heap, IO, scheduler, and other modules are initialized in `level → order` order. Do not call it again:
 
 ```c
 int main(void)
 {
-    ek_export_init();
+    // ek_export_init() already runs from __libc_init_array()
     // ...
 }
 ```

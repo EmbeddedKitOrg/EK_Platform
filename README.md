@@ -151,12 +151,12 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform)
 
 ### 5. 初始化
 
-启用 `EKCFG_EXPORT=1` 时，`main()` 起始调用一次即可，堆、IO、调度器等模块会按 `level → order` 自动初始化：
+启用 `EKCFG_EXPORT=1` 时，`ek_export_init()` 标记为 `__attribute__((constructor))`，由启动代码的 `__libc_init_array()` 在 `main()` 之前自动调用，堆、IO、调度器等模块会按 `level → order` 自动初始化。不要重复调用：
 
 ```c
 int main(void)
 {
-    ek_export_init();
+    // ek_export_init() 已由 __libc_init_array() 自动调用
     // ...
 }
 ```

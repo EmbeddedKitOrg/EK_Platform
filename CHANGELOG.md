@@ -25,11 +25,13 @@
 - 下载包解压目录与源码构建目录分开存放（`_deps/picolibc-fetch-*` / `_deps/picolibc-*`）。
 - README 更新 picolibc 定位方式、系统包安装提示、缓存说明和多架构平台表；错误提示补充 Debian/Ubuntu 的 `apt install picolibc-arm-none-eabi`。
 - 新增英文版集成文档 `README.en.md`，中英文 README 顶部增加语言切换链接。
+- `ek_export_init()` 标记为 `__attribute__((constructor))`，由启动代码的 `__libc_init_array()` 在 `main()` 之前自动调用，使用方不再需要显式调用。
 
 ### 破坏性变更
 
 - 删除 `third_party/picolibc/`（244 个文件，约 39M）。直接引用该目录的构建脚本需要改用 `PICOLIBC_ROOT` / `PICOLIBC_SPECS` / `PICOLIBC_BUILD` / `PICOLIBC_FETCH`。
 - `PICOLIBC=ON` 但系统、工具链、`PICOLIBC_ROOT` 都没有 picolibc，且未开启 `PICOLIBC_BUILD` / `PICOLIBC_FETCH` 时，configure 直接失败。
+- 使用方需删除 `main()` 中的 `ek_export_init()` 调用：导出项现在自动执行，重复调用会让所有导出项（含 `ek_heap_init()`）执行两次。自定义启动代码必须调用 `__libc_init_array()`，否则自动初始化不会发生。
 
 ## [6.0.0] - 2026-10-25
 
