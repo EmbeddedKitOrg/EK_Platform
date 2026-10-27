@@ -118,6 +118,9 @@ ek_set_arch(cm4)
 # 使用 picolibc 时开启；改用 lwprintf 或系统 libc 时关闭
 ek_set_picolibc(ON)
 
+# 自动选择 ARM/RISC-V 工具链
+ek_set_toolchain()
+
 project(my_app C)
 
 # picolibc 定位（四选一）：
@@ -159,7 +162,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform)
 
 若 `ek_conf.h` 在 RTOS 配置里 include 了其他头，把对应目录加入 `EK_LINKER_INCLUDE_DIRS`；预处理器仍只保留宏，不会把 C 声明写进 `.ld`。
 
-RISC-V 项目设置 `PLATFORM=rv...` 或调用 `ek_set_linker_arch(riscv)`，库会自动选择 `cmake/linker/riscv.ld.S`；需要自定义模板时才调用 `ek_set_linker_template(...)`。该模板默认入口是 `_start`，TCMRAM 为可选段（`EKLD_TCMRAM_LENGTH` 为 0 时不生成）。
+RISC-V 项目调用 `ek_set_arch(rv32imac)` 后再调用 `ek_set_toolchain()`，库会自动选择 `cmake/gcc-riscv-none-elf.cmake` 和 `cmake/linker/riscv.ld.S`；需要自定义链接模板时才调用 `ek_set_linker_template(...)`。该模板默认入口是 `_start`，TCMRAM 为可选段（`EKLD_TCMRAM_LENGTH` 为 0 时不生成）。
 
 多 target 或多板子时关闭自动模式，给每个目标单独生成：
 
