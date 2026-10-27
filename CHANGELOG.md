@@ -4,6 +4,12 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [6.2.0] - 2026-10-27
+
+### 新增
+
+- 新增 `ek_set_toolchain()`：按 `PLATFORM` 自动选择 `cmake/gcc-arm-none-eabi.cmake` 或 `cmake/gcc-riscv-none-elf.cmake`，必须在 `project()` 之前调用；顶层工程不再需要传 `-DCMAKE_TOOLCHAIN_FILE`。
+
 ## [6.1.1] - 2026-10-27
 
 ### 修复
@@ -191,3 +197,4 @@
 [5.0.0]: https://github.com/EmbeddedKitOrg/EK_UTILS/compare/v4.0.0...v5.0.0
 [6.1.0]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.0.0...v6.1.0
 [6.1.1]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.1.0...v6.1.1
+[6.2.0]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.1.1...v6.2.0
