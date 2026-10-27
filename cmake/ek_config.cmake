@@ -43,6 +43,34 @@ function(ek_set_picolibc enabled)
     set(PICOLIBC "${enabled}" CACHE BOOL "Use picolibc" FORCE)
 endfunction()
 
+# 按 PLATFORM 自动选择工具链。必须在 project() 之前调用，并且先调用 ek_set_arch()。
+function(ek_set_toolchain)
+    if(CMAKE_PROJECT_NAME)
+        message(FATAL_ERROR "ek_set_toolchain: must be called before project()")
+    endif()
+    if(NOT PLATFORM)
+        message(FATAL_ERROR "ek_set_toolchain: PLATFORM is not set; call ek_set_arch() first")
+    endif()
+
+    if(PLATFORM MATCHES "^cm")
+        set(_toolchain "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/gcc-arm-none-eabi.cmake")
+    elseif(PLATFORM MATCHES "^rv")
+        set(_toolchain "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/gcc-riscv-none-elf.cmake")
+    else()
+        message(FATAL_ERROR "ek_set_toolchain: unsupported PLATFORM: ${PLATFORM}")
+    endif()
+
+    if(NOT EXISTS "${_toolchain}")
+        message(FATAL_ERROR "ek_set_toolchain: toolchain file not found: ${_toolchain}")
+    endif()
+
+    if(CMAKE_TOOLCHAIN_FILE AND NOT CMAKE_TOOLCHAIN_FILE STREQUAL "${_toolchain}")
+        message(WARNING "ek_set_toolchain: overriding CMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}")
+    endif()
+
+    set(CMAKE_TOOLCHAIN_FILE "${_toolchain}" CACHE FILEPATH "EK toolchain file" FORCE)
+endfunction()
+
 # 链接模板架构：cortexm / riscv。
 # 不调用时由 PLATFORM 推导（cm* -> cortexm，rv* -> riscv）。
 function(ek_set_linker_arch arch)
