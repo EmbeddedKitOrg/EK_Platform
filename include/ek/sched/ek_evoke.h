@@ -127,13 +127,13 @@ ek_evoke_event_t *ek_evoke_event_create(uint32_t init);
  */
 void ek_evoke_event_destroy(ek_evoke_event_t *evt);
 
-#    if EKCFG_STATIC_ALLOC == 1
-#        include "ek/mem/ek_static_alloc.h"
-
 int ek_evoke_task_init_static(ek_evoke_task_t *tsk, ek_evoke_cb_t cb, void *arg);
 void ek_evoke_task_deinit_static(ek_evoke_task_t *tsk);
 int ek_evoke_event_init_static(ek_evoke_event_t *evt, uint32_t init);
 void ek_evoke_event_deinit_static(ek_evoke_event_t *evt);
+
+#    if EKCFG_STATIC_ALLOC == 1
+#        include "ek/mem/ek_static_alloc.h"
 
 #        define EK_DEFINE_EVOKE_TASK(handle, cb, arg)                     \
             static ek_evoke_task_t handle;                                \

@@ -84,11 +84,11 @@ ek_ringbuf_t *ek_ringbuf_create(size_t item_size, uint32_t item_amount);
  */
 void ek_ringbuf_destroy(ek_ringbuf_t *rb);
 
-#        if EKCFG_STATIC_ALLOC == 1
-#            include "ek/mem/ek_static_alloc.h"
-
 int ek_ringbuf_init_static(ek_ringbuf_t *rb, size_t item_size, uint32_t item_amount);
 void ek_ringbuf_deinit_static(ek_ringbuf_t *rb);
+
+#        if EKCFG_STATIC_ALLOC == 1
+#            include "ek/mem/ek_static_alloc.h"
 
 #            define EK_DEFINE_RINGBUF(handle, type, amount)                          \
                 static union                                                         \
@@ -179,9 +179,11 @@ ek_ringbuf_spsc_t *ek_ringbuf_create_spsc(size_t item_size, uint32_t item_amount
  */
 void ek_ringbuf_destroy_spsc(ek_ringbuf_spsc_t *rb);
 
-#        if EKCFG_STATIC_ALLOC == 1
 int ek_ringbuf_init_spsc_static(ek_ringbuf_spsc_t *rb, size_t item_size, uint32_t amount);
 void ek_ringbuf_deinit_spsc_static(ek_ringbuf_spsc_t *rb);
+
+#        if EKCFG_STATIC_ALLOC == 1
+#            include "ek/mem/ek_static_alloc.h"
 
 #            define EK_DEFINE_RINGBUF_SPSC(handle, type, amount)                          \
                 static union                                                              \

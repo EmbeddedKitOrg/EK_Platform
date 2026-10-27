@@ -35,7 +35,6 @@ void ek_pt_init(void)
 
 EK_EXPORT_COMPONENTS(ek_pt_init, 0);
 
-#    if EKCFG_STATIC_ALLOC == 1
 int ek_pt_init_static(ek_pt_t *pt, ek_pt_cb_t cb, uint8_t prio, void *arg)
 {
     if (pt == NULL || cb == NULL || s_init == false || prio > EKCFG_PT_PRIO_LOWEST) return -EINVAL;
@@ -48,15 +47,15 @@ int ek_pt_init_static(ek_pt_t *pt, ek_pt_cb_t cb, uint8_t prio, void *arg)
     pt->line = 0;
     ek_list_init(&pt->event_node);
     ek_list_init(&pt->state_node);
-#        if EKCFG_PICOTHREAD_SEM || EKCFG_PICOTHREAD_MSG
+#    if EKCFG_PICOTHREAD_SEM || EKCFG_PICOTHREAD_MSG
     pt->wait_result = 0;
-#        endif
-#        if EKCFG_PICOTHREAD_SEM
+#    endif
+#    if EKCFG_PICOTHREAD_SEM
     pt->wait_sem = NULL;
-#        endif
-#        if EKCFG_PICOTHREAD_MSG
+#    endif
+#    if EKCFG_PICOTHREAD_MSG
     pt->wait_msg = NULL;
-#        endif
+#    endif
 
     _ready_enqueue(pt);
     return 0;
@@ -68,26 +67,25 @@ void ek_pt_deinit_static(ek_pt_t *pt)
 
     if (pt->state == EK_PT_STATE_READY) _ready_dequeue(pt);
     else if (pt->state == EK_PT_STATE_BLOCK) ek_list_remove(&pt->state_node);
-#        if EKCFG_PICOTHREAD_SEM
+#    if EKCFG_PICOTHREAD_SEM
     if (pt->wait_sem != NULL)
     {
         ek_list_remove(&pt->event_node);
         pt->wait_sem = NULL;
     }
-#        endif
-#        if EKCFG_PICOTHREAD_MSG
+#    endif
+#    if EKCFG_PICOTHREAD_MSG
     if (pt->wait_msg != NULL)
     {
         ek_list_remove(&pt->event_node);
         pt->wait_msg = NULL;
     }
-#        endif
-#        if EKCFG_PICOTHREAD_SEM || EKCFG_PICOTHREAD_MSG
+#    endif
+#    if EKCFG_PICOTHREAD_SEM || EKCFG_PICOTHREAD_MSG
     pt->wait_result = -ECANCELED;
-#        endif
+#    endif
     pt->state = EK_PT_STATE_SUSPEND;
 }
-#    endif /* EKCFG_STATIC_ALLOC */
 
 ek_pt_t *ek_pt_create(ek_pt_cb_t cb, uint8_t prio, void *arg)
 {
@@ -276,7 +274,6 @@ ek_pt_t *ek_pt_active(void)
 }
 
 #    if EKCFG_PICOTHREAD_SEM == 1
-#        if EKCFG_STATIC_ALLOC == 1
 int ek_pt_sem_init_static(ek_pt_sem_t *sem, uint8_t count)
 {
     if (sem == NULL) return -EINVAL;
@@ -301,7 +298,6 @@ void ek_pt_sem_deinit_static(ek_pt_sem_t *sem)
         pt->state = EK_PT_STATE_READY;
     }
 }
-#        endif /* EKCFG_STATIC_ALLOC */
 
 ek_pt_sem_t *ek_pt_sem_create(uint8_t count)
 {
@@ -377,7 +373,6 @@ void ek_pt_sem_give(ek_pt_sem_t *sem)
 #    if EKCFG_PICOTHREAD_MSG == 1
 #        include "ek/container/ek_ringbuf.h"
 
-#        if EKCFG_STATIC_ALLOC == 1
 int ek_pt_msg_init_static(ek_pt_msg_t *msg, size_t item_size, uint32_t item_amount)
 {
     if (msg == NULL) return -EINVAL;
@@ -416,7 +411,7 @@ void ek_pt_msg_deinit_static(ek_pt_msg_t *msg)
 
     ek_ringbuf_deinit_static(&msg->rb);
 }
-#        endif /* EKCFG_STATIC_ALLOC */
+
 ek_pt_msg_t *ek_pt_msg_create(size_t item_size, uint32_t item_amount)
 {
     if (item_size == 0U || item_amount == 0U) return NULL;

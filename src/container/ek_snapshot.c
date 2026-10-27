@@ -10,8 +10,6 @@
 
 #    include "ek/mem/ek_heap.h"
 
-#    if EKCFG_STATIC_ALLOC == 1
-#        include "ek/mem/ek_static_alloc.h"
 int ek_snapshot_init_static(ek_snapshot_t *snapshot, size_t data_size)
 {
     if (!snapshot || !data_size) return -EINVAL;
@@ -20,9 +18,9 @@ int ek_snapshot_init_static(ek_snapshot_t *snapshot, size_t data_size)
     snapshot->unique = 0;
     memset(snapshot->data, 0, data_size);
 
-#        if EKCFG_RTOS == 1
+#    if EKCFG_RTOS == 1
     EK_LOCK_INIT(snapshot->lock);
-#        endif /* EKCFG_RTOS */
+#    endif /* EKCFG_RTOS */
 
     return 0;
 }
@@ -30,15 +28,14 @@ int ek_snapshot_init_static(ek_snapshot_t *snapshot, size_t data_size)
 void ek_snapshot_deinit_static(ek_snapshot_t *snapshot)
 {
     if (!snapshot) return;
-#        if EKCFG_RTOS == 1
+#    if EKCFG_RTOS == 1
     EK_LOCK_DEINIT(snapshot->lock);
-#        endif /* EKCFG_RTOS */
+#    endif /* EKCFG_RTOS */
 
     memset(snapshot->data, 0, snapshot->data_size);
     snapshot->data_size = 0;
     snapshot->unique = 0;
 }
-#    endif // EKCFG_STATIC_ALLOC == 1
 
 ek_snapshot_t *ek_snapshot_create(size_t data_size)
 {

@@ -4,7 +4,7 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [6.1.0] - 2026-10-27
 
 ### 新增
 
@@ -16,6 +16,11 @@
 - 新增配置项：`PICOLIBC_PLATFORM`、`PICOLIBC_PREFIX`、`PICOLIBC_SOURCE_DIR`、`PICOLIBC_SOURCE_URL`、`PICOLIBC_SHA256_<platform>`。
 - 新增 `scripts/build-picolibc.sh`：单平台打包脚本，支持 ARM、RISC-V、x86_64，产出 `.tar.gz` + `.sha256`，并用生成的 specs 链接最小程序自检。
 - 新增 `.github/workflows/picolibc-prebuilt.yml`：手动或每周检查 picolibc 最新版本，矩阵构建 12 个平台并发布到 `picolibc-<version>` Release。
+- 新增 `ek_board_template.h` 与 `EK_BOARD_PATH`：板级内存布局（`EKLD_*`）从 `ek_conf.h` 分离，通过独立 `ek_board.h` 提供；库内不包含任何具体板子的配置。
+- 新增 `cmake/ek_config.cmake`：`ek_set_conf_file()` / `ek_set_board_file()` / `ek_set_linker_file()` / `ek_set_arch()` / `ek_set_picolibc()` / `ek_set_linker_arch()` / `ek_set_linker_template()`；`ek_set_arch()` 和 `ek_set_picolibc()` 需在 `project()` 之前调用，文件与链接配置需在 `add_subdirectory(ek_platform)` 之前调用。
+- 新增 `cmake/ek_linker.cmake` 与 `cmake/linker/cortexm.ld.S`：用 C 预处理器生成链接脚本，自动通过 `INTERFACE_LINK_OPTIONS` / `INTERFACE_LINK_DEPENDS` 注入链接目标；支持 `.ek_export`、`.ek_static_alloc`、TCMRAM、SDRAM0/SDRAM1 段，提供 `EK_LINKER_AUTO` 自动模式和 `ek_linker_attach()` 多目标模式。
+- 新增 `cmake/linker/riscv.ld.S`：通用 RISC-V 裸机模板，默认入口 `_start`，保留 `.ek_export`、`.ek_static_alloc` 和 SDRAM0/SDRAM1 段；`EK_LINKER_ARCH` / `PLATFORM` 会自动选择 `cortexm.ld.S` 或 `riscv.ld.S`，`EK_LINKER_TEMPLATE` 仅作显式覆盖。
+- 新增 `cmake/gcc-riscv-none-elf.cmake`：支持 `rv32imac` / `rv32imafc` / `rv64imac` / `rv64gc`；`RISCV_TOOLCHAIN_PREFIX` 可指定 xpack 或 GNU 工具链前缀（包含目录和末尾 `-`）。
 
 ### 变更
 
@@ -26,12 +31,18 @@
 - README 更新 picolibc 定位方式、系统包安装提示、缓存说明和多架构平台表；错误提示补充 Debian/Ubuntu 的 `apt install picolibc-arm-none-eabi`。
 - 新增英文版集成文档 `README.en.md`，中英文 README 顶部增加语言切换链接。
 - `ek_export_init()` 标记为 `__attribute__((constructor))`，由启动代码的 `__libc_init_array()` 在 `main()` 之前自动调用，使用方不再需要显式调用。
+- 链接脚本改由 `ek_platform` 生成，不再需要手写 `.ld`：生成时同时读取 `ek_conf.h`（组件开关）、`ek_conf_internal.h`（默认值）和 `ek_board.h`（内存布局）；`EKCFG_EXPORT` / `EKCFG_STATIC_ALLOC` 关闭时对应段自动省略。
+- 生成脚本保留 SDRAM0/SDRAM1 两个可选区域；`SDRAM` 区域更名为 `SDRAM0`，旧 `.sdram_data` 输入段仍映射到 `SDRAM0`，边界符号统一为 `_sdram0_data_start` / `_sdram0_data_end`。
+
+### 修复
+
+- `*_init_static()` / `*_deinit_static()` 不再受 `EKCFG_STATIC_ALLOC` 控制，始终参与编译；该宏现在只控制 `EK_DEFINE_*` / `EK_STATIC_ALLOC_REGISTER` 注册机制。修复 `EKCFG_STATIC_ALLOC=0` 时 `ek_evoke_init()` 调用 `ek_ringbuf_init_spsc_static()` 无法编译的问题，覆盖 ringbuf（普通/SPSC）、stack、snapshot、evoke、picothread（pt/sem/msg）。
 
 ### 破坏性变更
 
 - 删除 `third_party/picolibc/`（244 个文件，约 39M）。直接引用该目录的构建脚本需要改用 `PICOLIBC_ROOT` / `PICOLIBC_SPECS` / `PICOLIBC_BUILD` / `PICOLIBC_FETCH`。
 - `PICOLIBC=ON` 但系统、工具链、`PICOLIBC_ROOT` 都没有 picolibc，且未开启 `PICOLIBC_BUILD` / `PICOLIBC_FETCH` 时，configure 直接失败。
-- 使用方需删除 `main()` 中的 `ek_export_init()` 调用：导出项现在自动执行，重复调用会让所有导出项（含 `ek_heap_init()`）执行两次。自定义启动代码必须调用 `__libc_init_array()`，否则自动初始化不会发生。
+- `ek_export_init()` 改为 `__attribute__((constructor))` 自动执行；若仍显式调用，会重复执行所有导出项（含 `ek_heap_init()`）。
 
 ## [6.0.0] - 2026-10-25
 
@@ -172,3 +183,4 @@
 [2.2.0]: https://github.com/EmbeddedKitOrg/EK_UTILS/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/EmbeddedKitOrg/EK_UTILS/compare/v2.0.0rc...v2.1.0
 [5.0.0]: https://github.com/EmbeddedKitOrg/EK_UTILS/compare/v4.0.0...v5.0.0
+[6.1.0]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.0.0...v6.1.0

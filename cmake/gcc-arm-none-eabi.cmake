@@ -18,12 +18,6 @@ set(CMAKE_EXECUTABLE_SUFFIX_CXX     ".elf")
 set(CMAKE_TRY_COMPILE_TARGET_TYPE   STATIC_LIBRARY)
 
 if(NOT CMAKE_SOURCE_DIR MATCHES "CMakeScratch")
-    if(NOT EXISTS "${LINKER_SCRIPT}")
-        message(WARNING "Linker script not found at: ${LINKER_SCRIPT}")
-    endif()
-endif()
-
-if(NOT CMAKE_SOURCE_DIR MATCHES "CMakeScratch")
     # 平台必填，不设默认值
     if(NOT PLATFORM)
         message(FATAL_ERROR "PLATFORM is required. Valid values: cm0, cm3, cm4, cm7, cm23, cm33, cm55")

@@ -19,8 +19,15 @@ This document only covers integration. See the individual headers for module API
 ek_platform/
 ├── CMakeLists.txt
 ├── ek_conf_template.h             # configuration template; copy to ek_conf.h
+├── ek_board_template.h            # board memory template; copy to ek_board.h
 ├── cmake/
-│   └── gcc-arm-none-eabi.cmake    # cross-compilation toolchain
+│   ├── ek_config.cmake            # CMake configuration helpers
+│   ├── ek_linker.cmake            # linker script generation and injection
+│   ├── linker/
+│   │   ├── cortexm.ld.S           # Cortex-M linker script template
+│   │   └── riscv.ld.S             # RISC-V linker script template
+│   ├── gcc-arm-none-eabi.cmake    # ARM cross-compilation toolchain
+│   └── gcc-riscv-none-elf.cmake   # RISC-V cross-compilation toolchain
 ├── include/ek/
 │   ├── ek_conf_internal.h         # config entry: includes ek_conf.h, defaults, dependency checks
 │   ├── core/                      # ek_def / ek_assert / ek_io / ek_log / ek_export
@@ -43,10 +50,10 @@ ek_platform/
 
 ## Supported platforms
 
-`PLATFORM` selects the ARM toolchain CPU flags:
+`PLATFORM` selects the toolchain CPU/ISA flags. ARM uses `cmake/gcc-arm-none-eabi.cmake`; RISC-V uses `cmake/gcc-riscv-none-elf.cmake`:
 
-| PLATFORM | CPU | FPU |
-|----------|-----|-----|
+| PLATFORM | CPU / ISA | FPU / ABI |
+|----------|-----------|-----------|
 | cm0 | Cortex-M0 | none |
 | cm3 | Cortex-M3 | none |
 | cm4 | Cortex-M4 | fpv4-sp-d16 (hard) |
@@ -54,6 +61,19 @@ ek_platform/
 | cm23 | Cortex-M23 | none |
 | cm33 | Cortex-M33 | fpv5-sp-d16 (hard) |
 | cm55 | Cortex-M55 | auto (hard) |
+| rv32imac | RISC-V RV32IMAC | ilp32 |
+| rv32imafc | RISC-V RV32IMAFC | ilp32f |
+| rv64imac | RISC-V RV64IMAC | lp64 |
+| rv64gc | RISC-V RV64GC | lp64d |
+
+If the RISC-V compiler is not on `PATH`, set the prefix with `RISCV_TOOLCHAIN_PREFIX` (include the directory and trailing `-`):
+
+```bash
+cmake -DCMAKE_TOOLCHAIN_FILE=lib/ek_platform/cmake/gcc-riscv-none-elf.cmake \
+      -DPLATFORM=rv32imac \
+      -DRISCV_TOOLCHAIN_PREFIX=/opt/xpack-riscv-none-elf-gcc-<version>/bin/riscv-none-elf- \
+      -B build
+```
 
 `PICOLIBC_BUILD=ON` maps `PLATFORM` to `-mcpu` / `-mfpu` / `-mfloat-abi` and builds a matching picolibc with meson; no prebuilt package is required.
 
@@ -75,25 +95,30 @@ RISC-V and x86 currently use the prebuilt packages published by CI through `PICO
 git submodule add https://github.com/EmbeddedKitOrg/EK_Platform.git lib/ek_platform
 ```
 
-### 2. Create ek_conf.h
+### 2. Create ek_conf.h and ek_board.h
 
-Copy `ek_conf_template.h` into your project (for example `Core/Inc/ek_conf.h`) and keep only the macros you need to override:
+Copy both templates into your project: keep only the `ek_conf.h` overrides you need, and fill in the `EKLD_*` memory values in `ek_board.h` for your chip:
 
 ```bash
-cp lib/ek_platform/ek_conf_template.h Core/Inc/ek_conf.h
+cp lib/ek_platform/ek_conf_template.h  Core/Inc/ek_conf.h
+cp lib/ek_platform/ek_board_template.h Core/Inc/ek_board.h
 ```
 
 ### 3. Configure CMake
 
 ```cmake
 cmake_minimum_required(VERSION 3.20)
-project(my_app C)
+
+# The config helpers must be included before project()/add_subdirectory()
+include(${CMAKE_CURRENT_SOURCE_DIR}/lib/ek_platform/cmake/ek_config.cmake)
 
 # Target platform; also selects the prebuilt picolibc package
-set(PLATFORM cm4 CACHE STRING "cm0/cm3/cm4/cm7/cm23/cm33/cm55")
+ek_set_arch(cm4)
 
-# Enable when using picolibc; remove this line for lwprintf or the system libc
-set(PICOLIBC ON CACHE BOOL "use picolibc")
+# Enable when using picolibc; turn it off for lwprintf or the system libc
+ek_set_picolibc(ON)
+
+project(my_app C)
 
 # picolibc lookup (choose one):
 #   1) Installed: set(PICOLIBC_ROOT "/path/to/picolibc")
@@ -112,42 +137,40 @@ set(PICOLIBC ON CACHE BOOL "use picolibc")
 # picolibc; check with: arm-none-eabi-gcc -print-file-name=picolibc.specs
 # If the specs default path differs from the install location, set PICOLIBC_PREFIX.
 
-# Path to ek_conf.h. Must be set before add_subdirectory
-set(EK_CONF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
-    CACHE FILEPATH "" FORCE)
+# Point at the files before add_subdirectory
+ek_set_conf_file("${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h")
+ek_set_linker_file("${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board.h")
 
 add_subdirectory(lib/ek_platform)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform)
 ```
 
+`ek_set_arch()` / `ek_set_picolibc()` must be called before `project()`; `ek_set_conf_file()` / `ek_set_linker_file()` must be called before `add_subdirectory(ek_platform)`.
+
 `ek_platform` is an OBJECT library. Its PUBLIC include directories and link items propagate to the main project automatically. Do not add `include/` manually, and do not replace `target_link_libraries` with `$<TARGET_OBJECTS:ek_platform>`.
 
 Downloaded archives and source-build products are cached under `<build>/_deps/`: an existing archive (with a matching SHA) is not downloaded again, a complete extraction directory is not extracted again, and a finished source build is not rebuilt. Delete the corresponding directory to force a refresh.
 
-### 4. Add linker sections
+### 4. Linker script
 
-`EKCFG_EXPORT=1` requires a `.ek_export` section; `EKCFG_STATIC_ALLOC=1` requires a `.ek_static_alloc` section:
+The linker script is generated by `ek_platform`; do not write one by hand. The `ek_board.h` copied in step 2 supplies the memory layout, and CMake points at it through `EK_BOARD_PATH` (already set by `ek_set_linker_file()` above).
 
-```ld
-.ek_export :
-{
-    . = ALIGN(4);
-    _ek_export_fn_start = .;
-    KEEP(*(SORT(.ek_export_fn*)))
-    . = ALIGN(4);
-    _ek_export_fn_end = .;
-} > FLASH
+`EK_LINKER_AUTO` defaults to ON: the library preprocesses `ek_conf.h`, `ek_conf_internal.h`, `ek_board.h`, and `cmake/linker/cortexm.ld.S` into `${build}/ek_platform/ek_platform.ld`, then propagates it through `INTERFACE_LINK_OPTIONS` / `INTERFACE_LINK_DEPENDS` to any target that links `ek_platform`. The generated script already contains `.ek_export`, `.ek_static_alloc`, TCMRAM, and SDRAM0/SDRAM1 sections; sections are omitted when `EKCFG_EXPORT` / `EKCFG_STATIC_ALLOC` is disabled.
 
-.ek_static_alloc :
-{
-    . = ALIGN(4);
-    _ek_static_alloc_start = .;
-    KEEP(*(SORT(.ek_static_alloc*)))
-    . = ALIGN(4);
-    _ek_static_alloc_end = .;
-} > FLASH
+If `ek_conf.h` includes other headers for an RTOS setup, add those directories to `EK_LINKER_INCLUDE_DIRS`; preprocessing still keeps only macros and never writes C declarations into the `.ld`.
+
+For RISC-V, set `PLATFORM=rv...` or call `ek_set_linker_arch(riscv)`; the library then selects `cmake/linker/riscv.ld.S` automatically. Use `ek_set_linker_template(...)` only for a custom template. That template uses `_start` as the entry point, and TCMRAM is optional (`EKLD_TCMRAM_LENGTH` of 0 omits it).
+
+For multiple targets or boards, disable the automatic mode and generate per target:
+
+```cmake
+set(EK_LINKER_AUTO OFF)
+...
+ek_linker_attach(app BOARD_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board_a.h")
 ```
+
+Without CMake, preprocess `cmake/linker/cortexm.ld.S` manually with `${CMAKE_C_COMPILER} -E -P -x c`, or reuse the generated result.
 
 ### 5. Initialization
 
@@ -205,15 +228,25 @@ The include logic in `ek_conf_internal.h`:
 #endif
 ```
 
-**Option A: `EK_CONF_PATH` (recommended)**
+**Option A: `ek_set_conf_file()` / `EK_CONF_PATH` (recommended)**
 
-Set it before `add_subdirectory`; the library CMakeLists passes it to the compiler as a definition:
+Include the config helpers first, then point at the file before `add_subdirectory`:
+
+```cmake
+include(${CMAKE_CURRENT_SOURCE_DIR}/lib/ek_platform/cmake/ek_config.cmake)
+ek_set_conf_file("${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h")
+add_subdirectory(lib/ek_platform)
+```
+
+`ek_set_conf_file()` writes the `EK_CONF_PATH` cache entry; the equivalent lower-level form is:
 
 ```cmake
 set(EK_CONF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
-    CACHE FILEPATH "" FORCE)
+    CACHE STRING "" FORCE)
 add_subdirectory(lib/ek_platform)
 ```
+
+The library CMakeLists passes `EK_CONF_PATH` to the compiler as a definition.
 
 It can also be passed on the command line:
 
