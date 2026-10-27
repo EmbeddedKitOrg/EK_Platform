@@ -198,9 +198,13 @@
 #ifndef EKCFG_PT_PRIO_LOWEST
 #    define EKCFG_PT_PRIO_LOWEST (31) /**< 微线程最低优先级，就绪队列档位数为该值 + 1 */
 #endif
+
 /* ========================================================================
  * 配置依赖校验（始终执行，不区分配置来源）
  * ======================================================================== */
+
+/* DEPEND_ON 为真表示依赖满足：module 未开启，或 dependency 已开启。 */
+#define DEPEND_ON(module, dependency) (!(module) || (dependency))
 
 #if EKCFG_PICOLIBC == 1
 #    undef EKCFG_IO_LWPRTF
@@ -213,14 +217,30 @@
 #if EKCFG_EVOKE == 1 && EKCFG_RTOS == 1
 #    error "EKCFG_EVOKE requires EKCFG_RTOS == 0 (bare-metal only)"
 #endif
-#if EKCFG_PICOTHREAD_SEM == 1 && EKCFG_PICOTHREAD == 0
-#    error "EKCFG_PICOTHREAD_SEM requires EKCFG_PICOTHREAD == 1"
+
+#if !DEPEND_ON(EKCFG_PICOTHREAD_SEM, EKCFG_PICOTHREAD)
+#    error "EKCFG_PICOTHREAD_SEM requires EKCFG_PICOTHREAD=1"
 #endif
-#if EKCFG_PICOTHREAD_MSG == 1 && EKCFG_PICOTHREAD == 0
-#    error "EKCFG_PICOTHREAD_MSG requires EKCFG_PICOTHREAD == 1"
+#if !DEPEND_ON(EKCFG_PICOTHREAD_MSG, EKCFG_PICOTHREAD)
+#    error "EKCFG_PICOTHREAD_MSG requires EKCFG_PICOTHREAD=1"
 #endif
+#if !DEPEND_ON(EKCFG_PICOTHREAD, EKCFG_LIST)
+#    error "EKCFG_PICOTHREAD requires EKCFG_LIST=1"
+#endif
+#if !DEPEND_ON(EKCFG_PICOTHREAD_MSG, EKCFG_RINGBUF)
+#    error "EKCFG_PICOTHREAD_MSG requires EKCFG_RINGBUF=1"
+#endif
+#if !DEPEND_ON(EKCFG_EVOKE, EKCFG_LIST)
+#    error "EKCFG_EVOKE requires EKCFG_LIST=1"
+#endif
+#if !DEPEND_ON(EKCFG_EVOKE, EKCFG_RINGBUF_SPSC)
+#    error "EKCFG_EVOKE requires EKCFG_RINGBUF_SPSC=1"
+#endif
+
 #if EKCFG_PT_PRIO_LOWEST > 31
 #    error "EKCFG_PT_PRIO_LOWEST must be <= 31 (ready mask is 32-bit)"
 #endif
+
+#undef DEPEND_ON
 
 #endif /* EK_CONF_INTERNAL_H */

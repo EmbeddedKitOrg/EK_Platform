@@ -6,6 +6,10 @@
 
 ## [6.3.0] - 2026-10-27
 
+### 新增
+
+- `ek_conf_internal.h` 新增内部 `DEPEND_ON` 宏与配套 `#error` 依赖校验：`EKCFG_PICOTHREAD_SEM` / `EKCFG_PICOTHREAD_MSG` 依赖 `EKCFG_PICOTHREAD`，`EKCFG_PICOTHREAD` / `EKCFG_EVOKE` 依赖 `EKCFG_LIST`，`EKCFG_PICOTHREAD_MSG` 依赖 `EKCFG_RINGBUF`，`EKCFG_EVOKE` 依赖 `EKCFG_RINGBUF_SPSC`。依赖缺失时在预处理阶段直接报错，避免继续解析缺失类型产生级联错误；依赖不会自动开启，仍需在 `ek_conf.h` 中显式设为 1。该宏仅在本文件内使用，末尾统一 `#undef`。
+
 ### 变更
 
 - `port/clib` 按 `PICOLIBC` 选择实现：`PICOLIBC=ON` 只编译 `port/clib/picolibc/picolibc_port.c`，否则只编译 `port/clib/newlib/newlib_port.c`；newlib 端口是否实际生效仍由 `EKCFG_NEWLIB` 控制。
