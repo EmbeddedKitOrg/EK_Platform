@@ -44,10 +44,9 @@ function(ek_set_picolibc enabled)
 endfunction()
 
 # 按 PLATFORM 自动选择工具链。必须在 project() 之前调用，并且先调用 ek_set_arch()。
+# 注意：不要用 CMAKE_PROJECT_NAME 判断是否已调用 project()；
+# 二次 configure 时该变量会从缓存预加载，造成误判。
 function(ek_set_toolchain)
-    if(CMAKE_PROJECT_NAME)
-        message(FATAL_ERROR "ek_set_toolchain: must be called before project()")
-    endif()
     if(NOT PLATFORM)
         message(FATAL_ERROR "ek_set_toolchain: PLATFORM is not set; call ek_set_arch() first")
     endif()
