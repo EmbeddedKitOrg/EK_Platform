@@ -104,7 +104,7 @@ void ek_evoke_init(void)
     s_defer_evt_wakeup = false;
 }
 
-EK_EXPORT_COMPONENTS(ek_evoke_init, 0);
+EK_EXPORT_COMPONENTS(ek_evoke_init, 10);
 
 int ek_evoke_task_init_static(ek_evoke_task_t *tsk, ek_evoke_cb_t cb, void *arg)
 {

@@ -14,6 +14,7 @@
 ### 变更
 
 - `port/clib` 按 `PICOLIBC` 选择实现：`PICOLIBC=ON` 只编译 `port/clib/picolibc/picolibc_port.c`，否则只编译 `port/clib/newlib/newlib_port.c`；newlib 端口是否实际生效仍由 `EKCFG_NEWLIB` 控制。
+- 调整各个模块 `EK_EXPORT_COMPONENTS` 的优先级，不再占用 0、1 这类最高优先级。
 
 ### 修复
 

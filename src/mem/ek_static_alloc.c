@@ -48,7 +48,7 @@ void ek_static_alloc_init(void)
     }
 }
 
-EK_EXPORT_COMPONENTS(ek_static_alloc_init, 1);
+EK_EXPORT_COMPONENTS(ek_static_alloc_init, 11);
 
 int ek_static_alloc_get_init_error(void)
 {

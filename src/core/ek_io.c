@@ -25,7 +25,7 @@ void ek_io_init(void)
     lwprintf_init(_ek_io_printf);
 }
 
-EK_EXPORT_COMPONENTS(ek_io_init, 0);
+EK_EXPORT_COMPONENTS(ek_io_init, 10);
 
 /* 静态函数实现 */
 static int _ek_io_printf(int ch, lwprintf_t *lwp)
