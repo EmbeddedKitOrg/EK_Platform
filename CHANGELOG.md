@@ -22,6 +22,10 @@
 - `._user_heap_stack` 增加 `__heap_start` / `__heap_end`，供 newlib `_sbrk` 使用；picolibc 路径下未被引用时不会生成。
 - `ek_static_alloc_init()` 的导出 order 调整为 20，确保在 `ek_heap_init` / `ek_io_init` / `ek_evoke_init` / `ek_pt_init`（order 10）之后执行，避免静态对象在依赖组件初始化前注册。
 
+### 破坏性变更
+
+- 枚举类型别名统一由 `_t` 改为 `_e`：`ek_pt_state_t` → `ek_pt_state_e`、`ek_evoke_state_t` → `ek_evoke_state_e`、`ek_log_level_t` → `ek_log_level_e`；`ek_vfs_node_e` 原本已使用 `_e`。不保留旧名兼容别名，调用方需同步修改类型名。
+
 ## [6.2.1] - 2026-10-27
 
 ### 修复

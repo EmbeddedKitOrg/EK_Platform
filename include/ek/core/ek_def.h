@@ -28,6 +28,7 @@
 #include <stdbool.h>
 #include <inttypes.h>
 #include <errno.h>
+#include <sys/types.h>
 
 /* lwprintf 自带 va_list 支持，使用 lwprintf 时不需要 stdarg */
 #include "ek/ek_conf_internal.h"
@@ -164,5 +165,18 @@
         int _err_ = (expr);        \
         if (_err_ < 0) goto label; \
     } while (0)
+
+#if !defined(_SSIZE_T_DECLARED) && !defined(__ssize_t_defined)
+typedef long ssize_t;
+#    define _SSIZE_T_DECLARED
+#    define __ssize_t_defined
+#endif
+
+#if !defined(_OFF_T_DECLARED) && !defined(__off_t_defined) && !defined(_OFF_T)
+typedef long off_t;
+#    define _OFF_T_DECLARED
+#    define __off_t_defined
+#    define _OFF_T
+#endif
 
 #endif /* EK_DEF_H */

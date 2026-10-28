@@ -198,6 +198,9 @@
 #ifndef EKCFG_PT_PRIO_LOWEST
 #    define EKCFG_PT_PRIO_LOWEST (31) /**< 微线程最低优先级，就绪队列档位数为该值 + 1 */
 #endif
+#ifndef EKCFG_VFS_NODE_NAME_LEN
+#    define EKCFG_VFS_NODE_NAME_LEN (12) /**< VFS 节点的最大名称长度 */
+#endif
 
 /* ========================================================================
  * 配置依赖校验（始终执行，不区分配置来源）

@@ -70,7 +70,7 @@ typedef enum
     EK_PT_STATE_RUNNING, // 正在执行回调
 
     EK_PT_STATE_MAX
-} ek_pt_state_t;
+} ek_pt_state_e;
 
 /**
  * @brief 微线程结构体
@@ -78,7 +78,7 @@ typedef enum
 struct ek_pt
 {
     uint8_t prio; // 优先级（数值越小优先级越高）
-    ek_pt_state_t state; // 当前状态
+    ek_pt_state_e state; // 当前状态
     uint32_t tick; // 阻塞唤醒的绝对 tick
     uint32_t line; // protothread 行号，用于 YEIELD 恢复执行位置
     ek_list_node_t state_node; // 就绪/阻塞链表的侵入式节点

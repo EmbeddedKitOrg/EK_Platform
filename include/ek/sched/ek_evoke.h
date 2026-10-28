@@ -63,14 +63,14 @@ typedef enum
     EK_EVOKE_STATE_RUNNING, /**< 运行状态 */
 
     EK_EVOKE_STATE_MAX, /**< 状态最大值 */
-} ek_evoke_state_t;
+} ek_evoke_state_e;
 
 /**
  * @brief 任务结构体
  */
 struct ek_evoke_task
 {
-    ek_evoke_state_t state; /**< 任务状态 */
+    ek_evoke_state_e state; /**< 任务状态 */
     ek_list_node_t node; /**< 链表节点 */
     ek_evoke_event_t *wait_event; /**< 等待的事件 */
     void *arg; /**< 用户参数 */

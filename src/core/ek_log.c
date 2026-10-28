@@ -32,7 +32,7 @@ __EK_WEAK uint32_t ek_port_log_get_tick(void)
     return 0;
 }
 
-void ek_log_printf(const char *tag, uint32_t line, ek_log_level_t type, uint32_t tick, const char *fmt, ...)
+void ek_log_printf(const char *tag, uint32_t line, ek_log_level_e type, uint32_t tick, const char *fmt, ...)
 {
 #    if (EKCFG_LOG_COLOR == 1)
     ek_printf(

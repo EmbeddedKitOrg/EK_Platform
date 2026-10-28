@@ -59,7 +59,7 @@ typedef enum
     EK_LOG_LEVEL_FATAL, /**< 致命错误信息 */
 
     EK_LOG_LEVEL_MAX, /**< 最大级别数 */
-} ek_log_level_t;
+} ek_log_level_e;
 
 /**
  * @brief 定义文件标签和最小日志等级
@@ -71,7 +71,7 @@ typedef enum
  */
 #    define EK_LOG_MODULE(tag, level)            \
         static const char *_EK_LOG_TAG_ = (tag); \
-        static const ek_log_level_t _EK_LOG_MIN_LEVEL_ = (level)
+        static const ek_log_level_e _EK_LOG_MIN_LEVEL_ = (level)
 
 /**
  * @brief 定义文件标签并且默认日志全部输出
@@ -96,7 +96,7 @@ extern "C"
  * @param fmt 格式化字符串
  * @param ... 可变参数
  */
-void ek_log_printf(const char *tag, uint32_t line, ek_log_level_t type, uint32_t tick, const char *fmt, ...);
+void ek_log_printf(const char *tag, uint32_t line, ek_log_level_e type, uint32_t tick, const char *fmt, ...);
 
 /**
  * @brief 获取系统时间戳
