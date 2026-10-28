@@ -8,7 +8,8 @@
 
 ### 新增
 
-- `ek_conf_internal.h` 新增内部 `DEPEND_ON` 宏与配套 `#error` 依赖校验：`EKCFG_PICOTHREAD_SEM` / `EKCFG_PICOTHREAD_MSG` 依赖 `EKCFG_PICOTHREAD`，`EKCFG_PICOTHREAD` / `EKCFG_EVOKE` 依赖 `EKCFG_LIST`，`EKCFG_PICOTHREAD_MSG` 依赖 `EKCFG_RINGBUF`，`EKCFG_EVOKE` 依赖 `EKCFG_RINGBUF_SPSC`。依赖缺失时在预处理阶段直接报错，避免继续解析缺失类型产生级联错误；依赖不会自动开启，仍需在 `ek_conf.h` 中显式设为 1。该宏仅在本文件内使用，末尾统一 `#undef`。
+- `ek_conf_internal.h` 新增内部 `DEPEND_ON` 宏与配套 `#error` 依赖校验。
+- `ek_def.h` 内部新增 `__EK_CLEANUP` 宏，用于包装 `__attribute__((cleanup(x)))`。
 
 ### 变更
 

@@ -61,6 +61,8 @@
 #    define __EK_STATIC_INLINE static inline
 #    define __EK_ALWAYS_INLINE __attribute__((always_inline)) static inline
 #    define __EK_ASM           __asm
+#    define __EK_CLEANUP(fn)   __attribute__((cleanup(fn)))
+
 /* ========== ARM Compiler 6 宏定义 ========== */
 #elif defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050)
 
@@ -76,6 +78,7 @@
 #    define __EK_STATIC_INLINE static inline
 #    define __EK_ALWAYS_INLINE __attribute__((always_inline)) static inline
 #    define __EK_ASM           __asm
+#    define __EK_CLEANUP(fn)   __attribute__((cleanup(fn)))
 
 /* ========== ARM Compiler 5 宏定义 ========== */
 #elif defined(__CC_ARM)
@@ -92,6 +95,7 @@
 #    define __EK_STATIC_INLINE static __inline
 #    define __EK_ALWAYS_INLINE __forceinline
 #    define __EK_ASM           __asm
+#    define __EK_CLEANUP(fn)
 
 /* ========== 不支持的编译器（空定义） ========== */
 #else
@@ -107,6 +111,8 @@
 #    define __EK_STATIC_INLINE static inline
 #    define __EK_ALWAYS_INLINE static inline
 #    define __EK_ASM           asm
+#    define __EK_CLEANUP(fn)
+
 #endif
 
 /* ========== 功能宏 ========== */
