@@ -16,7 +16,7 @@
 - `test/cmake/`：arch 表断言、链接脚本 golden、host configure、缺 BOARD 错误路径的最小测试脚本。
 - `ek_conf_internal.h` 新增内部 `DEPEND_ON` 宏与配套 `#error` 依赖校验。
 - `ek_def.h` 内部新增 `__EK_CLEANUP` 宏，用于包装 `__attribute__((cleanup(x)))`。
-- 新增 VFS 初步支持（`ek_vfs_core` / `ek_vfs_priv`），包含节点池、路径 token 解析和树操作。
+- 完善 VFS 内核支持
 
 ### 变更
 
