@@ -11,7 +11,7 @@ ek_vfs_node_t *alloc_node(void)
         memset(s_node_pool, 0, sizeof(s_node_pool));
         for (int i = 0; i < EKCFG_VFS_MAX_NODES - 1; i++)
         {
-            s_node_pool[i].sibling = &s_node_pool[i];
+            s_node_pool[i].sibling = &s_node_pool[i + 1];
         }
         s_node_pool[EKCFG_VFS_MAX_NODES - 1].sibling = NULL;
         s_free_head = s_node_pool;
@@ -80,7 +80,7 @@ const char *next_token(const char **cursor, uint16_t *token_len, bool *is_leaf)
 
     const char *end = start;
     while (*end != '/' && *end != '\0') end++;
-    *cursor = p;
+    *cursor = end;
 
     *token_len = (end - start);
 

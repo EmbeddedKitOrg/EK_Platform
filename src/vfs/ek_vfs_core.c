@@ -177,7 +177,7 @@ int ek_vfs_tree_dump(char *buf, size_t size)
         }
         else
         {
-            for (uint8_t i = 0; i < depth; i++)
+            for (uint8_t i = 1; i < depth; i++)
             {
                 if (offset >= size - 1) break;
                 const char *trunk = (active_mask & (1UL << i)) ? TREE_TRUNK : TREE_SPACE;
@@ -186,7 +186,7 @@ int ek_vfs_tree_dump(char *buf, size_t size)
             }
         }
 
-        if (offset < size - 1)
+        if (curr != s_root && offset < size - 1)
         {
             bool is_last = (curr->sibling == NULL);
             if (is_last)
@@ -218,12 +218,13 @@ int ek_vfs_tree_dump(char *buf, size_t size)
             continue;
         }
 
-        while (curr && curr->sibling)
+        while (curr && curr != s_root && curr->sibling == NULL)
         {
             curr = curr->parent;
             if (depth > 0) depth--;
         }
-        if (curr) curr = curr->sibling;
+        if (!curr || curr == s_root) break;
+        curr = curr->sibling;
     }
 
     buf[offset] = '\0';
