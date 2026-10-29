@@ -11,5 +11,6 @@ int ek_vfs_register(const char *path, uint8_t type, ek_vfs_ops_t *ops, void *pri
 int ek_vfs_unregister(const char *path);
 
 ek_vfs_node_t *ek_vfs_look_up(const char *path, const char **remain_path);
+int ek_vfs_tree_dump(char *buf, size_t size);
 
 #endif // EK_VFS_CORE_H
