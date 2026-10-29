@@ -70,8 +70,8 @@ typedef enum
  * EK_LOG_FILE_TAG("main.c");
  */
 #    define EK_LOG_MODULE(tag, level)            \
-        static const char *_EK_LOG_TAG_ = (tag); \
-        static const ek_log_level_e _EK_LOG_MIN_LEVEL_ = (level)
+        static const char *__ek_log_tag = (tag); \
+        static const uint8_t __ek_log_min_level = (uint8_t)(level)
 
 /**
  * @brief 定义文件标签并且默认日志全部输出
@@ -111,10 +111,14 @@ uint32_t ek_port_log_get_tick(void);
  * @note 仅在 EKCFG_LOG_DEBUG == 1 时有效
  */
 #    if (EKCFG_LOG_DEBUG == 1)
-#        define EK_LOG_DEBUG(...)                         \
-            if (_EK_LOG_MIN_LEVEL_ <= EK_LOG_LEVEL_DEBUG) \
-            ek_log_printf(_EK_LOG_TAG_, __LINE__, EK_LOG_LEVEL_DEBUG, ek_port_log_get_tick(), __VA_ARGS__)
+#        define EK_LOG_DEBUG(...)                                                                                   \
+            do                                                                                                      \
+            {                                                                                                       \
+                if (__ek_log_min_level <= (uint8_t)EK_LOG_LEVEL_DEBUG)                                              \
+                    ek_log_printf(__ek_log_tag, __LINE__, EK_LOG_LEVEL_DEBUG, ek_port_log_get_tick(), __VA_ARGS__); \
+            } while (0)
 #    else
+
 #        define EK_LOG_DEBUG(...)
 #    endif
 
@@ -122,43 +126,60 @@ uint32_t ek_port_log_get_tick(void);
  * @brief 普通日志（无级别标识）
  * @param ... 格式化字符串和参数
  */
-#    define EK_LOG(...)                              \
-        if (_EK_LOG_MIN_LEVEL_ <= EK_LOG_LEVEL_NONE) \
-        ek_log_printf(_EK_LOG_TAG_, __LINE__, EK_LOG_LEVEL_NONE, ek_port_log_get_tick(), __VA_ARGS__)
+#    define EK_LOG(...)                                                                                        \
+        do                                                                                                     \
+        {                                                                                                      \
+            if (__ek_log_min_level <= (uint8_t)EK_LOG_LEVEL_NONE)                                              \
+                ek_log_printf(__ek_log_tag, __LINE__, EK_LOG_LEVEL_NONE, ek_port_log_get_tick(), __VA_ARGS__); \
+        } while (0)
 
 /**
  * @brief INFO 级别日志
  * @param ... 格式化字符串和参数
  */
-#    define EK_LOG_INFO(...)                         \
-        if (_EK_LOG_MIN_LEVEL_ <= EK_LOG_LEVEL_INFO) \
-        ek_log_printf(_EK_LOG_TAG_, __LINE__, EK_LOG_LEVEL_INFO, ek_port_log_get_tick(), __VA_ARGS__)
+#    define EK_LOG_INFO(...)                                                                                   \
+        do                                                                                                     \
+        {                                                                                                      \
+            if (__ek_log_min_level <= (uint8_t)EK_LOG_LEVEL_INFO)                                              \
+                ek_log_printf(__ek_log_tag, __LINE__, EK_LOG_LEVEL_INFO, ek_port_log_get_tick(), __VA_ARGS__); \
+        } while (0)
 
 /**
  * @brief WARN 级别日志
  * @param ... 格式化字符串和参数
  */
-#    define EK_LOG_WARN(...)                         \
-        if (_EK_LOG_MIN_LEVEL_ <= EK_LOG_LEVEL_WARN) \
-        ek_log_printf(_EK_LOG_TAG_, __LINE__, EK_LOG_LEVEL_WARN, ek_port_log_get_tick(), __VA_ARGS__)
+#    define EK_LOG_WARN(...)                                                                                   \
+        do                                                                                                     \
+        {                                                                                                      \
+            if (__ek_log_min_level <= (uint8_t)EK_LOG_LEVEL_WARN)                                              \
+                ek_log_printf(__ek_log_tag, __LINE__, EK_LOG_LEVEL_WARN, ek_port_log_get_tick(), __VA_ARGS__); \
+        } while (0)
 
 /**
  * @brief ERROR 级别日志
  * @param ... 格式化字符串和参数
  */
-#    define EK_LOG_ERROR(...)                         \
-        if (_EK_LOG_MIN_LEVEL_ <= EK_LOG_LEVEL_ERROR) \
-        ek_log_printf(_EK_LOG_TAG_, __LINE__, EK_LOG_LEVEL_ERROR, ek_port_log_get_tick(), __VA_ARGS__)
+#    define EK_LOG_ERROR(...)                                                                                   \
+        do                                                                                                      \
+        {                                                                                                       \
+            if (__ek_log_min_level <= (uint8_t)EK_LOG_LEVEL_ERROR)                                              \
+                ek_log_printf(__ek_log_tag, __LINE__, EK_LOG_LEVEL_ERROR, ek_port_log_get_tick(), __VA_ARGS__); \
+        } while (0)
+
 /**
  * @brief FATAL 级别日志
  * @param ... 格式化字符串和参数
  */
-#    define EK_LOG_FATAL(...)                                                                               \
-        if (_EK_LOG_MIN_LEVEL_ <= EK_LOG_LEVEL_FATAL)                                                       \
-        {                                                                                                   \
-            ek_log_printf(_EK_LOG_TAG_, __LINE__, EK_LOG_LEVEL_FATAL, ek_port_log_get_tick(), __VA_ARGS__); \
-            while (1);                                                                                      \
-        }
+#    define EK_LOG_FATAL(...)                                                                                   \
+        do                                                                                                      \
+        {                                                                                                       \
+            if (__ek_log_min_level <= (uint8_t)EK_LOG_LEVEL_FATAL)                                              \
+            {                                                                                                   \
+                ek_log_printf(__ek_log_tag, __LINE__, EK_LOG_LEVEL_FATAL, ek_port_log_get_tick(), __VA_ARGS__); \
+                while (1);                                                                                      \
+            }                                                                                                   \
+        } while (0)
+
 #    ifdef __cplusplus
 }
 #    endif

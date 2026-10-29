@@ -25,6 +25,7 @@
 - picolibc 探测顺序保持 `PICOLIBC_SPECS` → `PICOLIBC_ROOT` → 工具链 → 系统安装 → `PICOLIBC_BUILD` → `PICOLIBC_FETCH`；下载增加 30 秒超时，删除无人设置的 `PICOLIBC_SHA256_<platform>` 分支。
 - `port/clib` 按 `PICOLIBC` 选择实现：`PICOLIBC=ON` 只编译 `port/clib/picolibc/picolibc_port.c`，否则只编译 `port/clib/newlib/newlib_port.c`；newlib 端口是否实际生效仍由 `EKCFG_NEWLIB` 控制。
 - 调整各个模块 `EK_EXPORT_COMPONENTS` 的优先级，不再占用 0、1 这类最高优先级。
+- 优化 `ek_log` 模块的日志输出宏
 
 ### 修复
 
