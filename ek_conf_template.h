@@ -30,9 +30,9 @@
  *   #define EK_LOCK_ACQUIRE(obj) (xSemaphoreTake((obj)->lock, portMAX_DELAY) == pdTRUE)
  *   #define EK_LOCK_RELEASE(obj) xSemaphoreGive((obj)->lock)
  */
-#define EKCFG_PICOLIBC     (0) /**< 是否使用 picolibc 替代标准 libc */
+/* EKCFG_PICOLIBC / EKCFG_NEWLIB 由 CMake 的 PICOLIBC 选项派生。
+ * 裸机 newlib 需要 syscall port 时，在项目 ek_conf.h 中定义 EKCFG_NEWLIB 1。 */
 #define EKCFG_IO_LWPRTF    (1) /**< IO 是否使用 lwprintf (1=使用, 0=不使用) */
-#define EKCFG_NEWLIB       (0) /**< 是否启用 newlib/nanolibc syscall port */
 #define EKCFG_STATIC_ALLOC (0) /**< 是否启用 EK_DEFINE_* 静态对象注册 (1=使用, 0=不使用);静态初始化函数始终可用 */
 
 /* ========================================================================

@@ -1,121 +1,79 @@
 # ============================================================================
-# EK 链接脚本生成
+# EK 链接脚本
 #
-# 输入：
-#   EK_CONF_PATH   ek_conf.h 路径（组件开关，必需）
-#   EK_BOARD_PATH  ek_board.h 路径（板级内存布局，必需）
-#   EK_LINKER_TEMPLATE  链接脚本模板，默认 cmake/linker/cortexm.ld.S
-#
-# 输出：
-#   ${CMAKE_CURRENT_BINARY_DIR}/ek_platform.ld（自动模式）
-#   ${CMAKE_CURRENT_BINARY_DIR}/<target>.ld（ek_linker_attach）
+# ek_linker_script() 是纯生成函数，不读全局、不碰 target。
+# ek_linker_attach() 是唯一注入点，按 target 类型选择 INTERFACE/PRIVATE。
 # ============================================================================
 
-include(${CMAKE_CURRENT_LIST_DIR}/ek_config.cmake)
-
-set(EK_BOARD_PATH "" CACHE FILEPATH
-    "Path to user's ek_board.h (copy of ek_board_template.h)")
-option(EK_LINKER_AUTO
-    "Generate and apply the EK linker script automatically" ON)
 set(EK_LINKER_ARCH "" CACHE STRING
-    "Linker template architecture (cortexm, riscv); empty = derive from PLATFORM")
+    "Linker template architecture (cortexm, riscv, host)")
 set(EK_LINKER_TEMPLATE "" CACHE FILEPATH
-    "Explicit linker template override; empty = auto by EK_LINKER_ARCH")
+    "Explicit linker template override")
 set(EK_LINKER_INCLUDE_DIRS "" CACHE STRING
     "Extra include directories for linker script preprocessing")
 
-function(_ek_linker_resolve_template out_var)
-    if(EK_LINKER_TEMPLATE)
-        get_filename_component(_template "${EK_LINKER_TEMPLATE}" ABSOLUTE
-            BASE_DIR "${CMAKE_SOURCE_DIR}")
-        set(${out_var} "${_template}" PARENT_SCOPE)
-        return()
+function(ek_linker_script out_var)
+    cmake_parse_arguments(A "" "ARCH;CONF;BOARD;TEMPLATE;OUTPUT" "INCLUDE_DIRS" ${ARGN})
+
+    if(NOT A_ARCH)
+        message(FATAL_ERROR "ek_linker_script: ARCH is required (cortexm, riscv)")
+    endif()
+    if(NOT A_CONF OR NOT A_BOARD)
+        message(FATAL_ERROR "ek_linker_script: CONF and BOARD are required")
     endif()
 
-    set(_arch "${EK_LINKER_ARCH}")
-    if(NOT _arch)
-        if(PLATFORM MATCHES "^rv")
-            set(_arch riscv)
-        else()
-            set(_arch cortexm)
-        endif()
+    get_filename_component(_conf "${A_CONF}" ABSOLUTE
+        BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+    get_filename_component(_board "${A_BOARD}" ABSOLUTE
+        BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+    if(NOT EXISTS "${_conf}")
+        message(FATAL_ERROR "ek_linker_script: CONF not found: ${_conf}")
+    endif()
+    if(NOT EXISTS "${_board}")
+        message(FATAL_ERROR "ek_linker_script: BOARD not found: ${_board}")
     endif()
 
-    set(_template "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/linker/${_arch}.ld.S")
-    if(NOT EXISTS "${_template}")
-        message(FATAL_ERROR
-            "ek_linker: no template for architecture '${_arch}': ${_template}")
-    endif()
-    set(${out_var} "${_template}" PARENT_SCOPE)
-endfunction()
-
-function(_ek_linker_generate out_var)
-    cmake_parse_arguments(ARG "" "CONF_PATH;BOARD_PATH;TEMPLATE;OUTPUT" "" ${ARGN})
-
-    if(NOT ARG_CONF_PATH)
-        message(FATAL_ERROR "ek_linker: CONF_PATH is required (set EK_CONF_PATH)")
-    endif()
-    if(NOT ARG_BOARD_PATH)
-        message(FATAL_ERROR "ek_linker: BOARD_PATH is required (set EK_BOARD_PATH)")
-    endif()
-    if(NOT ARG_TEMPLATE)
-        _ek_linker_resolve_template(ARG_TEMPLATE)
-    endif()
-
-    get_filename_component(_conf_abs "${ARG_CONF_PATH}" ABSOLUTE
-        BASE_DIR "${CMAKE_SOURCE_DIR}")
-    get_filename_component(_board_abs "${ARG_BOARD_PATH}" ABSOLUTE
-        BASE_DIR "${CMAKE_SOURCE_DIR}")
-    get_filename_component(_template_abs "${ARG_TEMPLATE}" ABSOLUTE
-        BASE_DIR "${CMAKE_SOURCE_DIR}")
-
-    if(NOT EXISTS "${_conf_abs}")
-        message(FATAL_ERROR "ek_linker: EK_CONF_PATH not found: ${_conf_abs}")
-    endif()
-    if(NOT EXISTS "${_board_abs}")
-        message(FATAL_ERROR "ek_linker: EK_BOARD_PATH not found: ${_board_abs}")
-    endif()
-    if(NOT EXISTS "${_template_abs}")
-        message(FATAL_ERROR "ek_linker: template not found: ${_template_abs}")
-    endif()
-
-    get_filename_component(_conf_name "${_conf_abs}" NAME)
-    if(NOT _conf_name STREQUAL "ek_conf.h")
-        message(FATAL_ERROR
-            "ek_linker: EK_CONF_PATH must point to ek_conf.h (got ${_conf_name})")
-    endif()
-
-    get_filename_component(_conf_dir "${_conf_abs}" DIRECTORY)
-    get_filename_component(_board_dir "${_board_abs}" DIRECTORY)
-
-    set(_platform_dir "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/..")
-    get_filename_component(_platform_dir "${_platform_dir}" ABSOLUTE)
-    set(_internal "${_platform_dir}/include/ek/ek_conf_internal.h")
-    set(_platform_include "${_platform_dir}/include")
-
-    if(NOT EXISTS "${_internal}")
-        message(FATAL_ERROR "ek_linker: internal config not found: ${_internal}")
-    endif()
-
-    if(NOT ARG_OUTPUT)
-        set(_out "${CMAKE_CURRENT_BINARY_DIR}/ek_platform.ld")
+    set(_template "${A_TEMPLATE}")
+    if(NOT _template)
+        set(_template "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/linker/${A_ARCH}.ld.S")
     else()
-        get_filename_component(_out "${ARG_OUTPUT}" ABSOLUTE
-            BASE_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+        get_filename_component(_template "${_template}" ABSOLUTE
+            BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
     endif()
+    if(NOT EXISTS "${_template}")
+        message(FATAL_ERROR "ek_linker_script: template not found: ${_template}")
+    endif()
+
+    set(_internal "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../include/ek/ek_conf_internal.h")
+    if(NOT EXISTS "${_internal}")
+        message(FATAL_ERROR "ek_linker_script: internal config not found: ${_internal}")
+    endif()
+
+    set(_out "${A_OUTPUT}")
+    if(NOT _out)
+        set(_out "${CMAKE_CURRENT_BINARY_DIR}/ek_platform.ld")
+    endif()
+
+    get_filename_component(_conf_dir "${_conf}" DIRECTORY)
+    get_filename_component(_board_dir "${_board}" DIRECTORY)
+    get_filename_component(_platform_include
+        "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../include" ABSOLUTE)
 
     set(_incs "-I${_conf_dir}" "-I${_board_dir}" "-I${_platform_include}")
-    foreach(_dir IN LISTS EK_LINKER_INCLUDE_DIRS)
+    set(_deps "")
+    foreach(_dir IN LISTS A_INCLUDE_DIRS)
         list(APPEND _incs "-I${_dir}")
+        file(GLOB_RECURSE _hdrs CONFIGURE_DEPENDS "${_dir}/*.h")
+        list(APPEND _deps ${_hdrs})
     endforeach()
 
     execute_process(
         COMMAND "${CMAKE_C_COMPILER}" -E -P -x c
-                -imacros "${_conf_abs}"
+                -imacros "${_conf}"
                 -imacros "${_internal}"
-                -imacros "${_board_abs}"
+                -imacros "${_board}"
                 ${_incs}
-                "${_template_abs}"
+                "${_template}"
         OUTPUT_FILE "${_out}"
         RESULT_VARIABLE _rc
         ERROR_VARIABLE _err)
@@ -123,57 +81,76 @@ function(_ek_linker_generate out_var)
     if(NOT _rc EQUAL 0)
         file(REMOVE "${_out}")
         message(FATAL_ERROR
-            "ek_linker: preprocessing failed for ${_template_abs}:\n${_err}")
+            "ek_linker_script: preprocessing failed for ${_template}:\n${_err}\nincludes: ${_incs}")
     endif()
 
-    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-        "${_conf_abs}" "${_board_abs}" "${_template_abs}" "${_internal}")
+    file(READ "${_out}" _ld_text)
+    if(NOT _ld_text MATCHES "MEMORY")
+        file(REMOVE "${_out}")
+        message(FATAL_ERROR
+            "ek_linker_script: generated script has no MEMORY section: ${_out}")
+    endif()
+
+    if(_deps)
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+            "${_conf}" "${_board}" "${_template}" "${_internal}" ${_deps})
+    else()
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+            "${_conf}" "${_board}" "${_template}" "${_internal}")
+    endif()
 
     set(${out_var} "${_out}" PARENT_SCOPE)
 endfunction()
 
-# 自动模式：生成到 ek_platform 的 build 目录，并通过 INTERFACE 传播给消费者。
-function(_ek_linker_auto_apply)
-    if(NOT TARGET ek_platform)
-        message(FATAL_ERROR "ek_linker: target ek_platform is not defined")
-    endif()
-
-    _ek_linker_generate(_ld
-        CONF_PATH "${EK_CONF_PATH}"
-        BOARD_PATH "${EK_BOARD_PATH}"
-        OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ek_platform.ld")
-
-    target_link_options(ek_platform INTERFACE "-T${_ld}")
-    set_property(TARGET ek_platform APPEND PROPERTY
-        INTERFACE_LINK_DEPENDS "${_ld}")
-endfunction()
-
-# 手动模式：给指定 target 生成独立链接脚本，适用于多 target / 多板子。
 function(ek_linker_attach target)
-    if(NOT TARGET ${target})
-        message(FATAL_ERROR "ek_linker_attach: target not found: ${target}")
+    cmake_parse_arguments(A "" "ARCH;CONF;BOARD;TEMPLATE;OUTPUT" "" ${ARGN})
+
+    get_target_property(_applied ${target} EK_LINKER_APPLIED)
+    if(_applied)
+        message(FATAL_ERROR "ek_linker_attach: ${target} already has an EK linker script")
     endif()
 
-    cmake_parse_arguments(ARG "" "BOARD_PATH;TEMPLATE;OUTPUT" "" ${ARGN})
-
-    set(_board "${ARG_BOARD_PATH}")
+    set(_arch "${A_ARCH}")
+    if(NOT _arch)
+        set(_arch "${EK_LINKER_ARCH}")
+    endif()
+    set(_conf "${A_CONF}")
+    if(NOT _conf)
+        set(_conf "${EK_CONF_PATH}")
+    endif()
+    set(_board "${A_BOARD}")
     if(NOT _board)
         set(_board "${EK_BOARD_PATH}")
     endif()
-
-    set(_template "${ARG_TEMPLATE}")
-
-    set(_out "${ARG_OUTPUT}")
-    if(NOT _out)
-        set(_out "${CMAKE_CURRENT_BINARY_DIR}/${target}.ld")
+    set(_template "${A_TEMPLATE}")
+    if(NOT _template)
+        set(_template "${EK_LINKER_TEMPLATE}")
     endif()
 
-    _ek_linker_generate(_ld
-        CONF_PATH "${EK_CONF_PATH}"
-        BOARD_PATH "${_board}"
-        TEMPLATE "${_template}"
-        OUTPUT "${_out}")
+    if(EK_PLATFORM_ARCH MATCHES "^(host|x86_64)$")
+        set(_ld "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/linker/host.ld")
+        if(NOT EXISTS "${_ld}")
+            message(FATAL_ERROR "ek_linker_attach: host linker script not found: ${_ld}")
+        endif()
+    else()
+        if(NOT _conf OR NOT _board)
+            message(FATAL_ERROR
+                "ek_linker_attach: CONF and BOARD are required for cross builds")
+        endif()
+        ek_linker_script(_ld
+            ARCH "${_arch}"
+            CONF "${_conf}"
+            BOARD "${_board}"
+            TEMPLATE "${_template}"
+            OUTPUT "${A_OUTPUT}"
+            INCLUDE_DIRS ${EK_LINKER_INCLUDE_DIRS})
+    endif()
 
-    target_link_options(${target} PRIVATE "-T${_ld}")
-    set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS "${_ld}")
+    get_target_property(_type ${target} TYPE)
+    if(_type STREQUAL "OBJECT_LIBRARY")
+        target_link_options(${target} INTERFACE "-T${_ld}")
+    else()
+        target_link_options(${target} PRIVATE "-T${_ld}")
+    endif()
+    set_target_properties(${target} PROPERTIES EK_LINKER_APPLIED TRUE)
 endfunction()

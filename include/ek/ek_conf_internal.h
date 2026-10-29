@@ -33,6 +33,16 @@
 #    include "ek_conf.h"
 #endif
 
+/* CMake 的 PICOLIBC 选项是构建事实，优先于 ek_conf.h 中的旧定义。 */
+#ifdef EK_PLATFORM_PICOLIBC
+#    undef EKCFG_PICOLIBC
+#    define EKCFG_PICOLIBC EK_PLATFORM_PICOLIBC
+#    if EKCFG_PICOLIBC == 1
+#        undef EKCFG_NEWLIB
+#        define EKCFG_NEWLIB 0
+#    endif
+#endif
+
 /* ========================================================================
  * 平台/运行环境
  * ======================================================================== */

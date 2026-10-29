@@ -2,59 +2,19 @@ cmake_minimum_required(VERSION 3.20)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-option(PICOLIBC "Use picolibc instead of nano.specs" OFF)
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/ek_platform.cmake")
 
-# ---------- picolibc 定位 ----------
-set(PICOLIBC_ROOT "" CACHE PATH "picolibc install prefix (contains include/ and lib/)")
-set(PICOLIBC_SPECS "" CACHE FILEPATH "Path to picolibc.specs")
-set(PICOLIBC_PREFIX "" CACHE PATH "Prefix for --picolibc-prefix (usually not needed)")
-set(PICOLIBC_PLATFORM "${PLATFORM}" CACHE STRING "picolibc target platform (defaults to PLATFORM; e.g. rv32imac, x86_64)")
-option(PICOLIBC_FETCH "Download a prebuilt picolibc package when not found" OFF)
-option(PICOLIBC_BUILD "Build picolibc from source when not found (requires meson/ninja)" OFF)
-set(PICOLIBC_SOURCE_DIR "" CACHE PATH "picolibc source directory (empty: download source archive)")
-set(PICOLIBC_SOURCE_URL "" CACHE STRING "picolibc source archive URL")
-set(PICOLIBC_VERSION "1.8.11" CACHE STRING "Prebuilt package version")
-set(PICOLIBC_URL "" CACHE STRING "Prebuilt package URL (local path allowed)")
-set(PICOLIBC_SHA256 "" CACHE STRING "Prebuilt package SHA256")
-
-# ---------- EK_CONF_PATH: 用户指定 ek_conf.h 路径 ----------
-set(EK_CONF_PATH "" CACHE STRING "Path to user's ek_conf.h (e.g. Core/Inc/ek_conf.h)")
-
-# ---------- 工具链（仅独立构建时） ----------
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
     if(NOT PLATFORM)
-        message(FATAL_ERROR "PLATFORM is required. Usage: cmake -DPLATFORM=cm4 -B build\n"
-                            "Valid values: cm0, cm3, cm4, cm7, cm23, cm33, cm55,\n"
-                            "              rv32imac, rv32imafc, rv64imac, rv64gc")
+        message(FATAL_ERROR "PLATFORM is required (cm0..cm55, rv32imac, rv32imafc, rv64imac, rv64gc, host)")
     endif()
-    if(NOT CMAKE_TOOLCHAIN_FILE)
-        set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/gcc-arm-none-eabi.cmake)
-    endif()
+    ek_platform_prepare(ARCH "${PLATFORM}" PICOLIBC "${PICOLIBC}")
 endif()
 
 project(ek_platform C)
 
-# ---------- 链接脚本 ----------
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ek_linker.cmake)
-
-set(_ek_linker_enabled FALSE)
-if(EK_LINKER_AUTO AND EK_CONF_PATH AND EK_BOARD_PATH AND CMAKE_CROSSCOMPILING)
-    set(_ek_linker_enabled TRUE)
-endif()
-
-# ---------- picolibc 链接标志 ----------
-if(PICOLIBC AND CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
-    string(REPLACE "--specs=nano.specs" ""
-        CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
-endif()
-
-if(PICOLIBC)
-    if(CMAKE_EXE_LINKER_FLAGS MATCHES "nano\\.specs")
-        message(WARNING "nano.specs and picolibc.specs are both present; remove nano.specs in the parent project")
-    endif()
-    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/picolibc.cmake)
-    ek_picolibc_resolve()
-endif()
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/ek_linker.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/picolibc.cmake")
 
 # ---------- 源文件 ----------
 set(EK_CORES_SRCS
@@ -122,56 +82,37 @@ set(EK_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lwprintf/inc
 )
 
-if(PICOLIBC)
-    if(PICOLIBC_SPECS)
-        set(_ek_picolibc_flags "--specs=${PICOLIBC_SPECS}")
-        if(PICOLIBC_PREFIX)
-            list(APPEND _ek_picolibc_flags "--picolibc-prefix=${PICOLIBC_PREFIX}")
-        endif()
-        if(PICOLIBC_PLATFORM STREQUAL "x86_64")
-            list(APPEND _ek_picolibc_flags "-no-pie")
-        endif()
+file(GLOB_RECURSE _ek_all_src CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c")
+foreach(_src IN LISTS _ek_all_src)
+    list(FIND EK_SRCS "${_src}" _idx)
+    if(_idx EQUAL -1)
+        message(FATAL_ERROR "ek_platform: source not listed in EK_*_SRCS: ${_src}")
     endif()
-endif()
+endforeach()
 
 # ---------- 对象库（配置宏在用户项目中编译时生效） ----------
 add_library(ek_platform OBJECT ${EK_SRCS} ${PORT_SRCS} ${TP_SRCS})
 
 target_include_directories(ek_platform PUBLIC ${EK_INCLUDE_DIRS})
 target_compile_options(ek_platform PRIVATE
-    -Os
-    -g
     -fdiagnostics-color=always
+    -Os
 )
 
 if(EK_CONF_PATH)
     target_compile_definitions(ek_platform PUBLIC EK_CONF_PATH="${EK_CONF_PATH}")
 endif()
 
-if(_ek_linker_enabled)
-    _ek_linker_auto_apply()
+if(PICOLIBC)
+    target_compile_definitions(ek_platform PUBLIC EK_PLATFORM_PICOLIBC=1)
+else()
+    target_compile_definitions(ek_platform PUBLIC EK_PLATFORM_PICOLIBC=0)
+endif()
+
+if(NOT EK_LINKER_MODE STREQUAL "off")
+    ek_linker_attach(ek_platform)
 endif()
 
 if(PICOLIBC)
-    if(PICOLIBC_SPECS)
-        target_compile_options(ek_platform PUBLIC ${_ek_picolibc_flags})
-        target_link_options(ek_platform INTERFACE ${_ek_picolibc_flags})
-    else()
-        if(NOT PICOLIBC_CRT0_A OR NOT PICOLIBC_LIBM_A OR NOT PICOLIBC_NOSYS_A)
-            message(WARNING "picolibc installation is missing libcrt0.a/libm.a/libnosys.a; linking may fail")
-        endif()
-        target_include_directories(ek_platform PUBLIC ${PICOLIBC_INCLUDE_DIR})
-        target_link_options(ek_platform INTERFACE -nostdlib)
-        if(PICOLIBC_LD AND NOT _ek_linker_enabled)
-            target_link_options(ek_platform INTERFACE "-T${PICOLIBC_LD}")
-        endif()
-        target_link_libraries(ek_platform INTERFACE
-            -Wl,--start-group
-            "${PICOLIBC_CRT0_A}"
-            "${PICOLIBC_LIBC_A}"
-            "${PICOLIBC_LIBM_A}"
-            "${PICOLIBC_NOSYS_A}"
-            gcc
-            -Wl,--end-group)
-    endif()
+    ek_picolibc_apply(ek_platform)
 endif()

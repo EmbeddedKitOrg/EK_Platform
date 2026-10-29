@@ -21,13 +21,17 @@ ek_platform/
 ├── ek_conf_template.h             # 配置模板，复制为 ek_conf.h
 ├── ek_board_template.h            # 板级内存模板，复制为 ek_board.h
 ├── cmake/
-│   ├── ek_config.cmake            # CMake 配置函数
+│   ├── ek_platform.cmake          # 两阶段配置入口（prepare/configure）
+│   ├── ek_arch.cmake              # 架构表（CPU/工具链/链接模板）
 │   ├── ek_linker.cmake            # 链接脚本生成与注入
+│   ├── picolibc.cmake             # picolibc 探测/下载/构建
 │   ├── linker/
 │   │   ├── cortexm.ld.S           # Cortex-M 链接脚本模板
-│   │   └── riscv.ld.S             # RISC-V 链接脚本模板
+│   │   ├── riscv.ld.S             # RISC-V 链接脚本模板
+│   │   └── host.ld                # host 原生链接脚本
 │   ├── gcc-arm-none-eabi.cmake    # ARM 交叉编译工具链
-│   └── gcc-riscv-none-elf.cmake   # RISC-V 交叉编译工具链
+│   ├── gcc-riscv-none-elf.cmake   # RISC-V 交叉编译工具链
+│   └── gnu-gcc.cmake              # host 原生工具链
 ├── include/ek/
 │   ├── ek_conf_internal.h         # 配置入口：引入 ek_conf.h、填充默认值、依赖校验
 │   ├── core/                      # ek_def / ek_assert / ek_io / ek_log / ek_export
@@ -109,17 +113,11 @@ cp lib/ek_platform/ek_board_template.h Core/Inc/ek_board.h
 ```cmake
 cmake_minimum_required(VERSION 3.20)
 
-# 配置函数必须在 project()/add_subdirectory() 之前 include
-include(${CMAKE_CURRENT_SOURCE_DIR}/lib/ek_platform/cmake/ek_config.cmake)
+# 两阶段配置入口
+include(${CMAKE_CURRENT_SOURCE_DIR}/lib/ek_platform/cmake/ek_platform.cmake)
 
-# 目标平台，同时决定下载的 picolibc 预编译包
-ek_set_arch(cm4)
-
-# 使用 picolibc 时开启；改用 lwprintf 或系统 libc 时关闭
-ek_set_picolibc(ON)
-
-# 自动选择 ARM/RISC-V 工具链
-ek_set_toolchain()
+# 目标平台，同时决定工具链、链接模板和 picolibc 预编译包；project() 之前调用
+ek_platform_prepare(ARCH cm4 PICOLIBC ON)
 
 project(my_app C)
 
@@ -140,15 +138,16 @@ project(my_app C)
 # 可用 arm-none-eabi-gcc -print-file-name=picolibc.specs 确认。
 # specs 默认路径与实际安装位置不同时，用 PICOLIBC_PREFIX 指定前缀。
 
-ek_set_conf_file("${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h")
-ek_set_linker_file("${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board.h")
+ek_platform_configure(
+    CONF "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
+    BOARD "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board.h")
 
 add_subdirectory(lib/ek_platform)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform)
 ```
 
-`ek_set_arch()` / `ek_set_picolibc()` 必须在 `project()` 之前调用；`ek_set_conf_file()` / `ek_set_linker_file()` 必须在 `add_subdirectory(ek_platform)` 之前调用。
+`ek_platform_prepare()` 必须在 `project()` 之前调用；`ek_platform_configure()` 必须在 `add_subdirectory(ek_platform)` 之前调用。旧的 `ek_set_*` 接口已删除。
 
 `ek_platform` 是 OBJECT 库，它的 PUBLIC include 目录和链接项会自动传给主工程，不需要手动添加 `include/` 等路径，也不要用 `$<TARGET_OBJECTS:ek_platform>` 代替 `target_link_libraries`。
 
@@ -156,20 +155,20 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform)
 
 ### 4. 链接脚本
 
-链接脚本由 `ek_platform` 自动生成，不需要手写。第 2 步复制出的 `ek_board.h` 提供内存布局，CMake 里通过 `EK_BOARD_PATH` 指向它（上面的 `ek_set_linker_file()` 已设置）。
+链接脚本由 `ek_platform` 自动生成，不需要手写。`ek_board.h` 提供内存布局，由 `ek_platform_configure(BOARD ...)` 设置。
 
-`EK_LINKER_AUTO` 默认开启：库会用 C 预处理器把 `ek_conf.h`、`ek_conf_internal.h`、`ek_board.h` 和 `cmake/linker/cortexm.ld.S` 合成为 `${build}/ek_platform/ek_platform.ld`，并通过 `INTERFACE_LINK_OPTIONS` / `INTERFACE_LINK_DEPENDS` 自动挂到链接 `ek_platform` 的目标上。生成脚本已经包含 `.ek_export`、`.ek_static_alloc`、TCMRAM 以及 SDRAM0/SDRAM1 段，`EKCFG_EXPORT` / `EKCFG_STATIC_ALLOC` 关闭时对应段会自动省略。
+`EK_LINKER_MODE=auto`（默认）：交叉编译时用 C 预处理器把 `ek_conf.h`、`ek_conf_internal.h`、`ek_board.h` 和 `cmake/linker/cortexm.ld.S` 合成为 `${build}/ek_platform/ek_platform.ld`；host 构建直接使用 `cmake/linker/host.ld`。生成的脚本包含 `.ek_export`、`.ek_static_alloc`、TCMRAM 以及 SDRAM0/SDRAM1 段，`EKCFG_EXPORT` / `EKCFG_STATIC_ALLOC` 关闭时对应段会自动省略。
 
 若 `ek_conf.h` 在 RTOS 配置里 include 了其他头，把对应目录加入 `EK_LINKER_INCLUDE_DIRS`；预处理器仍只保留宏，不会把 C 声明写进 `.ld`。
 
-RISC-V 项目调用 `ek_set_arch(rv32imac)` 后再调用 `ek_set_toolchain()`，库会自动选择 `cmake/gcc-riscv-none-elf.cmake` 和 `cmake/linker/riscv.ld.S`；需要自定义链接模板时才调用 `ek_set_linker_template(...)`。该模板默认入口是 `_start`，TCMRAM 为可选段（`EKLD_TCMRAM_LENGTH` 为 0 时不生成）。
+RISC-V 项目用 `ek_platform_prepare(ARCH rv32imac)`，库会自动选择 `cmake/gcc-riscv-none-elf.cmake` 和 `cmake/linker/riscv.ld.S`；自定义模板用 `ek_platform_configure(TEMPLATE ...)`。该模板默认入口是 `_start`，TCMRAM 为可选段（`EKLD_TCMRAM_LENGTH` 为 0 时不生成）。host 原生构建用 `ek_platform_prepare(ARCH host)`，不需要 `ek_board.h`。
 
 多 target 或多板子时关闭自动模式，给每个目标单独生成：
 
 ```cmake
-set(EK_LINKER_AUTO OFF)
+ek_platform_configure(... LINKER off)
 ...
-ek_linker_attach(app BOARD_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board_a.h")
+ek_linker_attach(app BOARD "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board_a.h")
 ```
 
 不使用 CMake 集成时，可以用 `${CMAKE_C_COMPILER} -E -P -x c` 手动预处理 `cmake/linker/cortexm.ld.S`，或直接参考生成结果。
@@ -229,17 +228,16 @@ picolibc 不再随仓库分发。用 CMake 时见上方 `PICOLIBC_ROOT` / `PICOL
 #endif
 ```
 
-**方式 A：`ek_set_conf_file()` / `EK_CONF_PATH`（推荐）**
+**方式 A：`ek_platform_configure(CONF ...)` / `EK_CONF_PATH`（推荐）**
 
-先 include 配置函数，再在 `add_subdirectory` 之前指定：
+在 `add_subdirectory` 之前指定：
 
 ```cmake
-include(${CMAKE_CURRENT_SOURCE_DIR}/lib/ek_platform/cmake/ek_config.cmake)
-ek_set_conf_file("${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h")
+ek_platform_configure(CONF "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h")
 add_subdirectory(lib/ek_platform)
 ```
 
-`ek_set_conf_file()` 写入的就是 `EK_CONF_PATH` cache；等价的底层写法：
+`ek_platform_configure()` 写入的就是 `EK_CONF_PATH` cache；等价的底层写法：
 
 ```cmake
 set(EK_CONF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
