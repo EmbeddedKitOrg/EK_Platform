@@ -8,17 +8,17 @@
 
 #if EKCFG_LOG == 1
 
-#    define EK_LOG_COLOR_NONE  "\033[0;0m"
-#    define EK_LOG_COLOR_INFO  "\033[94m"
-#    define EK_LOG_COLOR_DEBUG "\033[92m"
-#    define EK_LOG_COLOR_WARN  "\033[33m"
-#    define EK_LOG_COLOR_ERROR "\033[91m"
-#    define EK_LOG_COLOR_FATAL "\033[30;41m"
+#    define COLOR_NONE  "\033[0;0m"
+#    define COLOR_INFO  "\033[94m"
+#    define COLOR_DEBUG "\033[92m"
+#    define COLOR_WARN  "\033[33m"
+#    define COLOR_ERROR "\033[91m"
+#    define COLOR_FATAL "\033[30;41m"
 
 #    if (EKCFG_LOG_COLOR == 1)
 
 static const char *const s_log_color_table[EK_LOG_LEVEL_MAX] = {
-    EK_LOG_COLOR_NONE, EK_LOG_COLOR_DEBUG, EK_LOG_COLOR_INFO, EK_LOG_COLOR_WARN, EK_LOG_COLOR_ERROR, EK_LOG_COLOR_FATAL,
+    COLOR_NONE, COLOR_DEBUG, COLOR_INFO, COLOR_WARN, COLOR_ERROR, COLOR_FATAL,
 };
 
 #    endif /* (EKCFG_LOG_COLOR == 1) */
@@ -49,7 +49,7 @@ void ek_log_printf(const char *tag, uint32_t line, ek_log_level_e type, uint32_t
     ek_printf("%s", s_log_buffer);
 
 #    if (EKCFG_LOG_COLOR == 1)
-    ek_printf(EK_LOG_COLOR_NONE); // 恢复日志颜色
+    ek_printf(COLOR_NONE); // 恢复日志颜色
 #    endif /* EKCFG_LOG_COLOR == 1 */
 
     ek_printf(CRLF); // 换行符
