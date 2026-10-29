@@ -9,6 +9,11 @@
 
 #include "ek/vfs/ek_vfs_type.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 typedef struct vfs_node vfs_node_t;
 typedef struct vfs_file vfs_file_t;
 
@@ -147,5 +152,8 @@ void fd_free(int fd);
  * @return 打开实例指针；fd 越界或未分配时返回 NULL
  */
 vfs_file_t *fd_to_file(int fd);
+#ifdef __cplusplus
+}
+#endif
 
 #endif // VFS_PRIV_H

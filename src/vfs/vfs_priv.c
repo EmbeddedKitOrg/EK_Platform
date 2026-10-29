@@ -1,18 +1,21 @@
 /**
  * @file vfs_node_priv.c
- * @brief VFS 节点池、树结构与路径解析实现
+ * @brief VFS 节点池、树结构和 fd 实现
  * @author N1netyNine99
  */
 
 #include "vfs_priv.h"
-#include "ek/ek_conf_internal.h"
+#if EKCFG_VFS == 1
+#    include "ek/ek_conf_internal.h"
+
+#    define FD_VALID_MASK ((EKCFG_VFS_MAX_FDS == 32) ? 0xFFFFFFFFUL : ((1UL << EKCFG_VFS_MAX_FDS) - 1UL))
 
 static vfs_node_t s_node_pool[EKCFG_VFS_MAX_NODES];
 static vfs_node_t *s_node_free_head;
 static uint16_t s_node_alloced_count;
 static vfs_node_t *s_node_root = NULL;
-/* fd 池副本，当前未使用；fd 池由 vfs_fd_priv.c 管理 */
 static vfs_file_t s_fd_pool[EKCFG_VFS_MAX_FDS];
+static uint32_t s_bitmap;
 
 void root_init(void)
 {
@@ -179,3 +182,33 @@ vfs_node_t *look_up(const char *path, const char **remain_path)
 
     return curr;
 }
+
+int fd_alloc(void)
+{
+    uint32_t free_mask = (~s_bitmap) & FD_VALID_MASK;
+
+    if (free_mask == 0) return -ENFILE;
+
+    int fd = __builtin_ctz(free_mask);
+    s_bitmap |= (1UL << fd);
+    memset(&s_fd_pool[fd], 0, sizeof(vfs_file_t));
+
+    return fd;
+}
+
+void fd_free(int fd)
+{
+    if (fd < 3 || fd >= EKCFG_VFS_MAX_FDS) return;
+
+    s_bitmap &= ~(1UL << fd);
+    memset(&s_fd_pool[fd], 0, sizeof(vfs_file_t));
+}
+
+vfs_file_t *fd_to_file(int fd)
+{
+    if (fd < 0 || fd >= EKCFG_VFS_MAX_FDS) return NULL;
+    if ((s_bitmap & (1UL << fd)) == 0) return NULL;
+
+    return &s_fd_pool[fd];
+}
+#endif

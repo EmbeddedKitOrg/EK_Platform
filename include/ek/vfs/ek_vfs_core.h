@@ -13,6 +13,11 @@
 
 #    include "ek_vfs_type.h"
 
+#    ifdef __cplusplus
+extern "C"
+{
+#    endif
+
 /**
  * @brief 初始化 VFS 根节点
  * @note 由 EK_EXPORT_COMPONENTS 在 ek_export_init() 中自动调用
