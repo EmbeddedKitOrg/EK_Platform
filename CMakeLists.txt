@@ -82,6 +82,11 @@ set(EK_SCHED_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sched/ek_picothread.c
 )
 
+set(EK_VFS_SRCS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/vfs/ek_vfs_core.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/vfs/ek_vfs_priv.c
+)
+
 set(PORT_SRCS)
 if(PICOLIBC)
     list(APPEND PORT_SRCS
@@ -102,6 +107,7 @@ set(EK_SRCS
     ${EK_MEM_SRCS}
     ${EK_CONTAINER_SRCS}
     ${EK_SCHED_SRCS}
+    ${EK_VFS_SRCS}
 )
 
 set(EK_INCLUDE_DIRS
@@ -111,6 +117,7 @@ set(EK_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ek/mem
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ek/container
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ek/sched
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ek/vfs
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tlsf
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lwprintf/inc
 )

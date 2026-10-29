@@ -198,27 +198,35 @@
 #ifndef EKCFG_PT_PRIO_LOWEST
 #    define EKCFG_PT_PRIO_LOWEST (31) /**< 微线程最低优先级，就绪队列档位数为该值 + 1 */
 #endif
+#ifndef EKCFG_VFS_MAX_NODES
+#    define EKCFG_VFS_MAX_NODES (30) /**< VFS 最大节点数量 */
+#endif
 #ifndef EKCFG_VFS_NODE_NAME_LEN
 #    define EKCFG_VFS_NODE_NAME_LEN (12) /**< VFS 节点的最大名称长度 */
 #endif
+#ifndef EKCFG_VFS_TREE_DUMP_UTF8
+#    define EKCFG_VFS_TREE_DUMP_UTF8 (0) /**< VFS 树输出时候是启用 UTF-8 线条支持 */
+#endif
 
 /* ========================================================================
- * 配置依赖校验（始终执行，不区分配置来源）
+ * 配置依赖校验
  * ======================================================================== */
 
-/* DEPEND_ON 为真表示依赖满足：module 未开启，或 dependency 已开启。 */
+// DEPEND_ON 为真表示依赖满足：module 未开启，或 dependency 已开启。
 #define DEPEND_ON(module, dependency) (!(module) || (dependency))
+// MUTUAL_EXCLUSION 为真表示互斥，为假为不互斥。
+#define MUTUAL_EXCLUSION(module1, module2) ((module1) && (module2))
 
 #if EKCFG_PICOLIBC == 1
 #    undef EKCFG_IO_LWPRTF
 #    define EKCFG_IO_LWPRTF (0) /* picolibc 接管 printf，关闭 lwprintf */
 #endif
-#if EKCFG_PICOLIBC == 1 && EKCFG_NEWLIB == 1
+
+#if MUTUAL_EXCLUSION(EKCFG_PICOLIBC, EKCFG_NEWLIB)
 #    error "EKCFG_PICOLIBC and EKCFG_NEWLIB are mutually exclusive"
 #endif
-
-#if EKCFG_EVOKE == 1 && EKCFG_RTOS == 1
-#    error "EKCFG_EVOKE requires EKCFG_RTOS == 0 (bare-metal only)"
+#if MUTUAL_EXCLUSION(EKCFG_EVOKE, EKCFG_RTOS)
+#    error "EKCFG_EVOKE and EKCFG_RTOS are mutually exclusive"
 #endif
 
 #if !DEPEND_ON(EKCFG_PICOTHREAD_SEM, EKCFG_PICOTHREAD)
@@ -244,6 +252,11 @@
 #    error "EKCFG_PT_PRIO_LOWEST must be <= 31 (ready mask is 32-bit)"
 #endif
 
+#if EKCFG_VFS_NODE_NAME_LEN % 4
+#    error "EKCFG_VFS_NODE_NAME_LEN must be 4-byte aligned (multiple of 4)"
+#endif
+
 #undef DEPEND_ON
+#undef MUTUAL_EXCLUSION
 
 #endif /* EK_CONF_INTERNAL_H */
