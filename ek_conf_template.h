@@ -59,6 +59,7 @@
 #define EKCFG_PICOTHREAD     (1) /**< 微线程 */
 #define EKCFG_PICOTHREAD_SEM (1) /**< 微线程信号量 (依赖 PICOTHREAD) */
 #define EKCFG_PICOTHREAD_MSG (1) /**< 微线程消息队列 (依赖 PICOTHREAD) */
+#define EKCFG_VFS            (1) /**< VFS 虚拟文件系统 */
 
 /* ========================================================================
  * 模块子配置 — 根据实际硬件调整
@@ -76,6 +77,7 @@
 #define EKCFG_ASSERT_LOG               (1) /**< 断言失败时输出日志 */
 #define EKCFG_EVOKE_MIN_DEEPSLEEP_TICK (10) /**< 进入深度睡眠最小 tick */
 #define EKCFG_PT_PRIO_LOWEST           (31) /**< 微线程最低优先级，就绪队列档位数为该值 + 1 */
+#define EKCFG_VFS_MAX_FDS              (16) /**< VFS 最多可以打开的文件数目 */
 #define EKCFG_VFS_MAX_NODES            (30) /**< VFS 最大节点数量 */
 #define EKCFG_VFS_NODE_NAME_LEN        (12) /**< VFS 节点的最大名称长度 */
 #define EKCFG_VFS_TREE_DUMP_UTF8       (0) /**< VFS 树输出时候是启用 UTF-8 线条支持 */

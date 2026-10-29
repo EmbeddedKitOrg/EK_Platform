@@ -170,6 +170,9 @@
 #ifndef EKCFG_PICOTHREAD_MSG
 #    define EKCFG_PICOTHREAD_MSG (0) /**< 微线程消息队列 */
 #endif
+#ifndef EKCFG_VFS
+#    define EKCFG_VFS (0) /**< VFS 虚拟文件系统 */
+#endif
 
 /* ========================================================================
  * 模块子配置
@@ -207,6 +210,9 @@
 #endif
 #ifndef EKCFG_PT_PRIO_LOWEST
 #    define EKCFG_PT_PRIO_LOWEST (31) /**< 微线程最低优先级，就绪队列档位数为该值 + 1 */
+#endif
+#ifndef EKCFG_VFS_MAX_FDS
+#    define EKCFG_VFS_MAX_FDS (16) /**< VFS 最多可以打开的文件数目 */
 #endif
 #ifndef EKCFG_VFS_MAX_NODES
 #    define EKCFG_VFS_MAX_NODES (30) /**< VFS 最大节点数量 */
@@ -264,6 +270,10 @@
 
 #if EKCFG_VFS_NODE_NAME_LEN % 4
 #    error "EKCFG_VFS_NODE_NAME_LEN must be 4-byte aligned (multiple of 4)"
+#endif
+
+#if EKCFG_VFS_MAX_FDS > 32
+#    error "EKCFG_VFS_MAX_FDS must be <= 32"
 #endif
 
 #undef DEPEND_ON
