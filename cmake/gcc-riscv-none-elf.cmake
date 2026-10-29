@@ -20,27 +20,19 @@ set(CMAKE_EXECUTABLE_SUFFIX_C       ".elf")
 set(CMAKE_EXECUTABLE_SUFFIX_CXX     ".elf")
 set(CMAKE_TRY_COMPILE_TARGET_TYPE   STATIC_LIBRARY)
 
-if(NOT CMAKE_SOURCE_DIR MATCHES "CMakeScratch")
-    # 平台必填，不设默认值
-    if(NOT PLATFORM)
-        message(FATAL_ERROR "PLATFORM is required. Valid values: rv32imac, rv32imafc, rv64imac, rv64gc")
-    endif()
+include("${CMAKE_CURRENT_LIST_DIR}/ek_arch.cmake")
+list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES PLATFORM RISCV_TOOLCHAIN_PREFIX)
 
-    # ISA / ABI 编译标志映射
-    if(PLATFORM STREQUAL "rv32imac")
-        set(TARGET_FLAGS "-march=rv32imac -mabi=ilp32")
-    elseif(PLATFORM STREQUAL "rv32imafc")
-        set(TARGET_FLAGS "-march=rv32imafc -mabi=ilp32f")
-    elseif(PLATFORM STREQUAL "rv64imac")
-        set(TARGET_FLAGS "-march=rv64imac -mabi=lp64")
-    elseif(PLATFORM STREQUAL "rv64gc")
-        set(TARGET_FLAGS "-march=rv64gc -mabi=lp64d")
-    else()
-        message(FATAL_ERROR "Unknown PLATFORM: ${PLATFORM}. Valid values: rv32imac, rv32imafc, rv64imac, rv64gc")
-    endif()
+if(NOT PLATFORM)
+    message(FATAL_ERROR "PLATFORM is required; call ek_platform_prepare(ARCH ...) before project()")
 endif()
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${TARGET_FLAGS}")
+ek_arch_query("${PLATFORM}" _ek_arch)
+if(NOT _ek_arch_FAMILY STREQUAL "riscv")
+    message(FATAL_ERROR "gcc-riscv-none-elf.cmake: PLATFORM=${PLATFORM} is not a RISC-V core")
+endif()
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${_ek_arch_FLAGS}")
 set(CMAKE_ASM_FLAGS "${CMAKE_C_FLAGS} -x assembler-with-cpp -MMD -MP")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -fdata-sections -ffunction-sections")
 
@@ -51,8 +43,6 @@ set(CMAKE_CXX_FLAGS_RELEASE "-Os -g0")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -fno-rtti -fno-exceptions -fno-threadsafe-statics")
 
-set(CMAKE_EXE_LINKER_FLAGS "${TARGET_FLAGS}")
+set(CMAKE_EXE_LINKER_FLAGS "${_ek_arch_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-Map=${CMAKE_PROJECT_NAME}.map -Wl,--gc-sections")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--print-memory-usage")
-
-set(TOOLCHAIN_LINK_LIBRARIES "m")
