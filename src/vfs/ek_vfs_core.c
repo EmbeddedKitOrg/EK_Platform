@@ -215,6 +215,7 @@ int ek_vfs_open(const char *path, int flags, ...)
         va_start(ap, flags);
         mode = (mode_t)va_arg(ap, mode_t);
         va_end(ap);
+        __EK_UNUSED(mode);
     }
 
     const char *remain_path = NULL;
