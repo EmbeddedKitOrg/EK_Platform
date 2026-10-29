@@ -111,4 +111,3 @@ ek_vfs_node_t *find_child(ek_vfs_node_t *node, const char *token, uint16_t token
 
     return NULL;
 }
-
