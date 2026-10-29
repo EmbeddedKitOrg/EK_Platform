@@ -4,15 +4,25 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [6.3.0] - 2026-10-27
+## [7.0.0] - 2026-10-29
 
 ### 新增
 
+- `cmake/ek_arch.cmake`：`PLATFORM` 的唯一架构表，集中提供 FAMILY / FLAGS / TOOLCHAIN / LINKER_ARCH / ENTRY / PICOLIBC_PLATFORM；ARM、RISC-V、host 共用一份数据。
+- `cmake/ek_platform.cmake`：两阶段配置入口。`ek_platform_prepare(ARCH ... PICOLIBC ...)` 在 `project()` 前选择工具链并同步 `PLATFORM` / `PICOLIBC_PLATFORM`；`ek_platform_configure(CONF ... BOARD ... LINKER ...)` 在 `add_subdirectory()` 前设置配置与链接模式。
+- host 原生构建：新增 `cmake/gnu-gcc.cmake` 与 `cmake/linker/host.ld`，`ek_platform_prepare(ARCH host)` 可直接编译并链接 host 可执行文件，`host.ld` 提供 `.ek_export` / `.ek_static_alloc` 段边界。
+- `cmake/ek_linker.cmake` 新增 `ek_linker_script()`：纯生成函数，不读全局、不碰 target；新增 `ek_linker_attach()` 作为唯一注入点，按 target 类型自动选择 `INTERFACE` / `PRIVATE`。
+- `cmake/picolibc.cmake` 新增 `ek_picolibc_apply(target)`：探测、下载、源码构建、链接策略全部收敛到 target，不再回写 9 个全局变量。
+- `test/cmake/`：arch 表断言、链接脚本 golden、host configure、缺 BOARD 错误路径的最小测试脚本。
 - `ek_conf_internal.h` 新增内部 `DEPEND_ON` 宏与配套 `#error` 依赖校验。
 - `ek_def.h` 内部新增 `__EK_CLEANUP` 宏，用于包装 `__attribute__((cleanup(x)))`。
+- 新增 VFS 初步支持（`ek_vfs_core` / `ek_vfs_priv`），包含节点池、路径 token 解析和树操作。
 
 ### 变更
 
+- CMake 配置收敛为 `ek_platform_prepare()` / `ek_platform_configure()` 两个函数；`PICOLIBC` 成为构建事实，`EKCFG_PICOLIBC` / `EKCFG_NEWLIB` 由 CMake 的 `PICOLIBC` 选项派生，`ek_conf_template.h` 不再重复定义。
+- 链接脚本生成与注入分离：生成结果登记 conf/board/template 以及 `EK_LINKER_INCLUDE_DIRS` 下的头文件为 configure 依赖；注入按 target 类型选择 `INTERFACE` / `PRIVATE`，重复注入直接报错。
+- picolibc 探测顺序保持 `PICOLIBC_SPECS` → `PICOLIBC_ROOT` → 工具链 → 系统安装 → `PICOLIBC_BUILD` → `PICOLIBC_FETCH`；下载增加 30 秒超时，删除无人设置的 `PICOLIBC_SHA256_<platform>` 分支。
 - `port/clib` 按 `PICOLIBC` 选择实现：`PICOLIBC=ON` 只编译 `port/clib/picolibc/picolibc_port.c`，否则只编译 `port/clib/newlib/newlib_port.c`；newlib 端口是否实际生效仍由 `EKCFG_NEWLIB` 控制。
 - 调整各个模块 `EK_EXPORT_COMPONENTS` 的优先级，不再占用 0、1 这类最高优先级。
 
@@ -26,7 +36,11 @@
 
 ### 破坏性变更
 
-- 枚举类型别名统一由 `_t` 改为 `_e`：`ek_pt_state_t` → `ek_pt_state_e`、`ek_evoke_state_t` → `ek_evoke_state_e`、`ek_log_level_t` → `ek_log_level_e`；`ek_vfs_node_e` 原本已使用 `_e`。不保留旧名兼容别名，调用方需同步修改类型名。
+- 删除 `cmake/ek_config.cmake` 和全部 `ek_set_*` 接口；消费者改用 `ek_platform_prepare()` / `ek_platform_configure()`，调用顺序不变（`project()` 前 / `add_subdirectory()` 前）。
+- `EK_LINKER_AUTO` 改为 `EK_LINKER_MODE`（`auto` / `off`）；`ek_linker_attach()` 的 `BOARD_PATH` 参数改名为 `BOARD`，多 target 场景先调用 `ek_platform_configure(... LINKER off)`。
+- `ek_conf_template.h` 不再定义 `EKCFG_PICOLIBC` / `EKCFG_NEWLIB`；裸机 newlib 需要 syscall port 时在项目 `ek_conf.h` 中定义 `EKCFG_NEWLIB 1`。
+- 删除工具链文件中的 `TOOLCHAIN_LINK_LIBRARIES`（未被消费）。
+- 枚举类型别名统一由 `_t` 改为 `_e`：`ek_pt_state_t` → `ek_pt_state_e`、`ek_evoke_state_t` → `ek_evoke_state_e`、`ek_log_level_t` → `ek_log_level_e`；`ek_vfs_node_e` 原本已使用 `_e`。不保留旧名兼容别名。
 
 ## [6.2.1] - 2026-10-27
 
@@ -229,4 +243,4 @@
 [6.1.1]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.1.0...v6.1.1
 [6.2.0]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.1.1...v6.2.0
 [6.2.1]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.2.0...v6.2.1
-[6.3.0]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.2.1...v6.3.0
+[7.0.0]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.2.1...v7.0.0
