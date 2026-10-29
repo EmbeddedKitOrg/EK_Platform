@@ -7,12 +7,16 @@
 #ifndef VFS_PRIV_H
 #define VFS_PRIV_H
 
-#include "ek/vfs/ek_vfs_type.h"
+#include "ek/ek_conf_internal.h"
 
-#ifdef __cplusplus
+#if EKCFG_VFS == 1
+
+#    include "ek/vfs/ek_vfs_type.h"
+
+#    ifdef __cplusplus
 extern "C"
 {
-#endif
+#    endif
 
 typedef struct vfs_node vfs_node_t;
 typedef struct vfs_file vfs_file_t;
@@ -152,8 +156,11 @@ void fd_free(int fd);
  * @return 打开实例指针；fd 越界或未分配时返回 NULL
  */
 vfs_file_t *fd_to_file(int fd);
-#ifdef __cplusplus
+
+#    ifdef __cplusplus
 }
-#endif
+#    endif
+
+#endif // EKCFG_VFS == 1
 
 #endif // VFS_PRIV_H
