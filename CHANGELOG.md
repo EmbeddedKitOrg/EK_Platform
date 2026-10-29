@@ -33,6 +33,7 @@
 - 链接模板的 `/DISCARD/` 仅在 `EKCFG_PICOLIBC != 0` 时生成，避免 newlib/lwprintf 路径丢弃 `libc.a` / `libm.a` / `libgcc.a`。
 - `._user_heap_stack` 增加 `__heap_start` / `__heap_end`，供 newlib `_sbrk` 使用；picolibc 路径下未被引用时不会生成。
 - `ek_static_alloc_init()` 的导出 order 调整为 20，确保在 `ek_heap_init` / `ek_io_init` / `ek_evoke_init` / `ek_pt_init`（order 10）之后执行，避免静态对象在依赖组件初始化前注册。
+- 'ek_vfs_core.c' 修复一些bug。
 
 ### 破坏性变更
 
