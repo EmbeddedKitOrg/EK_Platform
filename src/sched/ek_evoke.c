@@ -57,10 +57,6 @@ static ek_ringbuf_spsc_t *const s_isr_fifo = &s_isr_fifo_mem.rb;
 static ek_list_node_t s_ready_task_list;
 static ek_list_node_t s_defer_evt_list;
 
-static _defer_req_t *_defer_req_malloc(void);
-static void _defer_req_free(_defer_req_t *req);
-static bool _ek_evoke_can_deep_sleep(void);
-
 __EK_STATIC_INLINE void _ek_evoke_set_timer(uint32_t xtick)
 {
     ek_evoke_set_timer(xtick);
@@ -277,6 +273,32 @@ void ek_evoke_event_publish(ek_evoke_event_t *evt, void *payload)
     evt->count++;
 }
 
+static bool _ek_evoke_can_deep_sleep(void)
+{
+    if (s_sleep_lock) return false;
+    if (ek_list_is_empty(&s_defer_evt_list)) return true;
+
+    uint32_t idle_tick = s_defer_earliest_tick - s_event_tick_base;
+    return idle_tick >= EKCFG_EVOKE_MIN_DEEPSLEEP_TICK;
+}
+
+static _defer_req_t *_defer_req_malloc(void)
+{
+    if (!ek_list_is_empty(&s_defer_pool_free_list))
+    {
+        ek_list_node_t *node = ek_list_get_first(&s_defer_pool_free_list);
+        ek_list_remove(node);
+        _defer_req_t *req = EK_CONTAINER_OF(node, _defer_req_t, node);
+        return req;
+    }
+    return NULL;
+}
+
+static void _defer_req_free(_defer_req_t *req)
+{
+    ek_list_insert_tail(&s_defer_pool_free_list, &req->node);
+}
+
 void ek_evoke_event_defer(ek_evoke_event_t *evt, void *payload, uint32_t delay, bool broadcast)
 {
     if (evt == NULL) return;
@@ -447,32 +469,6 @@ void ek_evoke_event_loop(void)
         }
     }
 }
-static bool _ek_evoke_can_deep_sleep(void)
-{
-    if (s_sleep_lock) return false;
-    if (ek_list_is_empty(&s_defer_evt_list)) return true;
-
-    uint32_t idle_tick = s_defer_earliest_tick - s_event_tick_base;
-    return idle_tick >= EKCFG_EVOKE_MIN_DEEPSLEEP_TICK;
-}
-
-static _defer_req_t *_defer_req_malloc(void)
-{
-    if (!ek_list_is_empty(&s_defer_pool_free_list))
-    {
-        ek_list_node_t *node = ek_list_get_first(&s_defer_pool_free_list);
-        ek_list_remove(node);
-        _defer_req_t *req = EK_CONTAINER_OF(node, _defer_req_t, node);
-        return req;
-    }
-    return NULL;
-}
-
-static void _defer_req_free(_defer_req_t *req)
-{
-    ek_list_insert_tail(&s_defer_pool_free_list, &req->node);
-}
-
 __EK_WEAK void ek_evoke_enter_critical(void)
 {
 }

@@ -19,8 +19,6 @@
             if ((idx) > (len)) (idx) = (len); \
         } while (0)
 
-static int _str_ensure_cap(ek_str_t *s, uint32_t len);
-
 ek_str_t *ek_str_create(const char *str)
 {
     ek_str_t *s = ek_malloc(sizeof(ek_str_t));
@@ -57,6 +55,32 @@ void ek_str_clear(ek_str_t *s)
     if (s == NULL) return;
 
     s->len = 0;
+}
+
+static int _str_ensure_cap(ek_str_t *s, uint32_t len)
+{
+    if (s == NULL) return -EINVAL;
+
+    if (s->cap >= len) return 0;
+
+    uint32_t new_cap = s->cap;
+    do
+    {
+        if (new_cap == 0) new_cap = 2;
+        new_cap += new_cap / 2;
+    } while (new_cap < len);
+
+    char *buf = NULL;
+
+    if (s->buf == NULL) buf = ek_malloc(len);
+    else buf = ek_realloc(s->buf, new_cap);
+
+    if (buf == NULL) return -ENOMEM;
+
+    s->buf = buf;
+    s->cap = new_cap;
+
+    return 0;
 }
 
 int ek_str_append_len(ek_str_t *s, const char *str, uint32_t len)
@@ -198,32 +222,6 @@ int ek_str_ncmp(ek_str_t *s1, ek_str_t *s2, size_t n)
     if (n > shorter_len) n = shorter_len;
 
     return strncmp(ek_str_get_cstring(s1), ek_str_get_cstring(s2), n);
-}
-
-static int _str_ensure_cap(ek_str_t *s, uint32_t len)
-{
-    if (s == NULL) return -EINVAL;
-
-    if (s->cap >= len) return 0;
-
-    uint32_t new_cap = s->cap;
-    do
-    {
-        if (new_cap == 0) new_cap = 2;
-        new_cap += new_cap / 2;
-    } while (new_cap < len);
-
-    char *buf = NULL;
-
-    if (s->buf == NULL) buf = ek_malloc(len);
-    else buf = ek_realloc(s->buf, new_cap);
-
-    if (buf == NULL) return -ENOMEM;
-
-    s->buf = buf;
-    s->cap = new_cap;
-
-    return 0;
 }
 
 #endif // EKCFG_STR

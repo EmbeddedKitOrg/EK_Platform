@@ -16,9 +16,14 @@ EK_LOG_MODULE("ek_static_alloc.c", EK_LOG_LEVEL_ERROR);
 extern const _ek_static_alloc_item_t _ek_static_alloc_start;
 extern const _ek_static_alloc_item_t _ek_static_alloc_end;
 
-static int _static_alloc_compare(const void *lhs, const void *rhs);
-
 static int s_static_alloc_error;
+
+static int _static_alloc_compare(const void *lhs, const void *rhs)
+{
+    const _ek_static_alloc_item_t *lhs_item = (const _ek_static_alloc_item_t *)lhs;
+    const _ek_static_alloc_item_t *rhs_item = (const _ek_static_alloc_item_t *)rhs;
+    return (lhs_item->order > rhs_item->order) - (lhs_item->order < rhs_item->order);
+}
 
 void ek_static_alloc_init(void)
 {
@@ -53,13 +58,6 @@ EK_EXPORT_COMPONENTS(ek_static_alloc_init, 11);
 int ek_static_alloc_get_init_error(void)
 {
     return s_static_alloc_error;
-}
-
-static int _static_alloc_compare(const void *lhs, const void *rhs)
-{
-    const _ek_static_alloc_item_t *lhs_item = (const _ek_static_alloc_item_t *)lhs;
-    const _ek_static_alloc_item_t *rhs_item = (const _ek_static_alloc_item_t *)rhs;
-    return (lhs_item->order > rhs_item->order) - (lhs_item->order < rhs_item->order);
 }
 
 #endif /* EKCFG_STATIC_ALLOC == 1 */

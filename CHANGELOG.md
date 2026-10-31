@@ -33,6 +33,7 @@
 - `vfs_file_t::offset` 与 `ek_vfs_lseek()` 的返回/参数类型改为 `ek_off_t`。
 - `poll` / `close` 公开接口更名为 `ek_vfs_poll()` / `ek_vfs_close()`，避免与 libc 同名。
 - `ek_conf_template.h` 修改默认的配置模板展示。
+- 内部静态函数改为“先定义后使用”：删除 `.c` 文件顶部的函数前向声明，把 helper 定义移动到首次调用之前；仅调整布局，不改变行为。
 
 ### 修复
 

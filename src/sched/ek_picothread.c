@@ -5,12 +5,6 @@
 #    include "ek/core/ek_assert.h"
 #    include "ek/core/ek_export.h"
 
-__EK_STATIC_INLINE void _ready_enqueue(ek_pt_t *pt);
-__EK_STATIC_INLINE void _ready_dequeue(ek_pt_t *pt);
-__EK_STATIC_INLINE void _insert_event_by_prio(ek_list_node_t *list, ek_pt_t *pt);
-__EK_STATIC_INLINE void _insert_state_by_time(ek_list_node_t *list, ek_pt_t *pt);
-static ek_pt_t *_pt_next_ready(void);
-
 #    define PT_PRIO_LEVELS ((uint8_t)(EKCFG_PT_PRIO_LOWEST + 1U))
 
 volatile static bool s_init = false;
@@ -20,6 +14,60 @@ static ek_list_node_t s_block_list;
 static ek_pt_t *s_cur_pt;
 static ek_pt_t *s_next_pt;
 static uint32_t s_schedule_now;
+
+__EK_STATIC_INLINE void _ready_enqueue(ek_pt_t *pt)
+{
+    const uint8_t prio = pt->prio;
+    ek_list_insert_tail(&s_ready_list[prio], &pt->state_node);
+    s_ready_mask |= (1UL << prio);
+}
+
+__EK_STATIC_INLINE void _ready_dequeue(ek_pt_t *pt)
+{
+    const uint8_t prio = pt->prio;
+    ek_list_remove(&pt->state_node);
+    if (ek_list_is_empty(&s_ready_list[prio])) s_ready_mask &= ~(1UL << prio);
+}
+
+__EK_STATIC_INLINE void _insert_event_by_prio(ek_list_node_t *list, ek_pt_t *pt)
+{
+    if (ek_list_is_empty(list))
+    {
+        ek_list_insert_head(list, &pt->event_node);
+        return;
+    }
+    ek_list_node_t *i;
+    ek_list_foreach(i, list)
+    {
+        ek_pt_t *cur_pt = EK_CONTAINER_OF(i, ek_pt_t, event_node);
+        if (cur_pt->prio > pt->prio)
+        {
+            ek_list_insert_before(i, &pt->event_node);
+            return;
+        }
+    }
+    ek_list_insert_tail(list, &pt->event_node);
+}
+
+__EK_STATIC_INLINE void _insert_state_by_time(ek_list_node_t *list, ek_pt_t *pt)
+{
+    if (ek_list_is_empty(list))
+    {
+        ek_list_insert_head(list, &pt->state_node);
+        return;
+    }
+    ek_list_node_t *i;
+    ek_list_foreach(i, list)
+    {
+        ek_pt_t *cur_pt = EK_CONTAINER_OF(i, ek_pt_t, state_node);
+        if (cur_pt->tick > pt->tick || (cur_pt->tick == pt->tick && cur_pt->prio > pt->prio))
+        {
+            ek_list_insert_before(i, &pt->state_node);
+            return;
+        }
+    }
+    ek_list_insert_tail(list, &pt->state_node);
+}
 
 void ek_pt_init(void)
 {
@@ -144,6 +192,14 @@ void ek_pt_destroy(ek_pt_t *pt)
 #    endif
 
     ek_free(pt);
+}
+
+static ek_pt_t *_pt_next_ready(void)
+{
+    if (s_ready_mask == 0U) return NULL;
+    const uint8_t prio = (uint8_t)__builtin_ctz(s_ready_mask);
+    ek_list_node_t *head = ek_list_get_first(&s_ready_list[prio]);
+    return EK_CONTAINER_OF(head, ek_pt_t, state_node);
 }
 
 uint32_t ek_pt_schedule(uint32_t now)
@@ -523,67 +579,5 @@ bool ek_pt_msg_recv(ek_pt_msg_t *msg, void *data)
 }
 
 #    endif /* EKCFG_PICOTHREAD_MSG */
-
-__EK_STATIC_INLINE void _ready_enqueue(ek_pt_t *pt)
-{
-    const uint8_t prio = pt->prio;
-    ek_list_insert_tail(&s_ready_list[prio], &pt->state_node);
-    s_ready_mask |= (1UL << prio);
-}
-
-__EK_STATIC_INLINE void _ready_dequeue(ek_pt_t *pt)
-{
-    const uint8_t prio = pt->prio;
-    ek_list_remove(&pt->state_node);
-    if (ek_list_is_empty(&s_ready_list[prio])) s_ready_mask &= ~(1UL << prio);
-}
-
-__EK_STATIC_INLINE void _insert_event_by_prio(ek_list_node_t *list, ek_pt_t *pt)
-{
-    if (ek_list_is_empty(list))
-    {
-        ek_list_insert_head(list, &pt->event_node);
-        return;
-    }
-    ek_list_node_t *i;
-    ek_list_foreach(i, list)
-    {
-        ek_pt_t *cur_pt = EK_CONTAINER_OF(i, ek_pt_t, event_node);
-        if (cur_pt->prio > pt->prio)
-        {
-            ek_list_insert_before(i, &pt->event_node);
-            return;
-        }
-    }
-    ek_list_insert_tail(list, &pt->event_node);
-}
-
-__EK_STATIC_INLINE void _insert_state_by_time(ek_list_node_t *list, ek_pt_t *pt)
-{
-    if (ek_list_is_empty(list))
-    {
-        ek_list_insert_head(list, &pt->state_node);
-        return;
-    }
-    ek_list_node_t *i;
-    ek_list_foreach(i, list)
-    {
-        ek_pt_t *cur_pt = EK_CONTAINER_OF(i, ek_pt_t, state_node);
-        if (cur_pt->tick > pt->tick || (cur_pt->tick == pt->tick && cur_pt->prio > pt->prio))
-        {
-            ek_list_insert_before(i, &pt->state_node);
-            return;
-        }
-    }
-    ek_list_insert_tail(list, &pt->state_node);
-}
-
-static ek_pt_t *_pt_next_ready(void)
-{
-    if (s_ready_mask == 0U) return NULL;
-    const uint8_t prio = (uint8_t)__builtin_ctz(s_ready_mask);
-    ek_list_node_t *head = ek_list_get_first(&s_ready_list[prio]);
-    return EK_CONTAINER_OF(head, ek_pt_t, state_node);
-}
 
 #endif // EKCFG_PICOTHREAD

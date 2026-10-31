@@ -29,9 +29,29 @@ static tlsf_t s_default_tlsf;
 static size_t s_unused_bytes = 0;
 static size_t s_used_bytes = 0;
 
-/* 前向声明 */
-static void _walker_unused(void *ptr, size_t size, int used, void *user);
-static void _walker_used(void *ptr, size_t size, int used, void *user);
+/* ========== 静态函数实现 ========== */
+
+static void _walker_unused(void *ptr, size_t size, int used, void *user)
+{
+    __EK_UNUSED(ptr);
+
+    if (!used)
+    {
+        size_t *count = (size_t *)user;
+        *count += size;
+    }
+}
+
+static void _walker_used(void *ptr, size_t size, int used, void *user)
+{
+    __EK_UNUSED(ptr);
+
+    if (used)
+    {
+        size_t *count = (size_t *)user;
+        *count += size;
+    }
+}
 
 /* ========== 默认堆操作 ========== */
 
@@ -121,30 +141,6 @@ __EK_WEAK void *ek_realloc(void *ptr, size_t size)
 __EK_WEAK void ek_free(void *ptr)
 {
     tlsf_free(s_default_tlsf, ptr);
-}
-
-/* ========== 静态函数实现 ========== */
-
-static void _walker_unused(void *ptr, size_t size, int used, void *user)
-{
-    __EK_UNUSED(ptr);
-
-    if (!used)
-    {
-        size_t *count = (size_t *)user;
-        *count += size;
-    }
-}
-
-static void _walker_used(void *ptr, size_t size, int used, void *user)
-{
-    __EK_UNUSED(ptr);
-
-    if (used)
-    {
-        size_t *count = (size_t *)user;
-        *count += size;
-    }
 }
 
 #endif /* EKCFG_HEAP_TLSF */
