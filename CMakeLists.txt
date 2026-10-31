@@ -35,6 +35,7 @@ set(EK_CONTAINER_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_ringbuf.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_snapshot.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_stack.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_bitstream.c
 )
 
 set(EK_SCHED_SRCS

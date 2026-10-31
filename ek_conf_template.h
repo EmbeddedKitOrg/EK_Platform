@@ -55,6 +55,7 @@
 #define EKCFG_RINGBUF_SPSC   (1) /**< SPSC 无锁环形缓冲区 */
 #define EKCFG_STACK          (1) /**< 通用栈 */
 #define EKCFG_SNAPSHOT       (1) /**< 快照 */
+#define EKCFG_BITSTREAM      (1) /**< 比特流读写 */
 #define EKCFG_EVOKE          (1) /**< 事件驱动调度器 */
 #define EKCFG_PICOTHREAD     (1) /**< 微线程 */
 #define EKCFG_PICOTHREAD_SEM (1) /**< 微线程信号量 (依赖 PICOTHREAD) */

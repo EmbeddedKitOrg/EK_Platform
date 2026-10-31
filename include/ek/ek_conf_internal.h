@@ -155,6 +155,9 @@
 #ifndef EKCFG_STACK
 #    define EKCFG_STACK (0) /**< 通用栈 */
 #endif
+#ifndef EKCFG_BITSTREAM
+#    define EKCFG_BITSTREAM (0) /**< 比特流读写 */
+#endif
 #ifndef EKCFG_SNAPSHOT
 #    define EKCFG_SNAPSHOT (0) /**< 快照 */
 #endif
