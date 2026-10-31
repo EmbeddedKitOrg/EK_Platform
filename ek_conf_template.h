@@ -33,13 +33,13 @@
 /* EKCFG_PICOLIBC / EKCFG_NEWLIB 由 CMake 的 PICOLIBC 选项派生。
  * 裸机 newlib 需要 syscall port 时，在项目 ek_conf.h 中定义 EKCFG_NEWLIB 1。 */
 #define EKCFG_IO_LWPRTF    (1) /**< IO 是否使用 lwprintf (1=使用, 0=不使用) */
-#define EKCFG_STATIC_ALLOC (0) /**< 是否启用 EK_DEFINE_* 静态对象注册 (1=使用, 0=不使用);静态初始化函数始终可用 */
+#define EKCFG_STATIC_ALLOC (1) /**< 是否启用 EK_DEFINE_* 静态对象注册 (1=使用, 0=不使用);静态初始化函数始终可用 */
 
 /* ========================================================================
  * 核心服务
  * ======================================================================== */
 
-#define EKCFG_EXPORT (0) /**< 自动初始化机制 */
+#define EKCFG_EXPORT (1) /**< 自动初始化机制 */
 #define EKCFG_ASSERT (1) /**< 断言模块 */
 #define EKCFG_LOG    (1) /**< 日志模块 */
 
@@ -47,20 +47,20 @@
  * 数据结构
  * ======================================================================== */
 
-#define EKCFG_STR            (1) /**< 动态字符串 */
-#define EKCFG_STR_VIEW       (1) /**< 字符视图 */
-#define EKCFG_LIST           (1) /**< 双向循环链表 */
-#define EKCFG_VEC            (1) /**< 动态数组 */
-#define EKCFG_RINGBUF        (1) /**< 通用环形缓冲区 */
-#define EKCFG_RINGBUF_SPSC   (1) /**< SPSC 无锁环形缓冲区 */
-#define EKCFG_STACK          (1) /**< 通用栈 */
-#define EKCFG_SNAPSHOT       (1) /**< 快照 */
-#define EKCFG_BITSTREAM      (1) /**< 比特流读写 */
-#define EKCFG_EVOKE          (1) /**< 事件驱动调度器 */
-#define EKCFG_PICOTHREAD     (1) /**< 微线程 */
-#define EKCFG_PICOTHREAD_SEM (1) /**< 微线程信号量 (依赖 PICOTHREAD) */
-#define EKCFG_PICOTHREAD_MSG (1) /**< 微线程消息队列 (依赖 PICOTHREAD) */
-#define EKCFG_VFS            (1) /**< VFS 虚拟文件系统 */
+#define EKCFG_STR            (0) /**< 动态字符串 */
+#define EKCFG_STR_VIEW       (0) /**< 字符视图 */
+#define EKCFG_LIST           (0) /**< 双向循环链表 */
+#define EKCFG_VEC            (0) /**< 动态数组 */
+#define EKCFG_RINGBUF        (0) /**< 通用环形缓冲区 */
+#define EKCFG_RINGBUF_SPSC   (0) /**< SPSC 无锁环形缓冲区 */
+#define EKCFG_STACK          (0) /**< 通用栈 */
+#define EKCFG_SNAPSHOT       (0) /**< 快照 */
+#define EKCFG_BITSTREAM      (0) /**< 比特流读写 */
+#define EKCFG_EVOKE          (0) /**< 事件驱动调度器 */
+#define EKCFG_PICOTHREAD     (0) /**< 微线程 */
+#define EKCFG_PICOTHREAD_SEM (0) /**< 微线程信号量 (依赖 PICOTHREAD) */
+#define EKCFG_PICOTHREAD_MSG (0) /**< 微线程消息队列 (依赖 PICOTHREAD) */
+#define EKCFG_VFS            (0) /**< VFS 虚拟文件系统 */
 
 /* ========================================================================
  * 模块子配置 — 根据实际硬件调整
