@@ -19,6 +19,7 @@
 - `ek_def.h` 新增 `ek_off_t`（`int64_t`），作为 VFS 文件位置类型。
 - `ek_vfs_ops_t` 新增 `destroy(node_priv)` 回调，节点注销时释放节点私有数据。
 - 完善 VFS 内核支持：节点注册/查找、fd 池、树输出，以及 `read/write/lseek/ioctl/poll/close` 分发。
+- `ek_bitsteam.c/.h` 新增比特流读写模块。
 
 ### 变更
 
@@ -31,6 +32,7 @@
 - VFS `read/write` 回调新增 `ek_off_t *offset` 参数，core 传入 `vfs_file_t::offset`，驱动按实际读写字节数推进；`lseek` 回调新增 `ek_off_t *current`，`SEEK_CUR` 使用当前值。
 - `vfs_file_t::offset` 与 `ek_vfs_lseek()` 的返回/参数类型改为 `ek_off_t`。
 - `poll` / `close` 公开接口更名为 `ek_vfs_poll()` / `ek_vfs_close()`，避免与 libc 同名。
+- `ek_conf_template.h` 修改默认的配置模板展示。
 
 ### 修复
 
