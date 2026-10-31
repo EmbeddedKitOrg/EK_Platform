@@ -20,6 +20,11 @@
 #    include "ek/core/ek_def.h"
 #    include "ek/container/ek_list.h"
 
+#    ifdef __cplusplus
+extern "C"
+{
+#    endif
+
 /**
  * @brief ISR 请求队列最大容量
  */
@@ -290,6 +295,10 @@ void ek_evoke_light_sleep(void);
  * @note 用户需要实现此函数，通常进入低功耗模式
  */
 void ek_evoke_deep_sleep(void);
+
+#    ifdef __cplusplus
+}
+#    endif
 
 #endif // EKCFG_RTOS == 0 && EKCFG_EVOKE == 1
 

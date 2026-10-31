@@ -5,9 +5,15 @@
 
 #if EKCFG_PICOTHREAD == 1
 
+#    ifdef __cplusplus
+extern "C"
+{
+#    endif
+
 #    include "ek/container/ek_list.h"
 
 #    if EKCFG_PICOTHREAD_SEM == 1
+
 /**
  * @brief 信号量结构体前向声明
  */
