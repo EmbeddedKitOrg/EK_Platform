@@ -100,9 +100,13 @@ int ek_vfs_unregister(const char *path)
     if (target->ref_count) return -EBUSY;
     if (target->type == EK_VFS_DIR && target->child) return -ENOTEMPTY;
 
-    detach_child(target);
-    if (target->ops && target->ops->close) target->ops->close(target->priv);
+    if (target->ops && target->ops->destroy)
+    {
+        int ret = target->ops->destroy(target->priv);
+        if (ret < 0) return ret;
+    }
 
+    detach_child(target);
     free_node(target);
 
     return 0;
@@ -279,7 +283,7 @@ ssize_t ek_vfs_read(int fd, void *buf, size_t size)
     if (file->node->type == EK_VFS_DIR) return -EISDIR;
     if (!file->ops || !file->ops->read) return -ENOTSUP;
 
-    return file->ops->read(file->file_priv, buf, size);
+    return file->ops->read(file->file_priv, buf, size, &file->offset);
 }
 
 ssize_t ek_vfs_write(int fd, const void *buf, size_t size)
@@ -291,16 +295,16 @@ ssize_t ek_vfs_write(int fd, const void *buf, size_t size)
     if (file->node->type == EK_VFS_DIR) return -EISDIR;
     if (!file->ops || !file->ops->write) return -ENOTSUP;
 
-    return file->ops->write(file->file_priv, buf, size);
+    return file->ops->write(file->file_priv, buf, size, &file->offset);
 }
 
-off_t ek_vfs_lseek(int fd, off_t offset, int whence)
+ek_off_t ek_vfs_lseek(int fd, ek_off_t offset, int whence)
 {
     vfs_file_t *file = fd_to_file(fd);
     if (file == NULL) return -EBADF;
     if (!file->ops || !file->ops->lseek) return -ESPIPE;
 
-    off_t ret = file->ops->lseek(file->file_priv, offset, whence);
+    ek_off_t ret = file->ops->lseek(file->file_priv, offset, whence, &file->offset);
     if (ret >= 0) file->offset = ret;
     return ret;
 }
@@ -309,12 +313,12 @@ int ek_vfs_ioctl(int fd, uint32_t request, void *arg)
 {
     vfs_file_t *file = fd_to_file(fd);
     if (file == NULL) return -EBADF;
-    if (!file->ops || !file->ops->lseek) return -ENOTTY;
+    if (!file->ops || !file->ops->ioctl) return -ENOTTY;
 
     return file->ops->ioctl(file->file_priv, request, arg);
 }
 
-int poll(int fd, uint32_t events)
+int ek_vfs_poll(int fd, uint32_t events)
 {
     vfs_file_t *file = fd_to_file(fd);
     if (file == NULL) return -EBADF;
@@ -324,7 +328,7 @@ int poll(int fd, uint32_t events)
     return file->ops->poll(file->file_priv, events);
 }
 
-int close(int fd)
+int ek_vfs_close(int fd)
 {
     vfs_file_t *file = fd_to_file(fd);
     if (file == NULL) return -EBADF;

@@ -58,7 +58,7 @@ struct vfs_file
     vfs_node_t *node; /**< 对应的 VFS 节点 */
     const ek_vfs_ops_t *ops; /**< 节点操作表快照，只读 */
     void *file_priv; /**< 驱动 open 返回的打开实例数据 */
-    off_t offset; /**< 当前读写位置缓存，由 lseek/read/write 维护 */
+    ek_off_t offset; /**< 当前读写位置；lseek/read/write 共同维护 */
 };
 
 /**

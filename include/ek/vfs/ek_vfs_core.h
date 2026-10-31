@@ -115,7 +115,7 @@ ssize_t ek_vfs_write(int fd, const void *buf, size_t size);
  * @retval -ESPIPE 节点不支持 seek
  * @note 成功后会同步更新 vfs_file_t::offset
  */
-off_t ek_vfs_lseek(int fd, off_t offset, int whence);
+ek_off_t ek_vfs_lseek(int fd, ek_off_t offset, int whence);
 
 /**
  * @brief 设备控制
@@ -139,7 +139,7 @@ int ek_vfs_ioctl(int fd, uint32_t request, void *arg);
  * @retval -ENOTSUP 节点没有 poll 回调
  * @note 当前函数名为 poll()，与 libc poll() 同名
  */
-int poll(int fd, uint32_t events);
+int ek_vfs_poll(int fd, uint32_t events);
 
 /**
  * @brief 关闭 fd
@@ -147,7 +147,7 @@ int poll(int fd, uint32_t events);
  * @return 0 成功；驱动 close 返回的错误码；-EBADF fd 无效
  * @note 无论驱动 close 是否失败，fd 都会被释放
  */
-int close(int fd);
+int ek_vfs_close(int fd);
 
 #    ifdef __cplusplus
 }

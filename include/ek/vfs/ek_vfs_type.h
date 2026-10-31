@@ -106,27 +106,32 @@ struct ek_vfs_ops
      * @param file_priv open 返回的打开实例数据
      * @param buf 接收缓冲区
      * @param count 期望读取的字节数
+     * @param offset 输入输出：当前读写位置；驱动按实际读取字节数推进
      * @return 读取字节数；0 表示 EOF；负数 errno 失败
+     * @note offset 指向 vfs_file_t::offset，由驱动在成功读取后更新
      */
-    ssize_t (*read)(void *file_priv, void *buf, size_t count);
+    ssize_t (*read)(void *file_priv, void *buf, size_t count, ek_off_t *offset);
 
     /**
      * @brief 写入数据
      * @param file_priv open 返回的打开实例数据
      * @param buf 待写入缓冲区
      * @param count 期望写入的字节数
+     * @param offset 输入输出：当前读写位置；驱动按实际写入字节数推进
      * @return 写入字节数；负数 errno 失败
+     * @note offset 指向 vfs_file_t::offset，由驱动在成功写入后更新
      */
-    ssize_t (*write)(void *file_priv, const void *buf, size_t count);
+    ssize_t (*write)(void *file_priv, const void *buf, size_t count, ek_off_t *offset);
 
     /**
      * @brief 调整读写位置
      * @param file_priv open 返回的打开实例数据
      * @param offset 偏移量
      * @param whence SEEK_SET / SEEK_CUR / SEEK_END
+     * @param current 输入输出：当前读写位置；SEEK_CUR 使用它，成功后更新
      * @return 新的绝对位置；负数 errno 失败
      */
-    off_t (*lseek)(void *file_priv, off_t offset, int whence);
+    ek_off_t (*lseek)(void *file_priv, ek_off_t offset, int whence, ek_off_t *current);
 
     /**
      * @brief 设备控制
@@ -152,6 +157,14 @@ struct ek_vfs_ops
      * @note 只释放 open 分配的资源，不要释放 node_priv
      */
     int (*close)(void *file_priv);
+
+    /**
+     * @brief 销毁节点
+     * @param node_priv 注册时传入的节点私有数据
+     * @return 0 成功；负数 errno 失败
+     * @note 在 ek_vfs_unregister() 中调用；与 close(file_priv) 不同
+     */
+    int (*destroy)(void *node_priv);
 };
 
 #    ifdef __cplusplus
