@@ -16,7 +16,9 @@
 - `test/cmake/`：arch 表断言、链接脚本 golden、host configure、缺 BOARD 错误路径的最小测试脚本。
 - `ek_conf_internal.h` 新增内部 `DEPEND_ON` 宏与配套 `#error` 依赖校验。
 - `ek_def.h` 内部新增 `__EK_CLEANUP` 宏，用于包装 `__attribute__((cleanup(x)))`。
-- 完善 VFS 内核支持
+- `ek_def.h` 新增 `ek_off_t`（`int64_t`），作为 VFS 文件位置类型。
+- `ek_vfs_ops_t` 新增 `destroy(node_priv)` 回调，节点注销时释放节点私有数据。
+- 完善 VFS 内核支持：节点注册/查找、fd 池、树输出，以及 `read/write/lseek/ioctl/poll/close` 分发。
 
 ### 变更
 
@@ -26,6 +28,9 @@
 - `port/clib` 按 `PICOLIBC` 选择实现：`PICOLIBC=ON` 只编译 `port/clib/picolibc/picolibc_port.c`，否则只编译 `port/clib/newlib/newlib_port.c`；newlib 端口是否实际生效仍由 `EKCFG_NEWLIB` 控制。
 - 调整各个模块 `EK_EXPORT_COMPONENTS` 的优先级，不再占用 0、1 这类最高优先级。
 - 优化 `ek_log` 模块的日志输出宏
+- VFS `read/write` 回调新增 `ek_off_t *offset` 参数，core 传入 `vfs_file_t::offset`，驱动按实际读写字节数推进；`lseek` 回调新增 `ek_off_t *current`，`SEEK_CUR` 使用当前值。
+- `vfs_file_t::offset` 与 `ek_vfs_lseek()` 的返回/参数类型改为 `ek_off_t`。
+- `poll` / `close` 公开接口更名为 `ek_vfs_poll()` / `ek_vfs_close()`，避免与 libc 同名。
 
 ### 修复
 
@@ -34,7 +39,9 @@
 - 链接模板的 `/DISCARD/` 仅在 `EKCFG_PICOLIBC != 0` 时生成，避免 newlib/lwprintf 路径丢弃 `libc.a` / `libm.a` / `libgcc.a`。
 - `._user_heap_stack` 增加 `__heap_start` / `__heap_end`，供 newlib `_sbrk` 使用；picolibc 路径下未被引用时不会生成。
 - `ek_static_alloc_init()` 的导出 order 调整为 20，确保在 `ek_heap_init` / `ek_io_init` / `ek_evoke_init` / `ek_pt_init`（order 10）之后执行，避免静态对象在依赖组件初始化前注册。
-- 'ek_vfs_core.c' 修复一些bug。
+- `ek_vfs_ioctl()` 改为检查 `file->ops->ioctl`，不再误检查 `lseek`。
+- `ek_vfs_unregister()` 不再把 `node_priv` 传给 `close()`，改调 `destroy(node_priv)`；`close(file_priv)` 只负责打开实例。
+- `ek_vfs_read/write()` 不再把 `file->offset` 加到用户缓冲区指针上。
 
 ### 破坏性变更
 
@@ -43,6 +50,9 @@
 - `ek_conf_template.h` 不再定义 `EKCFG_PICOLIBC` / `EKCFG_NEWLIB`；裸机 newlib 需要 syscall port 时在项目 `ek_conf.h` 中定义 `EKCFG_NEWLIB 1`。
 - 删除工具链文件中的 `TOOLCHAIN_LINK_LIBRARIES`（未被消费）。
 - 枚举类型别名统一由 `_t` 改为 `_e`：`ek_pt_state_t` → `ek_pt_state_e`、`ek_evoke_state_t` → `ek_evoke_state_e`、`ek_log_level_t` → `ek_log_level_e`；`ek_vfs_node_e` 原本已使用 `_e`。不保留旧名兼容别名。
+- `ek_vfs_ops_t::read/write` 新增 `ek_off_t *offset`，`lseek` 新增 `ek_off_t *current`；现有驱动需同步签名。
+- `ek_vfs_poll()` / `ek_vfs_close()` 替代原 `poll()` / `close()` 名称。
+- `ek_vfs_lseek()` 的位置类型由 `off_t` 改为 64 位 `ek_off_t`。
 
 ## [6.2.1] - 2026-10-27
 
