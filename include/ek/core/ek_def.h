@@ -185,4 +185,6 @@ typedef long off_t;
 #    define _OFF_T
 #endif
 
+typedef int64_t ek_off_t;
+
 #endif /* EK_DEF_H */
