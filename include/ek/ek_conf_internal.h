@@ -220,8 +220,8 @@
 #ifndef EKCFG_VFS_MAX_NODES
 #    define EKCFG_VFS_MAX_NODES (30) /**< VFS 最大节点数量 */
 #endif
-#ifndef EKCFG_VFS_NODE_NAME_LEN
-#    define EKCFG_VFS_NODE_NAME_LEN (12) /**< VFS 节点的最大名称长度 */
+#ifndef EKCFG_VFS_NAME_LEN
+#    define EKCFG_VFS_NAME_LEN (12) /**< VFS 节点的最大名称长度 */
 #endif
 #ifndef EKCFG_VFS_TREE_DUMP_UTF8
 #    define EKCFG_VFS_TREE_DUMP_UTF8 (0) /**< VFS 树输出时候是启用 UTF-8 线条支持 */
@@ -271,8 +271,8 @@
 #    error "EKCFG_PT_PRIO_LOWEST must be <= 31 (ready mask is 32-bit)"
 #endif
 
-#if EKCFG_VFS_NODE_NAME_LEN % 4
-#    error "EKCFG_VFS_NODE_NAME_LEN must be 4-byte aligned (multiple of 4)"
+#if EKCFG_VFS_NAME_LEN % 4
+#    error "EKCFG_VFS_NAME_LEN must be 4-byte aligned (multiple of 4)"
 #endif
 
 #if EKCFG_VFS_MAX_FDS > 32

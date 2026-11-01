@@ -80,7 +80,7 @@
 #define EKCFG_PT_PRIO_LOWEST           (31) /**< 微线程最低优先级，就绪队列档位数为该值 + 1 */
 #define EKCFG_VFS_MAX_FDS              (16) /**< VFS 最多可以打开的文件数目 */
 #define EKCFG_VFS_MAX_NODES            (30) /**< VFS 最大节点数量 */
-#define EKCFG_VFS_NODE_NAME_LEN        (12) /**< VFS 节点的最大名称长度 */
+#define EKCFG_VFS_NAME_LEN             (12) /**< VFS 节点的最大名称长度 */
 #define EKCFG_VFS_TREE_DUMP_UTF8       (0) /**< VFS 树输出时候是启用 UTF-8 线条支持 */
 
 #endif /* EK_CONF_H */

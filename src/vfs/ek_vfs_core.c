@@ -4,10 +4,9 @@
  * @author N1netyNine99
  */
 
-#include "ek/ek_conf_internal.h"
+#include "ek/vfs/ek_vfs_core.h"
 #if EKCFG_VFS == 1
 
-#    include "ek/vfs/ek_vfs_core.h"
 #    include "ek/core/ek_io.h"
 #    include "ek/core/ek_export.h"
 #    include "vfs_priv.h"
@@ -53,7 +52,7 @@ int ek_vfs_register(const char *path, uint8_t type, ek_vfs_ops_t *ops, void *pri
 
     while ((token = next_token(&cursor, &token_len, &is_leaf)))
     {
-        if (token_len >= EKCFG_VFS_NODE_NAME_LEN) token_len = EKCFG_VFS_NODE_NAME_LEN - 1;
+        if (token_len >= EKCFG_VFS_NAME_LEN) token_len = EKCFG_VFS_NAME_LEN - 1;
         vfs_node_t *target = find_child(parent_node, token, token_len);
 
         if (target)

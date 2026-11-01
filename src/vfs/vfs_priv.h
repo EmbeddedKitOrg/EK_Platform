@@ -23,7 +23,7 @@ typedef struct vfs_file vfs_file_t;
 
 /**
  * @brief VFS 节点
- * @note 节点名最长 EKCFG_VFS_NODE_NAME_LEN - 1 个字符
+ * @note 节点名最长 EKCFG_VFS_NAME_LEN - 1 个字符
  */
 struct vfs_node
 {
@@ -45,7 +45,7 @@ struct vfs_node
         };
     };
 
-    char name[EKCFG_VFS_NODE_NAME_LEN]; /**< 节点名，以 '\0' 结尾 */
+    char name[EKCFG_VFS_NAME_LEN]; /**< 节点名，以 '\0' 结尾 */
 };
 
 /**
