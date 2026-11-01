@@ -51,6 +51,7 @@ int ek_vfs_bus_register(ek_vfs_bus_t *bus, const char *name, const ek_vfs_bus_op
  * @retval -EINVAL 参数非法
  * @retval -ENAMETOOLONG 名字过长或路径截断
  * @retval -ENOENT 总线不存在
+ * @retval -ENODEV 节点不是 BUS
  * @retval -EBUSY 总线目录仍被打开
  * @retval -ENOTEMPTY 总线下仍有设备
  * @note 必须先注销该总线下的所有设备。
@@ -80,6 +81,7 @@ int ek_vfs_bus_dev_register(const char *bus_name, const char *dev_name, const ek
  * @return 0 成功；负数 errno 失败
  * @retval -EINVAL 参数非法
  * @retval -ENAMETOOLONG 名字过长或路径截断
+ * @retval -ENODEV 总线不存在、节点不是 BUS，或设备节点不是 DEV
  * @retval -ENOENT 设备节点不存在
  * @retval -EBUSY 设备仍被打开
  * @note 设备节点注销时由 VFS core 调用设备 ops 的 destroy 回调。
@@ -102,7 +104,7 @@ int ek_vfs_bus_dev_unregister(const char *bus_name, const char *dev_name);
  * @note 每次调用都会按名字查找总线，适合控制面、调试和 scan；
  *       设备数据面应缓存 ek_vfs_bus_t * 并直接调用 ops->transfer。
  */
-int ek_vfs_bus_transfer(const char *name, uint16_t addr, const char *tx, size_t tx_len, uint8_t *rx, size_t rx_len);
+int ek_vfs_bus_xfer(const char *name, uint16_t addr, const char *tx, size_t tx_len, uint8_t *rx, size_t rx_len);
 
 /**
  * @brief 按总线名探测一个地址

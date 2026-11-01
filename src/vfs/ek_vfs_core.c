@@ -43,6 +43,7 @@ int ek_vfs_register(const char *path, uint8_t type, const void *ops, void *priv)
     if (!path || path[0] != '/') return -EINVAL;
     if (type >= EK_VFS_MAX) return -EINVAL;
     if (type == EK_VFS_DEV && !ops) return -EINVAL;
+    if (type == EK_VFS_BUS && ops) return -EINVAL;
     if (type == EK_VFS_BUS && !priv) return -EINVAL;
 
     vfs_node_t *parent_node = get_root();

@@ -188,7 +188,7 @@ struct ek_vfs_bus_ops
      * @note tx_len 和 rx_len 同时为 0 视为非法；
      *       tx_len > 0 且 rx_len > 0 时表示写后 repeated START 读。
      */
-    int (*transfer)(ek_vfs_bus_t *bus, uint16_t addr, const char *tx, size_t tx_len, uint8_t *rx, size_t rx_len);
+    int (*xfer)(ek_vfs_bus_t *bus, uint16_t addr, const char *tx, size_t tx_len, uint8_t *rx, size_t rx_len);
 
     /**
      * @brief 探测一个总线地址

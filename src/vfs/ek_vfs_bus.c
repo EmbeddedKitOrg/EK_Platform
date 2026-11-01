@@ -12,7 +12,7 @@
 #    include "ek/vfs/ek_vfs_core.h"
 #    include "vfs_priv.h"
 
-#    define PERFIX "/dev/bus/"
+#    define PREFIX "/dev/bus/"
 
 static int _bus_path(const char *name, char *path, size_t size)
 {
@@ -20,7 +20,7 @@ static int _bus_path(const char *name, char *path, size_t size)
     if (strchr(name, '/')) return -EINVAL;
     if (strlen(name) >= EKCFG_VFS_NAME_LEN) return -ENAMETOOLONG;
 
-    int len = ek_snprintf(path, size, "%s%s", PERFIX, name);
+    int len = ek_snprintf(path, size, "%s%s", PREFIX, name);
     if (len < 0 || (size_t)len >= size) return -ENAMETOOLONG;
 
     return 0;
@@ -28,7 +28,7 @@ static int _bus_path(const char *name, char *path, size_t size)
 
 static int _bus_lookup(const char *name, vfs_node_t **out)
 {
-    char path[sizeof(PERFIX) + EKCFG_VFS_NAME_LEN];
+    char path[sizeof(PREFIX) + EKCFG_VFS_NAME_LEN];
     int ret = _bus_path(name, path, sizeof(path));
     if (ret < 0) return ret;
 
@@ -47,7 +47,7 @@ static int _bus_dev_path(const char *bus_name, const char *dev_name, char *path,
     if (strchr(dev_name, '/')) return -EINVAL;
     if (strlen(dev_name) >= EKCFG_VFS_NAME_LEN) return -ENAMETOOLONG;
 
-    char bus_path[sizeof(PERFIX) + EKCFG_VFS_NAME_LEN];
+    char bus_path[sizeof(PREFIX) + EKCFG_VFS_NAME_LEN];
     int ret = _bus_path(bus_name, bus_path, sizeof(bus_path));
     if (ret < 0) return ret;
 
@@ -61,7 +61,7 @@ int ek_vfs_bus_register(ek_vfs_bus_t *bus, const char *name, const ek_vfs_bus_op
 {
     if (!bus || !ops) return -EINVAL;
 
-    char path[sizeof(PERFIX) + EKCFG_VFS_NAME_LEN];
+    char path[sizeof(PREFIX) + EKCFG_VFS_NAME_LEN];
     int ret = _bus_path(name, path, sizeof(path));
     if (ret < 0) return ret;
 
@@ -76,9 +76,14 @@ int ek_vfs_bus_register(ek_vfs_bus_t *bus, const char *name, const ek_vfs_bus_op
 
 int ek_vfs_bus_unregister(const char *name)
 {
-    char path[sizeof(PERFIX) + EKCFG_VFS_NAME_LEN];
+    char path[sizeof(PREFIX) + EKCFG_VFS_NAME_LEN];
     int ret = _bus_path(name, path, sizeof(path));
     if (ret < 0) return ret;
+
+    const char *remain_path = NULL;
+    vfs_node_t *node = look_up(path, &remain_path);
+    if (!node || (remain_path && *remain_path != '\0')) return -ENOENT;
+    if (node->type != EK_VFS_BUS) return -ENODEV;
 
     return ek_vfs_unregister(path);
 }
@@ -90,8 +95,9 @@ int ek_vfs_bus_dev_register(const char *bus_name, const char *dev_name, const ek
     vfs_node_t *bus_node = NULL;
     int ret = _bus_lookup(bus_name, &bus_node);
     if (ret < 0) return ret;
+    __EK_UNUSED(bus_node);
 
-    char path[sizeof(PERFIX) + 2 * EKCFG_VFS_NAME_LEN + 1];
+    char path[sizeof(PREFIX) + 2 * EKCFG_VFS_NAME_LEN + 1];
     ret = _bus_dev_path(bus_name, dev_name, path, sizeof(path));
     if (ret < 0) return ret;
 
@@ -100,23 +106,33 @@ int ek_vfs_bus_dev_register(const char *bus_name, const char *dev_name, const ek
 
 int ek_vfs_bus_dev_unregister(const char *bus_name, const char *dev_name)
 {
-    char path[sizeof(PERFIX) + 2 * EKCFG_VFS_NAME_LEN + 1];
-    int ret = _bus_dev_path(bus_name, dev_name, path, sizeof(path));
+    vfs_node_t *bus_node = NULL;
+    int ret = _bus_lookup(bus_name, &bus_node);
     if (ret < 0) return ret;
+    __EK_UNUSED(bus_node);
+
+    char path[sizeof(PREFIX) + 2 * EKCFG_VFS_NAME_LEN + 1];
+    ret = _bus_dev_path(bus_name, dev_name, path, sizeof(path));
+    if (ret < 0) return ret;
+
+    const char *remain_path = NULL;
+    vfs_node_t *node = look_up(path, &remain_path);
+    if (!node || (remain_path && *remain_path != '\0')) return -ENOENT;
+    if (node->type != EK_VFS_DEV) return -ENODEV;
 
     return ek_vfs_unregister(path);
 }
 
-int ek_vfs_bus_transfer(const char *name, uint16_t addr, const char *tx, size_t tx_len, uint8_t *rx, size_t rx_len)
+int ek_vfs_bus_xfer(const char *name, uint16_t addr, const char *tx, size_t tx_len, uint8_t *rx, size_t rx_len)
 {
     vfs_node_t *node = NULL;
     int ret = _bus_lookup(name, &node);
     if (ret < 0) return ret;
 
     ek_vfs_bus_t *bus = (ek_vfs_bus_t *)node->priv;
-    if (!bus || !bus->ops || !bus->ops->transfer) return -ENOTSUP;
+    if (!bus || !bus->ops || !bus->ops->xfer) return -ENOTSUP;
 
-    return bus->ops->transfer(bus, addr, tx, tx_len, rx, rx_len);
+    return bus->ops->xfer(bus, addr, tx, tx_len, rx, rx_len);
 }
 
 int ek_vfs_bus_probe(const char *name, uint16_t addr)
