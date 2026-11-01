@@ -44,8 +44,9 @@ set(EK_SCHED_SRCS
 )
 
 set(EK_VFS_SRCS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/vfs/ek_vfs_core.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/vfs/vfs_priv.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/vfs/ek_vfs_core.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/vfs/ek_vfs_bus.c
 )
 
 set(PORT_SRCS)
