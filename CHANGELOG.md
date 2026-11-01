@@ -4,6 +4,12 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [7.0.0] - 2026-11-1
+
+### 新增
+
+- `ek_vfs_bus.c/.h`：添加 VFS 总线模型。
+
 ## [7.0.0] - 2026-10-29
 
 ### 新增
