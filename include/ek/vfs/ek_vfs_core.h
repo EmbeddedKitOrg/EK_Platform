@@ -33,9 +33,9 @@ int ek_vfs_node_avail(void);
 /**
  * @brief 注册一个 VFS 节点
  * @param path 绝对路径，必须以 '/' 开头
- * @param type 节点类型：EK_VFS_DIR / EK_VFS_DEV / EK_VFS_MOUNT
- * @param ops 节点操作表；type 为 EK_VFS_DEV 时不能为 NULL
- * @param priv 节点私有数据，传给 ops 回调
+ * @param type 节点类型：EK_VFS_DIR / EK_VFS_BUS / EK_VFS_DEV / EK_VFS_MOUNT
+ * @param ops 文件操作表：DEV/MOUNT 使用；DIR 忽略；BUS 必须为 NULL
+ * @param priv 节点私有数据：DEV 为设备状态；BUS 为 ek_vfs_bus_t 对象
  * @return 0 成功；负数 errno 失败
  * @retval -EINVAL 参数非法
  * @retval -ENOMEM 节点池已满
@@ -43,7 +43,7 @@ int ek_vfs_node_avail(void);
  * @retval -ENOTDIR 中间路径不是目录
  * @note 注册多级路径时，缺失的中间目录会自动创建
  */
-int ek_vfs_register(const char *path, uint8_t type, ek_vfs_ops_t *ops, void *priv);
+int ek_vfs_register(const char *path, uint8_t type, const void *ops, void *priv);
 
 /**
  * @brief 注销一个 VFS 节点

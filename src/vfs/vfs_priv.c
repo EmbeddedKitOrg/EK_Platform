@@ -126,7 +126,7 @@ const char *next_token(const char **cursor, uint16_t *token_len, bool *is_leaf)
 
 vfs_node_t *find_child(vfs_node_t *node, const char *token, uint16_t token_len)
 {
-    if (node->type != EK_VFS_DIR) return NULL;
+    if (!vfs_type_is_dir(node->type)) return NULL;
 
     vfs_node_t *curr = node->child;
 
@@ -165,9 +165,8 @@ vfs_node_t *look_up(const char *path, const char **remain_path)
             return curr;
         }
 
-        // 只有当前节点的类型为 EK_VFS_DIR 时
-        // 才可以继续向下遍历
-        if (curr->type != EK_VFS_DIR) return NULL;
+        // 只有目录类节点（DIR/BUS）才可以继续向下遍历
+        if (!vfs_type_is_dir(curr->type)) return NULL;
 
         // 在当前的层级里找到了对应的 token
         // 才继续向下遍历

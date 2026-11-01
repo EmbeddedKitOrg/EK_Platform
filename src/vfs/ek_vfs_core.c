@@ -36,13 +36,14 @@ int ek_vfs_node_avail(void)
     return EKCFG_VFS_MAX_NODES - get_alloced_node();
 }
 
-int ek_vfs_register(const char *path, uint8_t type, ek_vfs_ops_t *ops, void *priv)
+int ek_vfs_register(const char *path, uint8_t type, const void *ops, void *priv)
 {
     if (!get_root()) return -EINVAL;
     if (get_alloced_node() >= EKCFG_VFS_MAX_NODES) return -ENOMEM;
     if (!path || path[0] != '/') return -EINVAL;
     if (type >= EK_VFS_MAX) return -EINVAL;
     if (type == EK_VFS_DEV && !ops) return -EINVAL;
+    if (type == EK_VFS_BUS && !priv) return -EINVAL;
 
     vfs_node_t *parent_node = get_root();
     const char *cursor = path;
@@ -58,7 +59,7 @@ int ek_vfs_register(const char *path, uint8_t type, ek_vfs_ops_t *ops, void *pri
         if (target)
         {
             if (is_leaf) return -EEXIST;
-            if (target->type != EK_VFS_DIR) return -ENOTDIR;
+            if (!vfs_type_is_dir(target->type)) return -ENOTDIR;
             parent_node = target;
             continue;
         }
@@ -75,7 +76,12 @@ int ek_vfs_register(const char *path, uint8_t type, ek_vfs_ops_t *ops, void *pri
         target->name[token_len] = '\0';
         target->name_len = token_len;
 
-        target->ops = is_leaf ? ops : NULL;
+        target->ops = NULL;
+        if (is_leaf && (type == EK_VFS_DEV || type == EK_VFS_MOUNT))
+        {
+            target->ops = ops;
+        }
+
         target->priv = is_leaf ? priv : NULL;
         target->type = is_leaf ? type : EK_VFS_DIR;
 
@@ -97,7 +103,7 @@ int ek_vfs_unregister(const char *path)
 
     if (!target || (remain_path && *remain_path != '\0')) return -ENOENT;
     if (target->ref_count) return -EBUSY;
-    if (target->type == EK_VFS_DIR && target->child) return -ENOTEMPTY;
+    if (vfs_type_is_dir(target->type) && target->child) return -ENOTEMPTY;
 
     if (target->ops && target->ops->destroy)
     {
@@ -170,7 +176,7 @@ int ek_vfs_tree_dump(char *buf, size_t size)
             }
 
             const char *branch = is_last ? TREE_CORNER : TREE_BRANCH;
-            const char *slash = (curr->type == EK_VFS_DIR) ? "/" : "";
+            const char *slash = vfs_type_is_dir(curr->type) ? "/" : "";
 
             int n = ek_snprintf(buf + offset, size - offset, "%s%s%s" CRLF, branch, curr->name, slash);
             _safe_advance(&offset, size, n);
@@ -237,17 +243,19 @@ int ek_vfs_open(const char *path, int flags, ...)
         return -ENOTSUP;
     }
 
-    if (node->type == EK_VFS_DIR && acc != O_RDONLY) return -EISDIR;
+    if (vfs_type_is_dir(node->type) && acc != O_RDONLY) return -EISDIR;
     if ((flags & O_CREAT) && (flags & O_EXCL)) return -EEXIST;
     if ((flags & O_TRUNC) && acc == O_RDONLY) return -EACCES;
 
     int fd = fd_alloc();
     if (fd < 0) return fd;
 
+    const ek_vfs_ops_t *node_ops = node->ops;
+
     void *file_priv = node->priv;
-    if (node->ops && node->ops->open)
+    if (node_ops && node_ops->open)
     {
-        int ret = node->ops->open(node->priv, flags, &file_priv);
+        int ret = node_ops->open(node->priv, flags, &file_priv);
         if (ret < 0)
         {
             fd_free(fd);
@@ -258,13 +266,13 @@ int ek_vfs_open(const char *path, int flags, ...)
     vfs_file_t *file = fd_to_file(fd);
     if (!file)
     {
-        if (node->ops && node->ops->close) node->ops->close(file_priv);
+        if (node_ops && node_ops->close) node_ops->close(file_priv);
         fd_free(fd);
         return -EBADF;
     }
 
     file->node = node;
-    file->ops = node->ops;
+    file->ops = node_ops;
     file->flags = flags;
     file->file_priv = file_priv;
     file->offset = 0;
@@ -279,7 +287,7 @@ ssize_t ek_vfs_read(int fd, void *buf, size_t size)
     if (file == NULL) return -EBADF;
 
     if ((file->flags & O_ACCMODE) == O_WRONLY) return -EBADF;
-    if (file->node->type == EK_VFS_DIR) return -EISDIR;
+    if (vfs_type_is_dir(file->node->type)) return -EISDIR;
     if (!file->ops || !file->ops->read) return -ENOTSUP;
 
     return file->ops->read(file->file_priv, buf, size, &file->offset);
@@ -291,7 +299,7 @@ ssize_t ek_vfs_write(int fd, const void *buf, size_t size)
     if (file == NULL) return -EBADF;
 
     if ((file->flags & O_ACCMODE) == O_RDONLY) return -EBADF;
-    if (file->node->type == EK_VFS_DIR) return -EISDIR;
+    if (vfs_type_is_dir(file->node->type)) return -EISDIR;
     if (!file->ops || !file->ops->write) return -ENOTSUP;
 
     return file->ops->write(file->file_priv, buf, size, &file->offset);

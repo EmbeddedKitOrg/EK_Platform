@@ -30,15 +30,15 @@ struct vfs_node
     struct vfs_node *parent; /**< 父节点；根节点为 NULL */
     struct vfs_node *child; /**< 第一个子节点 */
     struct vfs_node *sibling; /**< 下一个兄弟节点 */
-    const ek_vfs_ops_t *ops; /**< 节点操作表；目录节点可为 NULL */
-    void *priv; /**< 节点私有数据，注册时传入 */
+    const ek_vfs_ops_t *ops; /**< 文件操作表；DIR/BUS 为 NULL */
+    void *priv; /**< 节点私有数据；BUS 指向 ek_vfs_bus_t */
 
     union
     {
         uint32_t attr; /**< 节点属性原始值 */
         struct
         {
-            uint8_t type; /**< 节点类型：EK_VFS_DIR / EK_VFS_DEV / EK_VFS_MOUNT */
+            uint8_t type; /**< 节点类型：DIR / BUS / DEV / MOUNT */
             uint8_t flags; /**< 节点标志位，当前保留 */
             uint8_t ref_count; /**< 当前打开实例数量；非 0 时 unregister 返回 -EBUSY */
             uint8_t name_len; /**< 节点名长度，不包含结尾 '\0' */
@@ -60,6 +60,16 @@ struct vfs_file
     void *file_priv; /**< 驱动 open 返回的打开实例数据 */
     ek_off_t offset; /**< 当前读写位置；lseek/read/write 共同维护 */
 };
+
+/**
+ * @brief 判断节点类型是否可作为目录遍历
+ * @param type VFS 节点类型
+ * @return true 表示 DIR 或 BUS
+ */
+static inline bool vfs_type_is_dir(uint8_t type)
+{
+    return type == EK_VFS_DIR || type == EK_VFS_BUS;
+}
 
 /**
  * @brief 初始化 VFS 根节点

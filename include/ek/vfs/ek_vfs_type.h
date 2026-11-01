@@ -73,6 +73,8 @@ typedef unsigned int mode_t;
 #    endif
 
 typedef struct ek_vfs_ops ek_vfs_ops_t;
+typedef struct ek_vfs_bus ek_vfs_bus_t;
+typedef struct ek_vfs_bus_ops ek_vfs_bus_ops_t;
 
 /**
  * @brief VFS 节点类型
@@ -80,8 +82,10 @@ typedef struct ek_vfs_ops ek_vfs_ops_t;
 enum ek_vfs_type
 {
     EK_VFS_DIR, /**< 目录节点，可继续向下遍历 */
+    EK_VFS_BUS, /**< 总线节点 */
     EK_VFS_DEV, /**< 设备节点，注册时必须提供 ops */
     EK_VFS_MOUNT, /**< 挂载点，look_up 到此停止，剩余路径交给外部文件系统 */
+
     EK_VFS_MAX /**< 类型数量哨兵 */
 };
 
@@ -165,6 +169,43 @@ struct ek_vfs_ops
      * @note 在 ek_vfs_unregister() 中调用；与 close(file_priv) 不同
      */
     int (*destroy)(void *node_priv);
+};
+/**
+ * @brief VFS 总线操作表
+ * @note 由 BSP 实现；每个回调的第一个参数是注册时绑定的 ek_vfs_bus_t。
+ */
+struct ek_vfs_bus_ops
+{
+    /**
+     * @brief 执行一次总线事务
+     * @param bus 总线对象
+     * @param addr 总线地址；I2C 为 7-bit 从机地址
+     * @param tx 写缓冲区；tx_len 为 0 时忽略
+     * @param tx_len 写长度
+     * @param rx 读缓冲区；rx_len 为 0 时忽略
+     * @param rx_len 读长度
+     * @return 0 成功；负数 errno 失败
+     * @note tx_len 和 rx_len 同时为 0 视为非法；
+     *       tx_len > 0 且 rx_len > 0 时表示写后 repeated START 读。
+     */
+    int (*transfer)(ek_vfs_bus_t *bus, uint16_t addr, const char *tx, size_t tx_len, uint8_t *rx, size_t rx_len);
+
+    /**
+     * @brief 探测一个总线地址
+     * @param bus 总线对象
+     * @param addr 总线地址；I2C 为 7-bit 从机地址
+     * @return 0 表示设备存在；-ENODEV 表示不存在；其他负数 errno 失败
+     * @note 可选回调；具体探测方式由 BSP 决定。
+     */
+    int (*probe)(ek_vfs_bus_t *bus, uint16_t addr);
+
+    /**
+     * @brief 复位或恢复总线
+     * @param bus 总线对象
+     * @return 0 成功；负数 errno 失败
+     * @note 可选回调；这是总线级操作，不会注销总线上的设备。
+     */
+    int (*reset)(ek_vfs_bus_t *bus);
 };
 
 #    ifdef __cplusplus
