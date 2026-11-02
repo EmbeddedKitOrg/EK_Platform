@@ -43,7 +43,7 @@ void ek_arch_redirect_vtor(void)
 }
 
 // 启动时先完成 VTOR 重定向，静态 IRQ 安装随后写入 SRAM 表
-EK_EXPORT_HARDWARE(ek_arch_redirect_vtor, 0);
+EK_EXPORT_BOOT(ek_arch_redirect_vtor, EK_EXPORT_ORDER_BOOT_ARCH);
 
 int ek_arch_irq_install(int32_t irq, ek_arch_isr_t handler)
 {

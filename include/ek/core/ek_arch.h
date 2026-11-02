@@ -34,7 +34,7 @@ typedef void (*ek_arch_isr_t)(void);
  *
  * @note ARM 分支要求链接脚本提供 _flash_vtor_start/_flash_vtor_end 和
  *       _sram_vtor_start/_sram_vtor_end，且两块区域大小一致。
- * @note EKCFG_EXPORT == 1 时由 EK_EXPORT_HARDWARE 在启动阶段自动调用；
+ * @note EKCFG_EXPORT == 1 时由 EK_EXPORT_BOOT 在启动阶段自动调用；
  *       重复调用是幂等的。
  */
 void ek_arch_redirect_vtor(void);

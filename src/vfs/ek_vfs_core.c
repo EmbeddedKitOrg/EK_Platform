@@ -28,7 +28,7 @@ void ek_vfs_init(void)
     return root_init();
 }
 
-EK_EXPORT_COMPONENTS(ek_vfs_init, 5);
+EK_EXPORT_COMPONENT(ek_vfs_init, EK_EXPORT_ORDER_COMPONENT_VFS);
 
 int ek_vfs_node_avail(void)
 {

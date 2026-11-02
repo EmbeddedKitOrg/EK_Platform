@@ -20,7 +20,7 @@ extern "C"
 
 /**
  * @brief 初始化 VFS 根节点
- * @note 由 EK_EXPORT_COMPONENTS 在 ek_export_init() 中自动调用
+ * @note 由 EK_EXPORT_COMPONENT 在 ek_export_init() 中自动调用
  */
 void ek_vfs_init(void);
 

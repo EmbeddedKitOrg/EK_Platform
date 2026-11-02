@@ -18,8 +18,8 @@ static int _ek_export_item_compare(const void *lhs, const void *rhs)
     const _ek_export_item_t *lhs_item = (const _ek_export_item_t *)lhs;
     const _ek_export_item_t *rhs_item = (const _ek_export_item_t *)rhs;
 
-    if (lhs_item->level < rhs_item->level) return -1;
-    if (lhs_item->level > rhs_item->level) return 1;
+    if (lhs_item->phase < rhs_item->phase) return -1;
+    if (lhs_item->phase > rhs_item->phase) return 1;
     if (lhs_item->order < rhs_item->order) return -1;
     if (lhs_item->order > rhs_item->order) return 1;
     return 0;

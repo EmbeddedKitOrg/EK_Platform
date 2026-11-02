@@ -61,7 +61,7 @@ void ek_heap_init(void)
     while (s_default_tlsf == NULL);
 }
 
-EK_EXPORT_COMPONENTS(ek_heap_init, 1);
+EK_EXPORT_COMPONENT(ek_heap_init, EK_EXPORT_ORDER_COMPONENT_HEAP);
 
 void ek_heap_destory(void)
 {

@@ -19,7 +19,7 @@
  * @endcode
  *
  * @note EKCFG_EXPORT == 1 时，ek_static_alloc_init() 会通过
- *       EK_EXPORT_COMPONENTS 在 ek_export_init() 中自动调用。
+ *       EK_EXPORT_COMPONENT 在 ek_export_init() 中自动调用。
  *       未启用 ek_export 时，必须在堆初始化之后手动调用
  *       ek_static_alloc_init()。
  */

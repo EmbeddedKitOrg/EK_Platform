@@ -33,7 +33,7 @@ void ek_io_init(void)
     lwprintf_init(_ek_io_printf);
 }
 
-EK_EXPORT_COMPONENTS(ek_io_init, 10);
+EK_EXPORT_COMPONENT(ek_io_init, EK_EXPORT_ORDER_COMPONENT_IO);
 
 #elif EKCFG_PICOLIBC == 1
 
