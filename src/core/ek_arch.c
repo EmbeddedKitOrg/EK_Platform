@@ -3,7 +3,7 @@
  * @brief 架构相关底层操作实现
  * @author N1netyNine99
  *
- * ARM 分支提供向量表重定向；RISC-V 和 host 分支的 VTOR 重定向为空实现。
+ * ARM 分支提供向量表重定向与中断安装；RISC-V 和 host 分支为空实现。
  */
 
 #include "ek/core/ek_arch.h"
@@ -11,6 +11,7 @@
 #if EKCFG_ARCH == 1
 
 #    include "ek/core/ek_assert.h"
+#    include "ek/core/ek_export.h"
 
 extern uint32_t _flash_vtor_start[];
 extern uint32_t _flash_vtor_end[];
@@ -21,8 +22,12 @@ extern uint32_t _sram_vtor_end[];
 
 #        define SCB_VTOR (*(volatile uint32_t *)0xE000ED08UL)
 
+static bool s_vtor_redirected;
+
 void ek_arch_redirect_vtor(void)
 {
+    if (s_vtor_redirected) return;
+
     size_t size = (size_t)((uintptr_t)_flash_vtor_end - (uintptr_t)_flash_vtor_start);
 
     uint32_t flags = ek_arch_irq_lock();
@@ -33,8 +38,12 @@ void ek_arch_redirect_vtor(void)
     ek_arch_dsb();
     ek_arch_isb();
 
+    s_vtor_redirected = true;
     ek_arch_irq_unlock(flags);
 }
+
+// 启动时先完成 VTOR 重定向，静态 IRQ 安装随后写入 SRAM 表
+EK_EXPORT_HARDWARE(ek_arch_redirect_vtor, 0);
 
 int ek_arch_irq_install(int32_t irq, ek_arch_isr_t handler)
 {

@@ -34,6 +34,8 @@ typedef void (*ek_arch_isr_t)(void);
  *
  * @note ARM 分支要求链接脚本提供 _flash_vtor_start/_flash_vtor_end 和
  *       _sram_vtor_start/_sram_vtor_end，且两块区域大小一致。
+ * @note EKCFG_EXPORT == 1 时由 EK_EXPORT_HARDWARE 在启动阶段自动调用；
+ *       重复调用是幂等的。
  */
 void ek_arch_redirect_vtor(void);
 
@@ -47,7 +49,8 @@ void ek_arch_redirect_vtor(void);
  * @retval -EAGAIN VTOR 尚未指向 SRAM 向量表
  *
  * @note 仅修改向量表，不设置优先级、不使能中断。
- * @note ARM 分支要求先调用 ek_arch_redirect_vtor()。
+ * @note EKCFG_EXPORT == 1 时启动阶段会自动重定向 VTOR；
+ *       未启用 EKCFG_EXPORT 时需先手动调用 ek_arch_redirect_vtor()。
  */
 int ek_arch_irq_install(int32_t irq, ek_arch_isr_t handler);
 
@@ -174,6 +177,38 @@ static inline void ek_arch_irq_unlock(uint32_t flags)
 }
 
 #    endif
+
+#    if EKCFG_STATIC_ALLOC == 1 && (defined(__arm__) || defined(__thumb__))
+#        include "ek/mem/ek_static_alloc.h"
+
+#        if defined(__COUNTER__)
+#            define _EK_ARCH_UNIQUE_ID __COUNTER__
+#        else
+#            define _EK_ARCH_UNIQUE_ID __LINE__
+#        endif
+
+/**
+ * @brief 静态声明并自动安装一个中断处理函数
+ *
+ * @param irqn    外部 IRQ 编号，或负的核心异常编号
+ * @param handler 中断处理函数
+ *
+ * @note 启动时通过 ek_static_alloc 调用 ek_arch_irq_install()。
+ * @note 只安装向量，不设置优先级、不使能中断；优先级仍由 vendor/CMSIS 配置。
+ * @note 必须在 .c 文件作用域使用；内部用 __COUNTER__ 生成唯一符号，
+ *       没有 __COUNTER__ 时退回 __LINE__，此时同一行只能出现一次。
+ */
+#        define EK_DEFINE_ARCH_IRQ(irqn, handler) \
+            _EK_DEFINE_ARCH_IRQ_IMPL(_EK_ARCH_UNIQUE_ID, irqn, handler)
+#        define _EK_DEFINE_ARCH_IRQ_IMPL(id, irqn, handler) \
+            _EK_DEFINE_ARCH_IRQ_IMPL2(id, irqn, handler)
+#        define _EK_DEFINE_ARCH_IRQ_IMPL2(id, irqn, handler)                 \
+            static int _static_alloc_init_arch_irq_##id(void)               \
+            {                                                               \
+                return ek_arch_irq_install((int32_t)(irqn), (handler));     \
+            }                                                               \
+            EK_STATIC_ALLOC_REGISTER(arch_irq_##id, EK_STATIC_ALLOC_ORDER_ARCH_IRQ, _static_alloc_init_arch_irq_##id)
+#    endif /* EKCFG_STATIC_ALLOC && ARM */
 
 #    ifdef __cplusplus
 }
