@@ -22,6 +22,8 @@
 - `ek_bitsteam.c/.h` 新增比特流读写模块。
 - `ek_vfs_bus.c/.h`：添加 VFS 总线模型。
 - `ek_shared_ptr.c/.h`：添加共享指针模型。
+- `ek_arch.h`：跨平台汇编内联库。
+- `EKLD_VECTOR_ALIGN`：用于控制向量表的对齐大小，默认下是 0x200。
 
 ### 变更
 
@@ -36,6 +38,7 @@
 - `poll` / `close` 公开接口更名为 `ek_vfs_poll()` / `ek_vfs_close()`，避免与 libc 同名。
 - `ek_conf_template.h` 修改默认的配置模板展示。
 - 内部静态函数改为“先定义后使用”：删除 `.c` 文件顶部的函数前向声明，把 helper 定义移动到首次调用之前；仅调整布局，不改变行为。
+- `cortexm.ld.S`：优化链接模板。
 
 ### 修复
 
