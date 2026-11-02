@@ -24,6 +24,7 @@
 - `EK_DEFINE_VFS_PATH` / `EK_DEFINE_VFS_BUS` / `EK_DEFINE_VFS_BUS_DEV`：VFS 静态设备树声明宏，通过 `.ek_static_alloc` 在启动时自动注册路径、总线和总线设备；`EK_DEFINE_VFS_PATH` 不接收 handle，使用 `__COUNTER__`（无则 `__LINE__`）生成唯一符号。
 - `ek_static_alloc.h`：新增 `EK_STATIC_ALLOC_ORDER_*` 初始化顺序常量，集中管理容器、调度和 VFS 的注册顺序。
 - `ek_arch_irq_install()`：ARM 分支把中断处理函数写入当前 SRAM 向量表；只负责安装，不设置优先级、不使能中断。
+- `EK_DEFINE_ARCH_IRQ(irqn, handler)`：静态声明中断处理函数，启动时通过 `ek_static_alloc` 调用 `ek_arch_irq_install()` 安装到 SRAM 向量表。
 - `EKCFG_ARCH_IRQ_COUNT`：ARM 目标必填的外部 IRQ 数量配置，用于向量安装边界检查；GD32F470 为 91。
 - `ek_shared_ptr.c/.h`：添加共享指针模型。
 - `ek_arch.c/.h`：跨平台汇编内联库，提供了 CortexM 架构下的中断向量重定义到 SRAM。
@@ -42,6 +43,7 @@
 - `poll` / `close` 公开接口更名为 `ek_vfs_poll()` / `ek_vfs_close()`，避免与 libc 同名。
 - `ek_conf_template.h` 修改默认的配置模板展示。
 - 所有 `EK_DEFINE_*` 的静态初始化顺序改为 `EK_STATIC_ALLOC_ORDER_*` 命名宏，不再在调用点写裸数字；VFS 静态宏固定使用 `EK_DEFINE_VFS_*` 命名。
+- `ek_arch_redirect_vtor()` 通过 `EK_EXPORT_HARDWARE` 在启动阶段自动执行，并增加幂等保护。
 - 内部静态函数改为“先定义后使用”：删除 `.c` 文件顶部的函数前向声明，把 helper 定义移动到首次调用之前；仅调整布局，不改变行为。
 - `cortexm.ld.S`：优化链接模板。
 
