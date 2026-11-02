@@ -21,6 +21,8 @@
 - 完善 VFS 内核支持：节点注册/查找、fd 池、树输出，以及 `read/write/lseek/ioctl/poll/close` 分发。
 - `ek_bitsteam.c/.h` 新增比特流读写模块。
 - `ek_vfs_bus.c/.h`：添加 VFS 总线模型。
+- `EK_DEFINE_VFS_PATH` / `EK_DEFINE_VFS_BUS` / `EK_DEFINE_VFS_BUS_DEV`：VFS 静态设备树声明宏，通过 `.ek_static_alloc` 在启动时自动注册路径、总线和总线设备；`EK_DEFINE_VFS_PATH` 不接收 handle，使用 `__COUNTER__`（无则 `__LINE__`）生成唯一符号。
+- `ek_static_alloc.h`：新增 `EK_STATIC_ALLOC_ORDER_*` 初始化顺序常量，集中管理容器、调度和 VFS 的注册顺序。
 - `ek_shared_ptr.c/.h`：添加共享指针模型。
 - `ek_arch.c/.h`：跨平台汇编内联库，提供了 CortexM 架构下的中断向量重定义到 SRAM。
 - `EKLD_VECTOR_ALIGN`：用于控制向量表的对齐大小，默认下是 0x200。
@@ -37,6 +39,7 @@
 - `vfs_file_t::offset` 与 `ek_vfs_lseek()` 的返回/参数类型改为 `ek_off_t`。
 - `poll` / `close` 公开接口更名为 `ek_vfs_poll()` / `ek_vfs_close()`，避免与 libc 同名。
 - `ek_conf_template.h` 修改默认的配置模板展示。
+- 所有 `EK_DEFINE_*` 的静态初始化顺序改为 `EK_STATIC_ALLOC_ORDER_*` 命名宏，不再在调用点写裸数字；VFS 静态宏固定使用 `EK_DEFINE_VFS_*` 命名。
 - 内部静态函数改为“先定义后使用”：删除 `.c` 文件顶部的函数前向声明，把 helper 定义移动到首次调用之前；仅调整布局，不改变行为。
 - `cortexm.ld.S`：优化链接模板。
 
@@ -50,6 +53,7 @@
 - `ek_vfs_ioctl()` 改为检查 `file->ops->ioctl`，不再误检查 `lseek`。
 - `ek_vfs_unregister()` 不再把 `node_priv` 传给 `close()`，改调 `destroy(node_priv)`；`close(file_priv)` 只负责打开实例。
 - `ek_vfs_read/write()` 不再把 `file->offset` 加到用户缓冲区指针上。
+- `EK_STATIC_ALLOC_REGISTER` 增加 `__EK_ALIGNED(sizeof(void *))`，修复 64 位 host 上静态注册项按更大步进排列导致 `end - start` 误算、启动期 qsort 崩溃的问题。
 
 ### 破坏性变更
 
