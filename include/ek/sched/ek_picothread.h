@@ -205,7 +205,7 @@ void ek_pt_msg_deinit_static(ek_pt_msg_t *msg);
             {                                                             \
                 return ek_pt_init_static(&(handle), (cb), (prio), (arg)); \
             }                                                             \
-            EK_STATIC_ALLOC_REGISTER(handle, 20, _static_alloc_init_##handle)
+            EK_STATIC_ALLOC_REGISTER(handle, EK_STATIC_ALLOC_ORDER_PT, _static_alloc_init_##handle)
 
 #        if EKCFG_PICOTHREAD_SEM == 1
 #            define EK_DEFINE_PT_SEM(handle, count)                   \
@@ -214,7 +214,7 @@ void ek_pt_msg_deinit_static(ek_pt_msg_t *msg);
                 {                                                     \
                     return ek_pt_sem_init_static(&(handle), (count)); \
                 }                                                     \
-                EK_STATIC_ALLOC_REGISTER(handle, 20, _static_alloc_init_##handle)
+                EK_STATIC_ALLOC_REGISTER(handle, EK_STATIC_ALLOC_ORDER_PT, _static_alloc_init_##handle)
 #        endif /* EKCFG_PICOTHREAD_SEM */
 
 #        if EKCFG_PICOTHREAD_MSG == 1
@@ -230,7 +230,7 @@ void ek_pt_msg_deinit_static(ek_pt_msg_t *msg);
                 {                                                                   \
                     return ek_pt_msg_init_static(handle, sizeof(type), (amount));   \
                 }                                                                   \
-                EK_STATIC_ALLOC_REGISTER(handle, 20, _static_alloc_init_##handle)
+                EK_STATIC_ALLOC_REGISTER(handle, EK_STATIC_ALLOC_ORDER_PT, _static_alloc_init_##handle)
 #        endif /* EKCFG_PICOTHREAD_MSG */
 #    endif /* EKCFG_STATIC_ALLOC */
 

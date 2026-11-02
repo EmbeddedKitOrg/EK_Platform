@@ -113,7 +113,7 @@ void ek_stack_deinit_static(ek_stack_t *sk);
             {                                                                  \
                 return ek_stack_init_static(handle, sizeof(type), (amount));   \
             }                                                                  \
-            EK_STATIC_ALLOC_REGISTER(handle, 10, _static_alloc_init_##handle)
+            EK_STATIC_ALLOC_REGISTER(handle, EK_STATIC_ALLOC_ORDER_STACK, _static_alloc_init_##handle)
 #    endif
 
 /**

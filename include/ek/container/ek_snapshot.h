@@ -82,7 +82,7 @@ void ek_snapshot_deinit_static(ek_snapshot_t *snapshot);
             {                                                            \
                 return ek_snapshot_init_static(handle, (size));          \
             }                                                            \
-            EK_STATIC_ALLOC_REGISTER(handle, 10, _static_alloc_init_##handle)
+            EK_STATIC_ALLOC_REGISTER(handle, EK_STATIC_ALLOC_ORDER_SNAPSHOT, _static_alloc_init_##handle)
 
 #    endif // EKCFG_STATIC_ALLOC == 1
 

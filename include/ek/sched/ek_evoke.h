@@ -146,7 +146,7 @@ void ek_evoke_event_deinit_static(ek_evoke_event_t *evt);
             {                                                             \
                 return ek_evoke_task_init_static(&(handle), (cb), (arg)); \
             }                                                             \
-            EK_STATIC_ALLOC_REGISTER(handle, 20, _static_alloc_init_##handle)
+            EK_STATIC_ALLOC_REGISTER(handle, EK_STATIC_ALLOC_ORDER_EVOKE, _static_alloc_init_##handle)
 
 #        define EK_DEFINE_EVOKE_EVENT(handle, init_count)                   \
             static ek_evoke_event_t handle;                                 \
@@ -154,7 +154,7 @@ void ek_evoke_event_deinit_static(ek_evoke_event_t *evt);
             {                                                               \
                 return ek_evoke_event_init_static(&(handle), (init_count)); \
             }                                                               \
-            EK_STATIC_ALLOC_REGISTER(handle, 20, _static_alloc_init_##handle)
+            EK_STATIC_ALLOC_REGISTER(handle, EK_STATIC_ALLOC_ORDER_EVOKE, _static_alloc_init_##handle)
 #    endif /* EKCFG_STATIC_ALLOC */
 
 /* ========== 事件订阅/分发 ========== */

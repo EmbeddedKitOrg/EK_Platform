@@ -54,10 +54,25 @@ typedef struct
     _ek_static_alloc_init_fn_t fn; /**< 初始化回调 */
 } _ek_static_alloc_item_t;
 
-#    define _EK_STATIC_ALLOC_JOIN2(a, b) a##b
-#    define _EK_STATIC_ALLOC_JOIN(a, b)  _EK_STATIC_ALLOC_JOIN2(a, b)
-#    define _EK_STATIC_ALLOC_STRING2(x)  #x
-#    define _EK_STATIC_ALLOC_STRING(x)   _EK_STATIC_ALLOC_STRING2(x)
+/* ========== 静态初始化顺序 ========== */
+/*
+ * 同一 order 不保证相对顺序，存在依赖的组件必须使用不同 order。
+ * 新增 EK_DEFINE_* 时在这里补一个 EK_STATIC_ALLOC_ORDER_*，不要写裸数字。
+ */
+
+#    define EK_STATIC_ALLOC_ORDER_STACK       (10)
+#    define EK_STATIC_ALLOC_ORDER_RINGBUF     (10)
+#    define EK_STATIC_ALLOC_ORDER_SNAPSHOT    (10)
+#    define EK_STATIC_ALLOC_ORDER_EVOKE       (20)
+#    define EK_STATIC_ALLOC_ORDER_PT          (20)
+#    define EK_STATIC_ALLOC_ORDER_VFS_PATH    (30)
+#    define EK_STATIC_ALLOC_ORDER_VFS_BUS     (31)
+#    define EK_STATIC_ALLOC_ORDER_VFS_BUS_DEV (32)
+
+#    define _EK_STATIC_ALLOC_JOIN2(a, b)      a##b
+#    define _EK_STATIC_ALLOC_JOIN(a, b)       _EK_STATIC_ALLOC_JOIN2(a, b)
+#    define _EK_STATIC_ALLOC_STRING2(x)       #x
+#    define _EK_STATIC_ALLOC_STRING(x)        _EK_STATIC_ALLOC_STRING2(x)
 
 /**
  * @brief 将静态对象初始化回调登记到 .ek_static_alloc 段
@@ -67,7 +82,8 @@ typedef struct
  */
 #    define EK_STATIC_ALLOC_REGISTER(instance, order, fn)                                             \
         static const _ek_static_alloc_item_t _EK_STATIC_ALLOC_JOIN(__ek_static_alloc_item_, instance) \
-        __EK_USED __EK_SECTION(".ek_static_alloc") = { (uint16_t)(order), _EK_STATIC_ALLOC_STRING(instance), (fn) }
+        __EK_USED __EK_SECTION(".ek_static_alloc")                                                    \
+            __EK_ALIGNED(sizeof(void *)) = { (uint16_t)(order), _EK_STATIC_ALLOC_STRING(instance), (fn) }
 
 /**
  * @brief 扫描注册段并按 order 初始化全部静态对象
