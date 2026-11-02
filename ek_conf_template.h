@@ -56,6 +56,7 @@
 #define EKCFG_STACK          (0) /**< 通用栈 */
 #define EKCFG_SNAPSHOT       (0) /**< 快照 */
 #define EKCFG_BITSTREAM      (0) /**< 比特流读写 */
+#define EKCFG_SHARED_PTR     (0) /**< 共享指针 */
 #define EKCFG_EVOKE          (0) /**< 事件驱动调度器 */
 #define EKCFG_PICOTHREAD     (0) /**< 微线程 */
 #define EKCFG_PICOTHREAD_SEM (0) /**< 微线程信号量 (依赖 PICOTHREAD) */

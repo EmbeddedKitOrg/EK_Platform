@@ -161,6 +161,9 @@
 #ifndef EKCFG_SNAPSHOT
 #    define EKCFG_SNAPSHOT (0) /**< 快照 */
 #endif
+#ifndef EKCFG_SHARED_PTR
+#    define EKCFG_SHARED_PTR (0) /**< 共享指针 */
+#endif
 #ifndef EKCFG_EVOKE
 #    define EKCFG_EVOKE (0) /**< 事件驱动调度器 */
 #endif

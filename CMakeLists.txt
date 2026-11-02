@@ -31,6 +31,7 @@ set(EK_MEM_SRCS
 
 set(EK_CONTAINER_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_str.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_shared_ptr.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_str_view.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_ringbuf.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_snapshot.c
