@@ -64,10 +64,12 @@ SECTIONS
     .vectors :
     {
         . = ALIGN(EKLD_VECTOR_ALIGN);
+        _flash_vtor_start = .;
         KEEP(*(.vectors))
         KEEP(*(.isr_vector))
         KEEP(*(.isr_vectors))
         . = ALIGN(EKLD_VECTOR_ALIGN);
+        _flash_vtor_end = .;
     } >FLASH
 
     .ram_vector (NOLOAD) :

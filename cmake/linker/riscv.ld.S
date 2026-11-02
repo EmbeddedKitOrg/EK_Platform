@@ -31,16 +31,13 @@
 #    error "EKLD_MIN_HEAP_SIZE is not defined"
 #endif
 
-/* Entry Point */
 ENTRY(_start)
 
-/* Highest address of the user mode stack */
 _sp = ORIGIN(RAM) + LENGTH(RAM);
 
 _Min_Heap_Size  = EKLD_MIN_HEAP_SIZE;
 _Min_Stack_Size = EKLD_STACK_SIZE;
 
-/* Memories definition */
 MEMORY
 {
     FLASH (rx)  : ORIGIN = EKLD_FLASH_ORIGIN, LENGTH = EKLD_FLASH_LENGTH
@@ -56,19 +53,19 @@ MEMORY
 #endif
 }
 
-/* Sections */
 SECTIONS
 {
-    /* Startup code and trap/IRQ entry points */
+
     .text.init :
     {
         . = ALIGN(4);
+        _flash_vtor_start = .;
         KEEP(*(.text.init))
         KEEP(*(.init))
         . = ALIGN(4);
+        _flash_vtor_end = .;
     } >FLASH
 
-    /* Program code and read-only data */
     .text :
     {
         . = ALIGN(4);
@@ -115,10 +112,8 @@ SECTIONS
         . = ALIGN(4);
     } >FLASH
 
-    /* Used by the startup to initialize data */
     _sidata = LOADADDR(.data);
 
-    /* Initialized data into RAM */
     .data :
     {
         . = ALIGN(8);
@@ -134,7 +129,6 @@ SECTIONS
         _edata = .;
     } >RAM AT> FLASH
 
-    /* Uninitialized data into RAM */
     .bss :
     {
         . = ALIGN(8);
@@ -152,7 +146,6 @@ SECTIONS
         __bss_end__ = _ebss;
     } >RAM
 
-    /* Minimum heap and stack space check */
     ._user_heap_stack :
     {
         . = ALIGN(8);
@@ -166,7 +159,7 @@ SECTIONS
     } >RAM
 
 #if defined(EKLD_TCMRAM_LENGTH) && (EKLD_TCMRAM_LENGTH > 0)
-    /* Used by the startup to initialize tcmram */
+
     _sitcmram = LOADADDR(.tcmram);
 
     .tcmram :
@@ -184,7 +177,6 @@ SECTIONS
 
     .riscv.attributes 0 : { *(.riscv.attributes) }
 
-    /* EK EXPORT */
 #if defined(EKCFG_EXPORT) && (EKCFG_EXPORT != 0)
     .ek_export :
     {
@@ -196,7 +188,6 @@ SECTIONS
     } > FLASH
 #endif
 
-    /* Static component initialization registrations */
 #if defined(EKCFG_STATIC_ALLOC) && (EKCFG_STATIC_ALLOC != 0)
     .ek_static_alloc :
     {
@@ -208,7 +199,6 @@ SECTIONS
     } > FLASH
 #endif
 
-    /* SDRAM0 Data */
 #if defined(EKLD_SDRAM0_LENGTH) && (EKLD_SDRAM0_LENGTH > 0)
     .sdram0_data (NOLOAD) :
     {
@@ -223,7 +213,6 @@ SECTIONS
     } > SDRAM0
 #endif
 
-    /* SDRAM1 Data */
 #if defined(EKLD_SDRAM1_LENGTH) && (EKLD_SDRAM1_LENGTH > 0)
     .sdram1_data (NOLOAD) :
     {
