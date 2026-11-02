@@ -35,6 +35,24 @@ void ek_arch_redirect_vtor(void)
 
     ek_arch_irq_unlock(flags);
 }
+
+int ek_arch_irq_install(int32_t irq, ek_arch_isr_t handler)
+{
+    if (handler == NULL) return -EINVAL;
+    if (irq < -14 || irq >= EKCFG_ARCH_IRQ_COUNT) return -EINVAL;
+    if (SCB_VTOR != (uintptr_t)_sram_vtor_start) return -EAGAIN;
+
+    uint32_t *table = (uint32_t *)(uintptr_t)SCB_VTOR;
+    if (table == NULL) return -EINVAL;
+
+    uint32_t flags = ek_arch_irq_lock();
+    table[16 + irq] = (uint32_t)(uintptr_t)handler;
+    ek_arch_dsb();
+    ek_arch_isb();
+    ek_arch_irq_unlock(flags);
+
+    return 0;
+}
 #    elif defined(__riscv)
 
 // RISC-V 使用 mtvec 配置异常入口，不使用 VTOR
@@ -42,11 +60,25 @@ void ek_arch_redirect_vtor(void)
 {
 }
 
+int ek_arch_irq_install(int32_t irq, ek_arch_isr_t handler)
+{
+    __EK_UNUSED(irq);
+    __EK_UNUSED(handler);
+    return -ENOSYS;
+}
+
 #    else
 
 // host 构建没有异常向量表
 void ek_arch_redirect_vtor(void)
 {
+}
+
+int ek_arch_irq_install(int32_t irq, ek_arch_isr_t handler)
+{
+    __EK_UNUSED(irq);
+    __EK_UNUSED(handler);
+    return -ENOSYS;
 }
 
 #    endif

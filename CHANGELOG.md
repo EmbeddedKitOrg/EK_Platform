@@ -23,6 +23,8 @@
 - `ek_vfs_bus.c/.h`：添加 VFS 总线模型。
 - `EK_DEFINE_VFS_PATH` / `EK_DEFINE_VFS_BUS` / `EK_DEFINE_VFS_BUS_DEV`：VFS 静态设备树声明宏，通过 `.ek_static_alloc` 在启动时自动注册路径、总线和总线设备；`EK_DEFINE_VFS_PATH` 不接收 handle，使用 `__COUNTER__`（无则 `__LINE__`）生成唯一符号。
 - `ek_static_alloc.h`：新增 `EK_STATIC_ALLOC_ORDER_*` 初始化顺序常量，集中管理容器、调度和 VFS 的注册顺序。
+- `ek_arch_irq_install()`：ARM 分支把中断处理函数写入当前 SRAM 向量表；只负责安装，不设置优先级、不使能中断。
+- `EKCFG_ARCH_IRQ_COUNT`：ARM 目标必填的外部 IRQ 数量配置，用于向量安装边界检查；GD32F470 为 91。
 - `ek_shared_ptr.c/.h`：添加共享指针模型。
 - `ek_arch.c/.h`：跨平台汇编内联库，提供了 CortexM 架构下的中断向量重定义到 SRAM。
 - `EKLD_VECTOR_ALIGN`：用于控制向量表的对齐大小，默认下是 0x200。

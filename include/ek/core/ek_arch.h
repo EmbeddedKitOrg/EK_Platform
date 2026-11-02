@@ -33,6 +33,25 @@ extern "C"
 void ek_arch_redirect_vtor(void);
 
 /**
+ * @brief 异常处理函数类型
+ */
+typedef void (*ek_arch_isr_t)(void);
+
+/**
+ * @brief 把异常处理函数安装到当前向量表
+ *
+ * @param irq     外部 IRQ 编号，或负的核心异常编号（-14..-1）
+ * @param handler 异常处理函数，不能为 NULL
+ * @return 0 成功；负数 errno 失败
+ * @retval -EINVAL 参数非法
+ * @retval -EAGAIN VTOR 尚未指向 SRAM 向量表
+ *
+ * @note 仅修改向量表，不设置优先级、不使能中断。
+ * @note ARM 分支要求先调用 ek_arch_redirect_vtor()。
+ */
+int ek_arch_irq_install(int32_t irq, ek_arch_isr_t handler);
+
+/**
  * @brief 指令同步屏障
  */
 static inline void ek_arch_isb(void);

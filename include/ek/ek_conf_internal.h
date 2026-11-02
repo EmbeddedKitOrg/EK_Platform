@@ -284,6 +284,18 @@
 #    error "EKCFG_VFS_MAX_FDS must be <= 32"
 #endif
 
+#if EKCFG_ARCH == 1 && (defined(__arm__) || defined(__thumb__))
+#    ifndef EKCFG_ARCH_IRQ_COUNT
+#        error "EKCFG_ARCH_IRQ_COUNT must be defined in ek_conf.h for this MCU"
+#    endif
+#    if EKCFG_ARCH_IRQ_COUNT < 1
+#        error "EKCFG_ARCH_IRQ_COUNT must be >= 1"
+#    endif
+#    if EKCFG_ARCH_IRQ_COUNT > 240
+#        error "EKCFG_ARCH_IRQ_COUNT must be <= 240 for ARMv7-M NVIC"
+#    endif
+#endif
+
 #undef DEPEND_ON
 #undef MUTUAL_EXCLUSION
 

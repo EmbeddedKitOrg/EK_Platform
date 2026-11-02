@@ -68,6 +68,7 @@
  * 模块子配置 — 根据实际硬件调整
  * ======================================================================== */
 
+#define EKCFG_ARCH_IRQ_COUNT           // ARM 目标必须配置外部 IRQ 数量（IRQ0..N-1）
 #define EKCFG_HEAP_SECTION             ".heap" /**< 堆内存所在链接器段 (如 ".tcmram") */
 #define EKCFG_HEAP_TLSF                (1) /**< 内存堆使用 TLSF 分配器 (1=TLSF, 0=自定义) */
 #define EKCFG_HEAP_SIZE                (16 * 1024) /**< 内存堆大小（字节） */
