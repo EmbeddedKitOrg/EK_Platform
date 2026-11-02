@@ -36,14 +36,15 @@
 - 链接脚本生成与注入分离：生成结果登记 conf/board/template 以及 `EK_LINKER_INCLUDE_DIRS` 下的头文件为 configure 依赖；注入按 target 类型选择 `INTERFACE` / `PRIVATE`，重复注入直接报错。
 - picolibc 探测顺序保持 `PICOLIBC_SPECS` → `PICOLIBC_ROOT` → 工具链 → 系统安装 → `PICOLIBC_BUILD` → `PICOLIBC_FETCH`；下载增加 30 秒超时，删除无人设置的 `PICOLIBC_SHA256_<platform>` 分支。
 - `port/clib` 按 `PICOLIBC` 选择实现：`PICOLIBC=ON` 只编译 `port/clib/picolibc/picolibc_port.c`，否则只编译 `port/clib/newlib/newlib_port.c`；newlib 端口是否实际生效仍由 `EKCFG_NEWLIB` 控制。
-- 调整各个模块 `EK_EXPORT_COMPONENTS` 的优先级，不再占用 0、1 这类最高优先级。
+- 调整各个模块 `EK_EXPORT_COMPONENT` 的优先级，不再占用 0、1 这类最高优先级。
 - 优化 `ek_log` 模块的日志输出宏
 - VFS `read/write` 回调新增 `ek_off_t *offset` 参数，core 传入 `vfs_file_t::offset`，驱动按实际读写字节数推进；`lseek` 回调新增 `ek_off_t *current`，`SEEK_CUR` 使用当前值。
 - `vfs_file_t::offset` 与 `ek_vfs_lseek()` 的返回/参数类型改为 `ek_off_t`。
 - `poll` / `close` 公开接口更名为 `ek_vfs_poll()` / `ek_vfs_close()`，避免与 libc 同名。
 - `ek_conf_template.h` 修改默认的配置模板展示。
 - 所有 `EK_DEFINE_*` 的静态初始化顺序改为 `EK_STATIC_ALLOC_ORDER_*` 命名宏，不再在调用点写裸数字；VFS 静态宏固定使用 `EK_DEFINE_VFS_*` 命名。
-- `ek_arch_redirect_vtor()` 通过 `EK_EXPORT_HARDWARE` 在启动阶段自动执行，并增加幂等保护。
+- 导出初始化分类重构为 `BOOT` / `BOARD` / `COMPONENT` / `APP` 四个阶段；新增 `EK_EXPORT_ORDER_*` 顺序常量，初始化顺序不再在调用点写裸数字。
+- `ek_arch_redirect_vtor()` 通过 `EK_EXPORT_BOOT` 在启动阶段自动执行，并增加幂等保护。
 - 内部静态函数改为“先定义后使用”：删除 `.c` 文件顶部的函数前向声明，把 helper 定义移动到首次调用之前；仅调整布局，不改变行为。
 - `cortexm.ld.S`：优化链接模板。
 
@@ -65,6 +66,7 @@
 - `EK_LINKER_AUTO` 改为 `EK_LINKER_MODE`（`auto` / `off`）；`ek_linker_attach()` 的 `BOARD_PATH` 参数改名为 `BOARD`，多 target 场景先调用 `ek_platform_configure(... LINKER off)`。
 - `ek_conf_template.h` 不再定义 `EKCFG_PICOLIBC` / `EKCFG_NEWLIB`；裸机 newlib 需要 syscall port 时在项目 `ek_conf.h` 中定义 `EKCFG_NEWLIB 1`。
 - 删除工具链文件中的 `TOOLCHAIN_LINK_LIBRARIES`（未被消费）。
+- 删除旧导出宏 `EK_EXPORT_EARLIEST` / `EK_EXPORT_HARDWARE` / `EK_EXPORT_COMPONENTS` / `EK_EXPORT_USER`；改用 `EK_EXPORT_BOOT` / `EK_EXPORT_BOARD` / `EK_EXPORT_COMPONENT` / `EK_EXPORT_APP`。`EK_EXPORT_LEVEL` 不再公开，`_ek_export_item_t.level` 更名 `phase`。
 - 枚举类型别名统一由 `_t` 改为 `_e`：`ek_pt_state_t` → `ek_pt_state_e`、`ek_evoke_state_t` → `ek_evoke_state_e`、`ek_log_level_t` → `ek_log_level_e`；`ek_vfs_node_e` 原本已使用 `_e`。不保留旧名兼容别名。
 - `ek_vfs_ops_t::read/write` 新增 `ek_off_t *offset`，`lseek` 新增 `ek_off_t *current`；现有驱动需同步签名。
 - `ek_vfs_poll()` / `ek_vfs_close()` 替代原 `poll()` / `close()` 名称。
