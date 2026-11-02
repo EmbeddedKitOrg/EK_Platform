@@ -44,6 +44,7 @@
 - `ek_conf_template.h` 修改默认的配置模板展示。
 - 所有 `EK_DEFINE_*` 的静态初始化顺序改为 `EK_STATIC_ALLOC_ORDER_*` 命名宏，不再在调用点写裸数字；VFS 静态宏固定使用 `EK_DEFINE_VFS_*` 命名。
 - 导出初始化分类重构为 `BOOT` / `BOARD` / `COMPONENT` / `APP` 四个阶段；新增 `EK_EXPORT_ORDER_*` 顺序常量，初始化顺序不再在调用点写裸数字。
+- `EK_EXPORT_ORDER_BOOT_SYSTEM`、`EK_EXPORT_ORDER_BOARD_*` 属于主控/BSP 工程，移到项目 `main.h`；`ek_export.h` 只保留库内顺序常量。
 - `ek_arch_redirect_vtor()` 通过 `EK_EXPORT_BOOT` 在启动阶段自动执行，并增加幂等保护。
 - 内部静态函数改为“先定义后使用”：删除 `.c` 文件顶部的函数前向声明，把 helper 定义移动到首次调用之前；仅调整布局，不改变行为。
 - `cortexm.ld.S`：优化链接模板。
