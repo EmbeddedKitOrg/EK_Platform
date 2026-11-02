@@ -198,15 +198,13 @@ static inline void ek_arch_irq_unlock(uint32_t flags)
  * @note 必须在 .c 文件作用域使用；内部用 __COUNTER__ 生成唯一符号，
  *       没有 __COUNTER__ 时退回 __LINE__，此时同一行只能出现一次。
  */
-#        define EK_DEFINE_ARCH_IRQ(irqn, handler) \
-            _EK_DEFINE_ARCH_IRQ_IMPL(_EK_ARCH_UNIQUE_ID, irqn, handler)
-#        define _EK_DEFINE_ARCH_IRQ_IMPL(id, irqn, handler) \
-            _EK_DEFINE_ARCH_IRQ_IMPL2(id, irqn, handler)
-#        define _EK_DEFINE_ARCH_IRQ_IMPL2(id, irqn, handler)                 \
-            static int _static_alloc_init_arch_irq_##id(void)               \
-            {                                                               \
-                return ek_arch_irq_install((int32_t)(irqn), (handler));     \
-            }                                                               \
+#        define EK_DEFINE_ARCH_IRQ(irqn, handler)           _EK_DEFINE_ARCH_IRQ_IMPL(_EK_ARCH_UNIQUE_ID, irqn, handler)
+#        define _EK_DEFINE_ARCH_IRQ_IMPL(id, irqn, handler) _EK_DEFINE_ARCH_IRQ_IMPL2(id, irqn, handler)
+#        define _EK_DEFINE_ARCH_IRQ_IMPL2(id, irqn, handler)            \
+            static int _static_alloc_init_arch_irq_##id(void)           \
+            {                                                           \
+                return ek_arch_irq_install((int32_t)(irqn), (handler)); \
+            }                                                           \
             EK_STATIC_ALLOC_REGISTER(arch_irq_##id, EK_STATIC_ALLOC_ORDER_ARCH_IRQ, _static_alloc_init_arch_irq_##id)
 #    endif /* EKCFG_STATIC_ALLOC && ARM */
 
