@@ -22,7 +22,7 @@
 - `ek_bitsteam.c/.h` 新增比特流读写模块。
 - `ek_vfs_bus.c/.h`：添加 VFS 总线模型。
 - `ek_shared_ptr.c/.h`：添加共享指针模型。
-- `ek_arch.h`：跨平台汇编内联库。
+- `ek_arch.c/.h`：跨平台汇编内联库，提供了 CortexM 架构下的中断向量重定义到 SRAM。
 - `EKLD_VECTOR_ALIGN`：用于控制向量表的对齐大小，默认下是 0x200。
 
 ### 变更

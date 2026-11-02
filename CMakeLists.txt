@@ -21,6 +21,7 @@ set(EK_CORES_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_assert.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_export.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_io.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_arch.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_log.c
 )
 

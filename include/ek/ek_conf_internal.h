@@ -121,13 +121,16 @@
  * ======================================================================== */
 
 #ifndef EKCFG_EXPORT
-#    define EKCFG_EXPORT (0) /**< 自动初始化机制 */
+#    define EKCFG_EXPORT (1) /**< 自动初始化机制 */
 #endif
 #ifndef EKCFG_ASSERT
 #    define EKCFG_ASSERT (1) /**< 断言模块 */
 #endif
 #ifndef EKCFG_LOG
 #    define EKCFG_LOG (1) /**< 日志模块 */
+#endif
+#ifndef EKCFG_ARCH
+#    define EKCFG_ARCH (1) /**< 框架模块 */
 #endif
 
 /* ========================================================================
@@ -183,7 +186,6 @@
 /* ========================================================================
  * 模块子配置
  * ======================================================================== */
-
 #ifndef EKCFG_HEAP_TLSF
 #    define EKCFG_HEAP_TLSF (1) /**< 内存堆使用 TLSF 分配器 (1=TLSF, 0=自定义) */
 #endif
