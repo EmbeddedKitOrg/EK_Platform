@@ -13,45 +13,6 @@ This document only covers integration. See the individual headers for module API
 - Supports GCC, ARM Compiler 5 (armcc), and ARM Compiler 6 (armclang)
 - Platform hooks are declared `__EK_WEAK`; provide a strong function with the same name to override
 
-## Directory layout
-
-```
-ek_platform/
-├── CMakeLists.txt
-├── ek_conf_template.h             # configuration template; copy to ek_conf.h
-├── ek_board_template.h            # board memory template; copy to ek_board.h
-├── cmake/
-│   ├── ek_platform.cmake          # two-phase configuration entry (prepare/configure)
-│   ├── ek_arch.cmake              # architecture table (CPU/toolchain/linker template)
-│   ├── ek_linker.cmake            # linker script generation and injection
-│   ├── picolibc.cmake             # picolibc probe/download/build
-│   ├── linker/
-│   │   ├── cortexm.ld.S           # Cortex-M linker script template
-│   │   ├── riscv.ld.S             # RISC-V linker script template
-│   │   └── host.ld                # host native linker script
-│   ├── gcc-arm-none-eabi.cmake    # ARM cross-compilation toolchain
-│   ├── gcc-riscv-none-elf.cmake   # RISC-V cross-compilation toolchain
-│   └── gnu-gcc.cmake              # host native toolchain
-├── include/ek/
-│   ├── ek_conf_internal.h         # config entry: includes ek_conf.h, defaults, dependency checks
-│   ├── core/                      # ek_def / ek_assert / ek_io / ek_log / ek_export
-│   ├── mem/                       # ek_heap / ek_static_alloc
-│   ├── container/                 # ek_list / ek_vec / ek_ringbuf / ek_stack / ek_snapshot / ek_str / ek_str_view
-│   └── sched/                     # ek_evoke / ek_picothread
-├── src/                           # same module split as include/ek
-│   ├── core/
-│   ├── mem/
-│   ├── container/
-│   └── sched/
-├── port/clib/picolibc/            # picolibc stdout/stderr adapter
-├── port/clib/newlib/              # newlib/nanolibc syscall adapter
-├── third_party/
-│   ├── tlsf/                      # O(1) memory allocator
-│   └── lwprintf/                  # lightweight printf
-├── README.md
-└── README.en.md
-```
-
 ## Supported platforms
 
 `PLATFORM` selects the toolchain CPU/ISA flags. ARM uses `cmake/gcc-arm-none-eabi.cmake`; RISC-V uses `cmake/gcc-riscv-none-elf.cmake`:

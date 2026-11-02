@@ -13,45 +13,6 @@
 - 支持 GCC、ARM Compiler 5 (armcc)、ARM Compiler 6 (armclang)
 - 平台相关接口以 `__EK_WEAK` 声明，用户提供同名强函数即可覆盖
 
-## 目录结构
-
-```
-ek_platform/
-├── CMakeLists.txt
-├── ek_conf_template.h             # 配置模板，复制为 ek_conf.h
-├── ek_board_template.h            # 板级内存模板，复制为 ek_board.h
-├── cmake/
-│   ├── ek_platform.cmake          # 两阶段配置入口（prepare/configure）
-│   ├── ek_arch.cmake              # 架构表（CPU/工具链/链接模板）
-│   ├── ek_linker.cmake            # 链接脚本生成与注入
-│   ├── picolibc.cmake             # picolibc 探测/下载/构建
-│   ├── linker/
-│   │   ├── cortexm.ld.S           # Cortex-M 链接脚本模板
-│   │   ├── riscv.ld.S             # RISC-V 链接脚本模板
-│   │   └── host.ld                # host 原生链接脚本
-│   ├── gcc-arm-none-eabi.cmake    # ARM 交叉编译工具链
-│   ├── gcc-riscv-none-elf.cmake   # RISC-V 交叉编译工具链
-│   └── gnu-gcc.cmake              # host 原生工具链
-├── include/ek/
-│   ├── ek_conf_internal.h         # 配置入口：引入 ek_conf.h、填充默认值、依赖校验
-│   ├── core/                      # ek_def / ek_assert / ek_io / ek_log / ek_export
-│   ├── mem/                       # ek_heap / ek_static_alloc
-│   ├── container/                 # ek_list / ek_vec / ek_ringbuf / ek_stack / ek_snapshot / ek_str / ek_str_view
-│   └── sched/                     # ek_evoke / ek_picothread
-├── src/                           # 与 include/ek 相同的模块划分
-│   ├── core/
-│   ├── mem/
-│   ├── container/
-│   └── sched/
-├── port/clib/picolibc/            # picolibc 的 stdout/stderr 适配
-├── port/clib/newlib/              # newlib/nanolibc syscall 适配
-├── third_party/
-│   ├── tlsf/                      # O(1) 内存分配器
-│   └── lwprintf/                  # 轻量 printf
-├── README.md
-└── README.en.md
-```
-
 ## 支持平台
 
 `PLATFORM` 用于选择工具链 CPU/ISA 参数。ARM 使用 `cmake/gcc-arm-none-eabi.cmake`，RISC-V 使用 `cmake/gcc-riscv-none-elf.cmake`：
