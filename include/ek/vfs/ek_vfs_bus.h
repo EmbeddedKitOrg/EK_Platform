@@ -135,6 +135,49 @@ int ek_vfs_bus_reset(const char *name);
 }
 #    endif
 
+#    if EKCFG_STATIC_ALLOC == 1
+#        include "ek/mem/ek_static_alloc.h"
+
+/**
+ * @brief 静态声明一个总线对象并自动注册
+ *
+ * @param handle 同一翻译单元内唯一的总线对象标识符
+ * @param name   总线名，单段，不能包含 '/'
+ * @param ops    总线操作表
+ * @param priv   BSP 私有上下文
+ *
+ * @note 注册路径为 /dev/bus/<name>；初始化顺序早于 EK_DEFINE_VFS_BUS_DEV。
+ * @note 必须在 .c 文件作用域使用，且同一翻译单元内重复使用 handle 会重定义。
+ */
+#        define EK_DEFINE_VFS_BUS(handle, name, ops, priv)                    \
+            static ek_vfs_bus_t handle;                                       \
+            static int _static_alloc_init_##handle(void)                      \
+            {                                                                 \
+                return ek_vfs_bus_register(&(handle), (name), (ops), (priv)); \
+            }                                                                 \
+            EK_STATIC_ALLOC_REGISTER(handle, EK_STATIC_ALLOC_ORDER_VFS_BUS, _static_alloc_init_##handle)
+
+/**
+ * @brief 静态声明一个总线设备并自动注册
+ *
+ * @param handle   同一翻译单元内唯一的裸标识符，用于生成初始化函数
+ * @param bus_name 已注册的总线名
+ * @param dev_name 设备名，单段，不能包含 '/'
+ * @param ops      设备操作表
+ * @param priv     设备私有数据
+ *
+ * @note 总线必须先注册；EK_DEFINE_VFS_BUS 的初始化顺序保证早于本宏。
+ * @note 必须在 .c 文件作用域使用；handle 只作为标签，不生成可引用对象。
+ */
+#        define EK_DEFINE_VFS_BUS_DEV(handle, bus_name, dev_name, ops, priv)           \
+            static int _static_alloc_init_##handle(void)                               \
+            {                                                                          \
+                return ek_vfs_bus_dev_register((bus_name), (dev_name), (ops), (priv)); \
+            }                                                                          \
+            EK_STATIC_ALLOC_REGISTER(handle, EK_STATIC_ALLOC_ORDER_VFS_BUS_DEV, _static_alloc_init_##handle)
+
+#    endif /* EKCFG_STATIC_ALLOC */
+
 #endif // EKCFG_VFS == 1
 
 #endif // EK_VFS_BUS_H

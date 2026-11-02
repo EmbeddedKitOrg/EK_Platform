@@ -153,6 +153,40 @@ int ek_vfs_close(int fd);
 }
 #    endif
 
+#    if EKCFG_STATIC_ALLOC == 1
+#        include "ek/mem/ek_static_alloc.h"
+
+#        if defined(__COUNTER__)
+#            define _EK_VFS_UNIQUE_ID __COUNTER__
+#        else
+#            define _EK_VFS_UNIQUE_ID __LINE__
+#        endif
+
+/**
+ * @brief 静态声明并自动注册一个 VFS 路径
+ *
+ * @param path 绝对路径，缺失的中间目录会自动创建
+ * @param type 节点类型：EK_VFS_DIR / EK_VFS_DEV / EK_VFS_MOUNT
+ * @param ops  节点操作表；DIR 可为 NULL
+ * @param priv 节点私有数据
+ *
+ * @note 总线节点请使用 EK_DEFINE_VFS_BUS，不要用本宏直接注册 EK_VFS_BUS。
+ * @note 必须在 .c 文件作用域使用；内部用 __COUNTER__ 生成唯一符号，
+ *       没有 __COUNTER__ 时退回 __LINE__，此时同一行只能出现一次。
+ * @note 静态注册项的名称是生成的 vfs_path_<id>，不是路径字符串。
+ */
+#        define EK_DEFINE_VFS_PATH(path, type, ops, priv) \
+            _EK_DEFINE_VFS_PATH_IMPL(_EK_VFS_UNIQUE_ID, path, type, ops, priv)
+#        define _EK_DEFINE_VFS_PATH_IMPL(id, path, type, ops, priv) _EK_DEFINE_VFS_PATH_IMPL2(id, path, type, ops, priv)
+#        define _EK_DEFINE_VFS_PATH_IMPL2(id, path, type, ops, priv)   \
+            static int _static_alloc_init_vfs_path_##id(void)          \
+            {                                                          \
+                return ek_vfs_register((path), (type), (ops), (priv)); \
+            }                                                          \
+            EK_STATIC_ALLOC_REGISTER(vfs_path_##id, EK_STATIC_ALLOC_ORDER_VFS_PATH, _static_alloc_init_vfs_path_##id)
+
+#    endif /* EKCFG_STATIC_ALLOC */
+
 #endif // EKCFG_VFS == 1
 
 #endif // EK_VFS_CORE_H
