@@ -22,6 +22,11 @@ extern "C"
 #    endif
 
 /**
+ * @brief 异常处理函数类型
+ */
+typedef void (*ek_arch_isr_t)(void);
+
+/**
  * @brief 重定向异常向量表
  *
  * ARM Cortex-M 分支把 Flash 向量表复制到 SRAM，并将 VTOR 指向 SRAM 副本。
@@ -31,11 +36,6 @@ extern "C"
  *       _sram_vtor_start/_sram_vtor_end，且两块区域大小一致。
  */
 void ek_arch_redirect_vtor(void);
-
-/**
- * @brief 异常处理函数类型
- */
-typedef void (*ek_arch_isr_t)(void);
 
 /**
  * @brief 把异常处理函数安装到当前向量表
