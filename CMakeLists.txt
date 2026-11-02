@@ -100,6 +100,9 @@ target_include_directories(ek_platform PUBLIC ${EK_INCLUDE_DIRS})
 target_compile_options(ek_platform PRIVATE
     -fdiagnostics-color=always
     -Os
+    -fdata-sections
+    -ffunction-sections
+    -Wl,--gc-sections
 )
 
 if(EK_CONF_PATH)
