@@ -4,13 +4,7 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [7.0.0] - 2026-11-1
-
-### 新增
-
-- `ek_vfs_bus.c/.h`：添加 VFS 总线模型。
-
-## [7.0.0] - 2026-10-29
+## [Unreleased]
 
 ### 新增
 
@@ -26,6 +20,8 @@
 - `ek_vfs_ops_t` 新增 `destroy(node_priv)` 回调，节点注销时释放节点私有数据。
 - 完善 VFS 内核支持：节点注册/查找、fd 池、树输出，以及 `read/write/lseek/ioctl/poll/close` 分发。
 - `ek_bitsteam.c/.h` 新增比特流读写模块。
+- `ek_vfs_bus.c/.h`：添加 VFS 总线模型。
+- `ek_shared_ptr.c/.h`：添加共享指针模型。
 
 ### 变更
 
