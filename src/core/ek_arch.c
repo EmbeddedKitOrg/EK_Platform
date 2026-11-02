@@ -10,7 +10,7 @@
 
 #if EKCFG_ARCH == 1
 
-#include "ek/core/ek_assert.h"
+#    include "ek/core/ek_assert.h"
 
 extern uint32_t _flash_vtor_start[];
 extern uint32_t _flash_vtor_end[];
