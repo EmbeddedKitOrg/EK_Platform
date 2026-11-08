@@ -51,6 +51,7 @@
 - `cortexm.ld.S`：优化链接模板。
 - `cortexm.ld.S` 的 `.vectors` 输出段收集 `.ek_vectors`，供通用启动文件使用。
 - `EK_DEFINE_ARCH_IRQ` 在 `EKCFG_EXPORT=1` 时改为通过 `EK_EXPORT_BOOT` 在 BOOT 阶段安装（`ek_arch_redirect_vtor()` 之后），避免 BOARD 阶段使能中断时 handler 尚未写入 SRAM 向量表；`EKCFG_EXPORT=0` 时保留 `ek_static_alloc` 回退路径。
+- `cmake/linker/cortexm.ld.S` / `cmake/linker/riscv.ld.S`：增加 `EKLD_*` 输入参数校验，覆盖长度正负、地址/长度对齐、可选区域完整性，以及 Cortex-M 向量表大小与起始地址对齐。
 
 ### 修复
 

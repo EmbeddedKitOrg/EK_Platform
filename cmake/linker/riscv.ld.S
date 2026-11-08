@@ -31,6 +31,71 @@
 #    error "EKLD_MIN_HEAP_SIZE is not defined"
 #endif
 
+#if (EKLD_FLASH_LENGTH) <= 0
+#    error "EKLD_FLASH_LENGTH must be > 0"
+#endif
+#if (EKLD_RAM_LENGTH) <= 0
+#    error "EKLD_RAM_LENGTH must be > 0"
+#endif
+#if (EKLD_STACK_SIZE) <= 0
+#    error "EKLD_STACK_SIZE must be > 0"
+#endif
+#if (EKLD_MIN_HEAP_SIZE) < 0
+#    error "EKLD_MIN_HEAP_SIZE must be >= 0"
+#endif
+#if ((EKLD_MIN_HEAP_SIZE) + (EKLD_STACK_SIZE)) > (EKLD_RAM_LENGTH)
+#    error "EKLD_MIN_HEAP_SIZE + EKLD_STACK_SIZE must not exceed EKLD_RAM_LENGTH"
+#endif
+
+#if ((EKLD_FLASH_ORIGIN) & 3) || ((EKLD_FLASH_LENGTH) & 3)
+#    error "EKLD_FLASH_ORIGIN must be 4-byte aligned and EKLD_FLASH_LENGTH a multiple of 4"
+#endif
+#if ((EKLD_RAM_ORIGIN) & 7) || ((EKLD_RAM_LENGTH) & 7)
+#    error "EKLD_RAM_ORIGIN must be 8-byte aligned and EKLD_RAM_LENGTH a multiple of 8"
+#endif
+#if (((EKLD_RAM_ORIGIN) + (EKLD_RAM_LENGTH)) & 15)
+#    error "RAM end (_sp) must be 16-byte aligned"
+#endif
+
+#if defined(EKLD_TCMRAM_LENGTH) && ((EKLD_TCMRAM_LENGTH) < 0)
+#    error "EKLD_TCMRAM_LENGTH must be >= 0"
+#endif
+#if defined(EKLD_TCMRAM_ORIGIN) && !defined(EKLD_TCMRAM_LENGTH)
+#    error "EKLD_TCMRAM_ORIGIN requires EKLD_TCMRAM_LENGTH"
+#endif
+#if defined(EKLD_TCMRAM_LENGTH) && ((EKLD_TCMRAM_LENGTH) > 0) && !defined(EKLD_TCMRAM_ORIGIN)
+#    error "EKLD_TCMRAM_ORIGIN must be defined when EKLD_TCMRAM_LENGTH > 0"
+#endif
+#if defined(EKLD_TCMRAM_ORIGIN) && ((EKLD_TCMRAM_ORIGIN) & 3)
+#    error "EKLD_TCMRAM_ORIGIN must be 4-byte aligned"
+#endif
+
+#if defined(EKLD_SDRAM0_LENGTH) && ((EKLD_SDRAM0_LENGTH) < 0)
+#    error "EKLD_SDRAM0_LENGTH must be >= 0"
+#endif
+#if defined(EKLD_SDRAM0_ORIGIN) && !defined(EKLD_SDRAM0_LENGTH)
+#    error "EKLD_SDRAM0_ORIGIN requires EKLD_SDRAM0_LENGTH"
+#endif
+#if defined(EKLD_SDRAM0_LENGTH) && ((EKLD_SDRAM0_LENGTH) > 0) && !defined(EKLD_SDRAM0_ORIGIN)
+#    error "EKLD_SDRAM0_ORIGIN must be defined when EKLD_SDRAM0_LENGTH > 0"
+#endif
+#if defined(EKLD_SDRAM0_ORIGIN) && ((EKLD_SDRAM0_ORIGIN) & 3)
+#    error "EKLD_SDRAM0_ORIGIN must be 4-byte aligned"
+#endif
+
+#if defined(EKLD_SDRAM1_LENGTH) && ((EKLD_SDRAM1_LENGTH) < 0)
+#    error "EKLD_SDRAM1_LENGTH must be >= 0"
+#endif
+#if defined(EKLD_SDRAM1_ORIGIN) && !defined(EKLD_SDRAM1_LENGTH)
+#    error "EKLD_SDRAM1_ORIGIN requires EKLD_SDRAM1_LENGTH"
+#endif
+#if defined(EKLD_SDRAM1_LENGTH) && ((EKLD_SDRAM1_LENGTH) > 0) && !defined(EKLD_SDRAM1_ORIGIN)
+#    error "EKLD_SDRAM1_ORIGIN must be defined when EKLD_SDRAM1_LENGTH > 0"
+#endif
+#if defined(EKLD_SDRAM1_ORIGIN) && ((EKLD_SDRAM1_ORIGIN) & 3)
+#    error "EKLD_SDRAM1_ORIGIN must be 4-byte aligned"
+#endif
+
 ENTRY(_start)
 
 _sp = ORIGIN(RAM) + LENGTH(RAM);
