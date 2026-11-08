@@ -61,6 +61,13 @@ else()
         ${CMAKE_CURRENT_SOURCE_DIR}/port/clib/newlib/newlib_port.c)
 endif()
 
+# Cortex-M 启动文件默认集成；厂商 startup 不再参与编译
+if(EK_PLATFORM_ARCH MATCHES "^cm")
+    enable_language(ASM)
+    list(APPEND PORT_SRCS
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/startup/cortexm/ek_startup.S)
+endif()
+
 set(TP_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tlsf/tlsf.c
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lwprintf/lwprintf.c

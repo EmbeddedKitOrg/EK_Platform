@@ -134,7 +134,31 @@ ek_linker_attach(app BOARD "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board_a.h")
 
 不使用 CMake 集成时，可以用 `${CMAKE_C_COMPILER} -E -P -x c` 手动预处理 `cmake/linker/cortexm.ld.S`，或直接参考生成结果。
 
-### 5. 初始化
+### 5. 通用启动文件
+
+Cortex-M 目标由 `ek_platform` 默认编译 `port/startup/cortexm/ek_startup.S`，不再使用厂商的 `startup_xxx.s`。厂商 startup 文件不要加入目标，否则 `Reset_Handler` 和向量表会重复定义。
+
+启动文件提供：
+
+- 向量表 `.ek_vectors`，外部 IRQ 槽位数由 `ek_conf.h` 的 `EKCFG_ARCH_IRQ_COUNT` 决定
+- `Reset_Handler`：设置 MSP、拷贝 `.data`、清零 `.bss`、拷贝 `.tcmram`，硬件浮点目标还会在调用 C 代码前使能 CP10/CP11
+- 调用弱符号 `SystemInit`，再调用 `__libc_init_array()`（其中包含 `ek_export_init()`），最后进入 `main()`
+- 核心异常使用 CMSIS 标准弱符号（`NMI_Handler`、`HardFault_Handler` 等），实现同名强函数即可覆盖
+- 外部 IRQ 默认指向 `ek_default_irq_handler`，通过下面两种方式绑定
+
+```c
+// 1. 静态注册（需要 EKCFG_STATIC_ALLOC=1）
+EK_DEFINE_ARCH_IRQ(USART0_IRQn, USART0_IRQHandler);
+
+// 2. 运行时安装（VTOR 已重定向；EKCFG_EXPORT=1 时启动阶段自动完成）
+ek_arch_irq_install(USART0_IRQn, USART0_IRQHandler);
+```
+
+`EKCFG_ARCH_IRQ_COUNT` 会被汇编器直接求值，必须写成 `(91)` 这类纯整数表达式，不要加 `U` 后缀。启用 `EKCFG_ARCH=1` 时该宏还会参与 `ek_arch_irq_install()` 的边界检查。
+
+`SystemInit` 是弱符号：链接厂商 `system_xxx.c` 时使用厂商实现，没有时使用空实现。需要在 `SystemInit` 之外做时钟或 FPU 配置的工程，提供同名强函数即可。
+
+### 6. 初始化
 
 启用 `EKCFG_EXPORT=1` 时，`ek_export_init()` 标记为 `__attribute__((constructor))`，由启动代码的 `__libc_init_array()` 在 `main()` 之前自动调用，堆、IO、调度器等模块会按 `level → order` 自动初始化。不要重复调用：
 

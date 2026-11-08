@@ -135,7 +135,31 @@ ek_linker_attach(app BOARD "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board_a.h")
 
 Without CMake, preprocess `cmake/linker/cortexm.ld.S` manually with `${CMAKE_C_COMPILER} -E -P -x c`, or reuse the generated result.
 
-### 5. Initialization
+### 5. Generic startup file
+
+For Cortex-M targets, `ek_platform` compiles `port/startup/cortexm/ek_startup.S` by default and no longer uses the vendor `startup_xxx.s`. Do not add the vendor startup file to the target; otherwise `Reset_Handler` and the vector table are defined twice.
+
+The startup file provides:
+
+- The `.ek_vectors` vector table; the number of external IRQ slots comes from `EKCFG_ARCH_IRQ_COUNT` in `ek_conf.h`
+- `Reset_Handler`: sets MSP, copies `.data`, zeroes `.bss`, copies `.tcmram`, and enables CP10/CP11 before entering C code on hardware-FPU targets
+- Calls the weak `SystemInit`, then `__libc_init_array()` (which runs `ek_export_init()`), then `main()`
+- Core exceptions use the standard CMSIS weak symbols (`NMI_Handler`, `HardFault_Handler`, ...); define a strong function with the same name to override
+- External IRQs default to `ek_default_irq_handler`; bind them in one of two ways
+
+```c
+// 1. Static registration (requires EKCFG_STATIC_ALLOC=1)
+EK_DEFINE_ARCH_IRQ(USART0_IRQn, USART0_IRQHandler);
+
+// 2. Runtime install (VTOR already redirected; done during boot when EKCFG_EXPORT=1)
+ek_arch_irq_install(USART0_IRQn, USART0_IRQHandler);
+```
+
+`EKCFG_ARCH_IRQ_COUNT` is evaluated by the assembler, so it must be a plain integer expression such as `(91)` without a `U` suffix. With `EKCFG_ARCH=1` it is also used for the `ek_arch_irq_install()` bounds check.
+
+`SystemInit` is weak: the vendor implementation is used when `system_xxx.c` is linked, otherwise an empty stub is used. Provide a strong function with the same name if clock or FPU setup must happen outside `SystemInit`.
+
+### 6. Initialization
 
 With `EKCFG_EXPORT=1`, `ek_export_init()` is marked `__attribute__((constructor))` and runs automatically from `__libc_init_array()` before `main()`. The heap, IO, scheduler, and other modules are initialized in `level → order` order. Do not call it again:
 

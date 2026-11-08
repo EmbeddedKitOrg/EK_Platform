@@ -29,6 +29,7 @@
 - `ek_shared_ptr.c/.h`：添加共享指针模型。
 - `ek_arch.c/.h`：跨平台汇编内联库，提供了 CortexM 架构下的中断向量重定义到 SRAM。
 - `EKLD_VECTOR_ALIGN`：用于控制向量表的对齐大小，默认下是 0x200。
+- `port/startup/cortexm/ek_startup.S`：通用 Cortex-M 启动文件，提供向量表、`Reset_Handler`、默认异常处理和 `SystemInit` 弱桩；外部 IRQ 槽位数由 `EKCFG_ARCH_IRQ_COUNT` 生成，默认指向 `ek_default_irq_handler`。Cortex-M 目标默认编译，不再需要厂商 startup。
 
 ### 变更
 
@@ -48,6 +49,7 @@
 - `ek_arch_redirect_vtor()` 通过 `EK_EXPORT_BOOT` 在启动阶段自动执行，并增加幂等保护。
 - 内部静态函数改为“先定义后使用”：删除 `.c` 文件顶部的函数前向声明，把 helper 定义移动到首次调用之前；仅调整布局，不改变行为。
 - `cortexm.ld.S`：优化链接模板。
+- `cortexm.ld.S` 的 `.vectors` 输出段收集 `.ek_vectors`，供通用启动文件使用。
 
 ### 修复
 

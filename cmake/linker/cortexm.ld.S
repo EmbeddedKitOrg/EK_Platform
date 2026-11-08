@@ -65,6 +65,7 @@ SECTIONS
     {
         . = ALIGN(EKLD_VECTOR_ALIGN);
         _flash_vtor_start = .;
+        KEEP(*(.ek_vectors))
         KEEP(*(.vectors))
         KEEP(*(.isr_vector))
         KEEP(*(.isr_vectors))
