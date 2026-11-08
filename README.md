@@ -147,12 +147,14 @@ Cortex-M 目标由 `ek_platform` 默认编译 `port/startup/cortexm/ek_startup.S
 - 外部 IRQ 默认指向 `ek_default_irq_handler`，通过下面两种方式绑定
 
 ```c
-// 1. 静态注册（需要 EKCFG_STATIC_ALLOC=1）
+// 1. 静态注册（EKCFG_EXPORT=1 时在 BOOT 阶段安装；否则回退到 EKCFG_STATIC_ALLOC）
 EK_DEFINE_ARCH_IRQ(USART0_IRQn, USART0_IRQHandler);
 
 // 2. 运行时安装（VTOR 已重定向；EKCFG_EXPORT=1 时启动阶段自动完成）
 ek_arch_irq_install(USART0_IRQn, USART0_IRQHandler);
 ```
+
+`EK_DEFINE_ARCH_IRQ` 在 `EKCFG_EXPORT=1` 时于 BOOT 阶段安装，位于 `ek_arch_redirect_vtor()` 之后、BOARD 初始化之前；因此 board init 中可以直接 `nvic_irq_enable()`，不会落到 `ek_default_irq_handler`。`EKCFG_EXPORT=0` 时回退到 COMPONENT 阶段，需要确保使能中断前已完成 `ek_static_alloc_init()`。
 
 `EKCFG_ARCH_IRQ_COUNT` 会被汇编器直接求值，必须写成 `(91)` 这类纯整数表达式，不要加 `U` 后缀。启用 `EKCFG_ARCH=1` 时该宏还会参与 `ek_arch_irq_install()` 的边界检查。
 

@@ -63,6 +63,7 @@ typedef struct
  * 同一阶段内数值越小越先执行；相同 phase/order 不保证相对顺序。
  */
 #    define EK_EXPORT_ORDER_BOOT_ARCH              (1)
+#    define EK_EXPORT_ORDER_BOOT_ARCH_IRQ          (2)
 
 #    define EK_EXPORT_ORDER_COMPONENT_HEAP         (1)
 #    define EK_EXPORT_ORDER_COMPONENT_VFS          (5)

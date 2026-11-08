@@ -148,12 +148,14 @@ The startup file provides:
 - External IRQs default to `ek_default_irq_handler`; bind them in one of two ways
 
 ```c
-// 1. Static registration (requires EKCFG_STATIC_ALLOC=1)
+// 1. Static registration (installed in BOOT when EKCFG_EXPORT=1; falls back to EKCFG_STATIC_ALLOC otherwise)
 EK_DEFINE_ARCH_IRQ(USART0_IRQn, USART0_IRQHandler);
 
 // 2. Runtime install (VTOR already redirected; done during boot when EKCFG_EXPORT=1)
 ek_arch_irq_install(USART0_IRQn, USART0_IRQHandler);
 ```
+
+With `EKCFG_EXPORT=1`, `EK_DEFINE_ARCH_IRQ` installs in the BOOT phase, after `ek_arch_redirect_vtor()` and before BOARD initialization. Board init can therefore call `nvic_irq_enable()` directly without hitting `ek_default_irq_handler`. With `EKCFG_EXPORT=0` it falls back to the COMPONENT phase; make sure `ek_static_alloc_init()` has run before enabling the interrupt.
 
 `EKCFG_ARCH_IRQ_COUNT` is evaluated by the assembler, so it must be a plain integer expression such as `(91)` without a `U` suffix. With `EKCFG_ARCH=1` it is also used for the `ek_arch_irq_install()` bounds check.
 

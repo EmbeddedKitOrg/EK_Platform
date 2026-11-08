@@ -50,6 +50,7 @@
 - 内部静态函数改为“先定义后使用”：删除 `.c` 文件顶部的函数前向声明，把 helper 定义移动到首次调用之前；仅调整布局，不改变行为。
 - `cortexm.ld.S`：优化链接模板。
 - `cortexm.ld.S` 的 `.vectors` 输出段收集 `.ek_vectors`，供通用启动文件使用。
+- `EK_DEFINE_ARCH_IRQ` 在 `EKCFG_EXPORT=1` 时改为通过 `EK_EXPORT_BOOT` 在 BOOT 阶段安装（`ek_arch_redirect_vtor()` 之后），避免 BOARD 阶段使能中断时 handler 尚未写入 SRAM 向量表；`EKCFG_EXPORT=0` 时保留 `ek_static_alloc` 回退路径。
 
 ### 修复
 

@@ -15,6 +15,7 @@
 #if EKCFG_ARCH == 1
 
 #    include "ek/core/ek_def.h"
+#    include "ek/core/ek_export.h"
 
 #    ifdef __cplusplus
 extern "C"
@@ -178,8 +179,7 @@ static inline void ek_arch_irq_unlock(uint32_t flags)
 
 #    endif
 
-#    if EKCFG_STATIC_ALLOC == 1 && (defined(__arm__) || defined(__thumb__))
-#        include "ek/mem/ek_static_alloc.h"
+#    if (defined(__arm__) || defined(__thumb__)) && (EKCFG_EXPORT == 1 || EKCFG_STATIC_ALLOC == 1)
 
 #        if defined(__COUNTER__)
 #            define _EK_ARCH_UNIQUE_ID __COUNTER__
@@ -193,20 +193,36 @@ static inline void ek_arch_irq_unlock(uint32_t flags)
  * @param irqn    外部 IRQ 编号，或负的核心异常编号
  * @param handler 中断处理函数
  *
- * @note 启动时通过 ek_static_alloc 调用 ek_arch_irq_install()。
+ * @note EKCFG_EXPORT == 1 时通过 EK_EXPORT_BOOT 在 BOOT 阶段调用
+ *       ek_arch_irq_install()，顺序位于 ek_arch_redirect_vtor() 之后、
+ *       BOARD 阶段初始化之前。
+ * @note EKCFG_EXPORT == 0 且 EKCFG_STATIC_ALLOC == 1 时退回
+ *       ek_static_alloc 路径，在 COMPONENT 阶段安装。
  * @note 只安装向量，不设置优先级、不使能中断；优先级仍由 vendor/CMSIS 配置。
  * @note 必须在 .c 文件作用域使用；内部用 __COUNTER__ 生成唯一符号，
  *       没有 __COUNTER__ 时退回 __LINE__，此时同一行只能出现一次。
  */
 #        define EK_DEFINE_ARCH_IRQ(irqn, handler)           _EK_DEFINE_ARCH_IRQ_IMPL(_EK_ARCH_UNIQUE_ID, irqn, handler)
 #        define _EK_DEFINE_ARCH_IRQ_IMPL(id, irqn, handler) _EK_DEFINE_ARCH_IRQ_IMPL2(id, irqn, handler)
-#        define _EK_DEFINE_ARCH_IRQ_IMPL2(id, irqn, handler)            \
-            static int _static_alloc_init_arch_irq_##id(void)           \
-            {                                                           \
-                return ek_arch_irq_install((int32_t)(irqn), (handler)); \
-            }                                                           \
-            EK_STATIC_ALLOC_REGISTER(arch_irq_##id, EK_STATIC_ALLOC_ORDER_ARCH_IRQ, _static_alloc_init_arch_irq_##id)
-#    endif /* EKCFG_STATIC_ALLOC && ARM */
+
+#        if EKCFG_EXPORT == 1
+#            define _EK_DEFINE_ARCH_IRQ_IMPL2(id, irqn, handler)           \
+                static void _ek_arch_irq_init_##id(void)                   \
+                {                                                          \
+                    (void)ek_arch_irq_install((int32_t)(irqn), (handler)); \
+                }                                                          \
+                EK_EXPORT_BOOT(_ek_arch_irq_init_##id, EK_EXPORT_ORDER_BOOT_ARCH_IRQ)
+#        else
+#            include "ek/mem/ek_static_alloc.h"
+#            define _EK_DEFINE_ARCH_IRQ_IMPL2(id, irqn, handler)            \
+                static int _static_alloc_init_arch_irq_##id(void)           \
+                {                                                           \
+                    return ek_arch_irq_install((int32_t)(irqn), (handler)); \
+                }                                                           \
+                EK_STATIC_ALLOC_REGISTER(                                   \
+                    arch_irq_##id, EK_STATIC_ALLOC_ORDER_ARCH_IRQ, _static_alloc_init_arch_irq_##id)
+#        endif
+#    endif /* ARM && (EKCFG_EXPORT || EKCFG_STATIC_ALLOC) */
 
 #    ifdef __cplusplus
 }
