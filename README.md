@@ -101,12 +101,42 @@ project(my_app C)
 
 ek_platform_configure(
     CONF "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
-    BOARD "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board.h")
+    BOARD "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board.h"
+    SOC "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_soc.h")
 
 add_subdirectory(lib/ek_platform)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform)
 ```
+
+Cortex-M 目标必须提供 `SOC`：`port/arch/cortexm/ek_arch_arm_cm.c` 在 `EKCFG_ARCH=1` 时用 `#ifndef EK_SOC_PATH` 硬校验，缺少 `SOC` 会直接编译失败。`ek_soc.h` 会引入厂商 CMSIS 头，因此还需要 `SOC_TARGET` 提供厂商 SDK 的 include 路径和编译定义，例如 `SOC_TARGET gd32f4xx_driver`：
+
+```cmake
+ek_platform_configure(
+    CONF "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
+    BOARD "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board.h"
+    SOC "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_soc.h"
+    SOC_TARGET gd32f4xx_driver)
+```
+
+`SOC_TARGET` 可以是已经编译好的厂商库 target，也可以只是携带 include/define 的 INTERFACE target。厂商 SDK 不是 CMake 库时，这样写即可：
+
+```cmake
+add_library(soc INTERFACE)
+target_include_directories(soc INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/Device/Include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/Include")
+target_compile_definitions(soc INTERFACE GD32F470)
+
+ek_platform_configure(
+    CONF "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
+    BOARD "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board.h"
+    SOC "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_soc.h"
+    SOC_TARGET soc)
+```
+
+`SOC` 会生成 `EK_SOC_PATH` 宏；`port/arch/cortexm/ek_arch_arm_cm.c` 用 `#ifndef EK_SOC_PATH` 校验后直接 `#include "ek_soc.h"`。`EK_SOC_PATH` 只用于校验，不参与 include 展开。Cortex-M 构建必须提供 `SOC`；`SOC_TARGET` 负责提供厂商 SDK 的 include 路径和编译定义。`SOC_TARGET` 只参与 C 编译，不参与链接脚本预处理；`ek_conf.h` 不要包含 SoC 头。
 
 `ek_platform_prepare()` 必须在 `project()` 之前调用；`ek_platform_configure()` 必须在 `add_subdirectory(ek_platform)` 之前调用。旧的 `ek_set_*` 接口已删除。
 
@@ -191,31 +221,39 @@ Include Paths:
   - src/container/*.c
   - src/sched/*.c
   - port/clib/picolibc/picolibc_port.c   （使用 picolibc 时）
+  - port/clib/newlib/newlib_port.c       （使用 newlib/nanolibc 时）
+  - port/arch/cortexm/ek_arch_arm_cm.c   （Cortex-M；RISC-V 改用 port/arch/riscv/ek_arch_riscv_generic.c）
+  - port/arch/host/ek_arch_host_x86.c    （host 原生构建）
+  - port/startup/cortexm/ek_startup.S    （Cortex-M；此时不要加入厂商 startup_xxx.s）
 
 第三方源文件（始终编译，由 #if 守卫控制实际使用）:
   - third_party/tlsf/tlsf.c
   - third_party/lwprintf/lwprintf.c
+
+必需编译选项（C 和汇编都要加）:
+  -DEK_CONF_PATH="<path>/ek_conf.h"
+  -I"<ek_conf.h 所在目录>"
+  -DEK_SOC_PATH="<path>/ek_soc.h"        （Cortex-M 必需）
+  -I"<ek_soc.h 所在目录>"                （Cortex-M）
+  -I"<厂商 CMSIS/SDK include 目录>"      （Cortex-M，供 ek_soc.h 引入的 CMSIS 头）
 ```
 
 picolibc 不再随仓库分发。用 CMake 时见上方 `PICOLIBC_ROOT` / `PICOLIBC_FETCH`；手工编译时用 `--specs=picolibc.specs --picolibc-prefix=<安装前缀>`，或自行添加 `-I`/`-L`。
 
-源文件通过 `#include "ek/ek_conf_internal.h"` 引入配置，因此 `include/` 这一级必须在搜索路径中。
+源文件通过 `#include "ek/ek_conf_internal.h"` 引入配置，因此 `include/` 这一级必须在搜索路径中。Cortex-M 手工构建缺少 `-DEK_SOC_PATH` 时，`port/arch/cortexm/ek_arch_arm_cm.c` 会直接 `#error`；`ek_startup.S` 同样需要 `-DEK_CONF_PATH` 和 `-I<ek_conf.h 所在目录>`。
 
 ## 配置
 
-### 指定 ek_conf.h 的两种方式
+### 指定 ek_conf.h
 
-`ek_conf_internal.h` 的引入逻辑：
+`ek_conf_internal.h` 只校验 `EK_CONF_PATH` 是否存在，然后通过标准 include 搜索直接包含 `ek_conf.h`：
 
 ```c
-#ifdef EK_CONF_PATH
-#    include EK_CONF_PATH   // 方式 A：构建系统传入的路径
-#else
-#    include "ek_conf.h"    // 方式 B：标准 include 搜索
+#ifndef EK_CONF_PATH
+#    error "EK_CONF_PATH is not set: add ek_conf.h to the project and pass its path via CMake CONF"
 #endif
+#include "ek_conf.h"
 ```
-
-**方式 A：`ek_platform_configure(CONF ...)` / `EK_CONF_PATH`（推荐）**
 
 在 `add_subdirectory` 之前指定：
 
@@ -224,7 +262,12 @@ ek_platform_configure(CONF "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h")
 add_subdirectory(lib/ek_platform)
 ```
 
-`ek_platform_configure()` 写入的就是 `EK_CONF_PATH` cache；等价的底层写法：
+`ek_platform_configure()` 写入 `EK_CONF_PATH` cache；库 CMakeLists 会：
+
+1. 定义 `EK_CONF_PATH` 宏，供 `#ifndef` 校验；
+2. 把 `ek_conf.h` 所在目录作为 `PUBLIC` include 路径传给 `ek_platform`。
+
+等价的底层写法：
 
 ```cmake
 set(EK_CONF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
@@ -232,26 +275,7 @@ set(EK_CONF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
 add_subdirectory(lib/ek_platform)
 ```
 
-库的 CMakeLists 会把 `EK_CONF_PATH` 作为编译宏传给编译器。
-
-也可以用命令行传入：
-
-```bash
-cmake -DEK_CONF_PATH="$(pwd)/Core/Inc/ek_conf.h" -B build
-```
-
-务必使用绝对路径。`#include EK_CONF_PATH` 展开为引号形式后，相对路径会先按 `include/ek/` 解析，容易找不到文件。
-
-**方式 B：include 搜索路径**
-
-不设置 `EK_CONF_PATH` 时，把存放 `ek_conf.h` 的目录加给库目标。OBJECT 库编译自己的源文件时也需要这个路径，因此要用 `PUBLIC`：
-
-```cmake
-add_subdirectory(lib/ek_platform)
-target_include_directories(ek_platform PUBLIC Core/Inc)
-```
-
-只给主 target 设置 `PRIVATE` include 不会传播给子项目。
+务必使用绝对路径。`EK_CONF_PATH` 本身不再参与 `#include` 展开，但库会用它的目录作为 include 路径。
 
 ### IO 后端选择
 

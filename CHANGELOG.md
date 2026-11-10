@@ -10,10 +10,10 @@
 
 - `cmake/ek_arch.cmake`：`PLATFORM` 的唯一架构表，集中提供 FAMILY / FLAGS / TOOLCHAIN / LINKER_ARCH / ENTRY / PICOLIBC_PLATFORM；ARM、RISC-V、host 共用一份数据。
 - `cmake/ek_platform.cmake`：两阶段配置入口。`ek_platform_prepare(ARCH ... PICOLIBC ...)` 在 `project()` 前选择工具链并同步 `PLATFORM` / `PICOLIBC_PLATFORM`；`ek_platform_configure(CONF ... BOARD ... LINKER ...)` 在 `add_subdirectory()` 前设置配置与链接模式。
+- `ek_platform_configure(SOC ...)` / `SOC_TARGET ...`：`SOC` 指定 `ek_soc.h` 路径并生成 `EK_SOC_PATH`；`SOC_TARGET` 提供厂商 SDK 的 include 路径和编译定义，可以是已有库或 INTERFACE target。Cortex-M 架构实现（由 `src/core/ek_arch.c` 移入 `port/arch/cortexm/ek_arch_arm_cm.c`）在 `#ifndef EK_SOC_PATH` 校验后直接包含 `"ek_soc.h"`；`ek_conf_internal.h` 在 `#ifndef EK_CONF_PATH` 校验后直接包含 `"ek_conf.h"`。`EK_CONF_PATH` / `EK_SOC_PATH` 只用于校验，不参与 include 展开。
 - host 原生构建：新增 `cmake/gnu-gcc.cmake` 与 `cmake/linker/host.ld`，`ek_platform_prepare(ARCH host)` 可直接编译并链接 host 可执行文件，`host.ld` 提供 `.ek_export` / `.ek_static_alloc` 段边界。
 - `cmake/ek_linker.cmake` 新增 `ek_linker_script()`：纯生成函数，不读全局、不碰 target；新增 `ek_linker_attach()` 作为唯一注入点，按 target 类型自动选择 `INTERFACE` / `PRIVATE`。
 - `cmake/picolibc.cmake` 新增 `ek_picolibc_apply(target)`：探测、下载、源码构建、链接策略全部收敛到 target，不再回写 9 个全局变量。
-- `test/cmake/`：arch 表断言、链接脚本 golden、host configure、缺 BOARD 错误路径的最小测试脚本。
 - `ek_conf_internal.h` 新增内部 `DEPEND_ON` 宏与配套 `#error` 依赖校验。
 - `ek_def.h` 内部新增 `__EK_CLEANUP` 宏，用于包装 `__attribute__((cleanup(x)))`。
 - `ek_def.h` 新增 `ek_off_t`（`int64_t`），作为 VFS 文件位置类型。
@@ -27,7 +27,7 @@
 - `EK_DEFINE_ARCH_IRQ(irqn, handler)`：静态声明中断处理函数，启动时通过 `ek_static_alloc` 调用 `ek_arch_irq_install()` 安装到 SRAM 向量表。
 - `EKCFG_ARCH_IRQ_COUNT`：ARM 目标必填的外部 IRQ 数量配置，用于向量安装边界检查；GD32F470 为 91。
 - `ek_shared_ptr.c/.h`：添加共享指针模型。
-- `ek_arch.c/.h`：跨平台汇编内联库，提供了 CortexM 架构下的中断向量重定义到 SRAM。
+- `ek_arch.h` 与 `port/arch/{cortexm,riscv,host}/`：跨平台汇编内联库，Cortex-M 分支提供中断向量重定义到 SRAM；实现按架构拆分为 `port/arch/cortexm/ek_arch_arm_cm.c`、`port/arch/riscv/ek_arch_riscv_generic.c`、`port/arch/host/ek_arch_host_x86.c`。
 - `EKLD_VECTOR_ALIGN`：用于控制向量表的对齐大小，默认下是 0x200。
 - `port/startup/cortexm/ek_startup.S`：通用 Cortex-M 启动文件，提供向量表、`Reset_Handler`、默认异常处理和 `SystemInit` 弱桩；外部 IRQ 槽位数由 `EKCFG_ARCH_IRQ_COUNT` 生成，默认指向 `ek_default_irq_handler`。Cortex-M 目标默认编译，不再需要厂商 startup。
 
@@ -52,6 +52,7 @@
 - `cortexm.ld.S` 的 `.vectors` 输出段收集 `.ek_vectors`，供通用启动文件使用。
 - `EK_DEFINE_ARCH_IRQ` 在 `EKCFG_EXPORT=1` 时改为通过 `EK_EXPORT_BOOT` 在 BOOT 阶段安装（`ek_arch_redirect_vtor()` 之后），避免 BOARD 阶段使能中断时 handler 尚未写入 SRAM 向量表；`EKCFG_EXPORT=0` 时保留 `ek_static_alloc` 回退路径。
 - `cmake/linker/cortexm.ld.S` / `cmake/linker/riscv.ld.S`：增加 `EKLD_*` 输入参数校验，覆盖长度正负、地址/长度对齐、可选区域完整性，以及 Cortex-M 向量表大小与起始地址对齐。
+- 架构移植实现由 `src/core/ek_arch.c` 拆分到 `port/arch/cortexm/ek_arch_arm_cm.c`、`port/arch/riscv/ek_arch_riscv_generic.c`、`port/arch/host/ek_arch_host_x86.c`；`include/ek/core/ek_arch.h` 仍作为统一接口头文件。Cortex-M 分支在 `EKCFG_ARCH=1` 时要求定义 `EK_SOC_PATH`（由 `SOC` 生成），否则编译直接报错。
 
 ### 修复
 

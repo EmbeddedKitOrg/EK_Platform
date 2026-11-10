@@ -102,12 +102,42 @@ project(my_app C)
 # Point at the files before add_subdirectory
 ek_platform_configure(
     CONF "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
-    BOARD "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board.h")
+    BOARD "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board.h"
+    SOC "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_soc.h")
 
 add_subdirectory(lib/ek_platform)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform)
 ```
+
+Cortex-M targets must provide `SOC`: `port/arch/cortexm/ek_arch_arm_cm.c` hard-checks `EK_SOC_PATH` with `#ifndef` when `EKCFG_ARCH=1`, so a build without `SOC` fails. `ek_soc.h` pulls in the vendor CMSIS headers, so `SOC_TARGET` must also supply the vendor SDK include paths and compile definitions, for example `SOC_TARGET gd32f4xx_driver`:
+
+```cmake
+ek_platform_configure(
+    CONF "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
+    BOARD "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board.h"
+    SOC "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_soc.h"
+    SOC_TARGET gd32f4xx_driver)
+```
+
+`SOC_TARGET` can be an already-built vendor library target, or an INTERFACE target that only carries include paths and definitions. If the vendor SDK is not a CMake library:
+
+```cmake
+add_library(soc INTERFACE)
+target_include_directories(soc INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/Device/Include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/Include")
+target_compile_definitions(soc INTERFACE GD32F470)
+
+ek_platform_configure(
+    CONF "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
+    BOARD "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board.h"
+    SOC "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_soc.h"
+    SOC_TARGET soc)
+```
+
+`SOC` produces the `EK_SOC_PATH` macro; `port/arch/cortexm/ek_arch_arm_cm.c` checks it with `#ifndef EK_SOC_PATH` and then includes `"ek_soc.h"` directly. `EK_SOC_PATH` is only used for the check, not for include expansion. Cortex-M builds must provide `SOC`; `SOC_TARGET` supplies the vendor SDK include paths and compile definitions. `SOC_TARGET` is compile-only and is not used for linker-script preprocessing. Do not include the SoC header from `ek_conf.h`.
 
 `ek_platform_prepare()` must be called before `project()`; `ek_platform_configure()` must be called before `add_subdirectory(ek_platform)`. The old `ek_set_*` interface has been removed.
 
@@ -193,31 +223,38 @@ Sources (choose what you need):
   - src/sched/*.c
   - port/clib/picolibc/picolibc_port.c   (when using picolibc)
   - port/clib/newlib/newlib_port.c       (when using newlib/nanolibc)
+  - port/arch/cortexm/ek_arch_arm_cm.c   (Cortex-M; use port/arch/riscv/ek_arch_riscv_generic.c for RISC-V)
+  - port/arch/host/ek_arch_host_x86.c    (native host build)
+  - port/startup/cortexm/ek_startup.S    (Cortex-M; do not add the vendor startup_xxx.s)
 
 Third-party sources (always compiled; actual use is guarded by #if):
   - third_party/tlsf/tlsf.c
   - third_party/lwprintf/lwprintf.c
+
+Required compile options (both C and assembly):
+  -DEK_CONF_PATH="<path>/ek_conf.h"
+  -I"<directory containing ek_conf.h>"
+  -DEK_SOC_PATH="<path>/ek_soc.h"          (required for Cortex-M)
+  -I"<directory containing ek_soc.h>"      (Cortex-M)
+  -I"<vendor CMSIS/SDK include directory>" (Cortex-M, for the CMSIS headers included by ek_soc.h)
 ```
 
 picolibc is no longer bundled with the repository. With CMake use `PICOLIBC_ROOT` / `PICOLIBC_FETCH` as shown above. For a manual build, use `--specs=picolibc.specs --picolibc-prefix=<install prefix>`, or add `-I` / `-L` yourself.
 
-Every source includes `#include "ek/ek_conf_internal.h"`, so `include/` must be on the include path.
+Every source includes `#include "ek/ek_conf_internal.h"`, so `include/` must be on the include path. A Cortex-M manual build without `-DEK_SOC_PATH` fails with a `#error` in `port/arch/cortexm/ek_arch_arm_cm.c`; `ek_startup.S` also needs `-DEK_CONF_PATH` and `-I<directory containing ek_conf.h>`.
 
 ## Configuration
 
-### Two ways to provide ek_conf.h
+### Providing ek_conf.h
 
-The include logic in `ek_conf_internal.h`:
+`ek_conf_internal.h` only checks that `EK_CONF_PATH` is defined, then includes `ek_conf.h` through the normal include search:
 
 ```c
-#ifdef EK_CONF_PATH
-#    include EK_CONF_PATH   // option A: path supplied by the build system
-#else
-#    include "ek_conf.h"    // option B: normal include search
+#ifndef EK_CONF_PATH
+#    error "EK_CONF_PATH is not set: add ek_conf.h to the project and pass its path via CMake CONF"
 #endif
+#include "ek_conf.h"
 ```
-
-**Option A: `ek_platform_configure(CONF ...)` / `EK_CONF_PATH` (recommended)**
 
 Point at the file before `add_subdirectory`:
 
@@ -226,7 +263,12 @@ ek_platform_configure(CONF "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h")
 add_subdirectory(lib/ek_platform)
 ```
 
-`ek_platform_configure()` writes the `EK_CONF_PATH` cache entry; the equivalent lower-level form is:
+`ek_platform_configure()` writes the `EK_CONF_PATH` cache entry. The library CMakeLists then:
+
+1. defines `EK_CONF_PATH` for the `#ifndef` check;
+2. adds the directory containing `ek_conf.h` as a `PUBLIC` include path on `ek_platform`.
+
+Equivalent lower-level form:
 
 ```cmake
 set(EK_CONF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
@@ -234,26 +276,7 @@ set(EK_CONF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
 add_subdirectory(lib/ek_platform)
 ```
 
-The library CMakeLists passes `EK_CONF_PATH` to the compiler as a definition.
-
-It can also be passed on the command line:
-
-```bash
-cmake -DEK_CONF_PATH="$(pwd)/Core/Inc/ek_conf.h" -B build
-```
-
-Always use an absolute path. `#include EK_CONF_PATH` expands to a quoted path, and a relative path is first resolved under `include/ek/`, so it can easily fail to resolve.
-
-**Option B: include search path**
-
-When `EK_CONF_PATH` is not set, add the directory containing `ek_conf.h` to the library target. The OBJECT library also needs it while compiling its own sources, so use `PUBLIC`:
-
-```cmake
-add_subdirectory(lib/ek_platform)
-target_include_directories(ek_platform PUBLIC Core/Inc)
-```
-
-Setting `PRIVATE` on the main target only does not propagate to the subproject.
+Always use an absolute path. `EK_CONF_PATH` is no longer expanded by `#include`; the library uses its directory as an include path.
 
 ### IO backend selection
 
