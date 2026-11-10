@@ -5,7 +5,11 @@
 #   ek_platform_prepare(ARCH cm4 PICOLIBC ON)
 #
 # add_subdirectory(ek_platform) 之前：
-#   ek_platform_configure(CONF Core/Inc/ek_conf.h BOARD Core/Inc/ek_board.h)
+#   ek_platform_configure(
+#       CONF Core/Inc/ek_conf.h
+#       BOARD Core/Inc/ek_board.h
+#       SOC Core/Inc/ek_soc.h
+#       SOC_TARGET gd32_soc)
 # ============================================================================
 
 include_guard(GLOBAL)
@@ -50,7 +54,10 @@ function(ek_platform_prepare)
 endfunction()
 
 function(ek_platform_configure)
-    cmake_parse_arguments(A "" "CONF;BOARD;LINKER;TEMPLATE" "" ${ARGN})
+    cmake_parse_arguments(A ""
+        "CONF;BOARD;LINKER;TEMPLATE;SOC;SOC_TARGET"
+        ""
+        ${ARGN})
 
     if(TARGET ek_platform)
         message(FATAL_ERROR "ek_platform_configure() must be called before add_subdirectory(ek_platform)")
@@ -77,6 +84,19 @@ function(ek_platform_configure)
         set(EK_BOARD_PATH "${_board}" CACHE FILEPATH "Path to ek_board.h" FORCE)
     endif()
 
+    if(A_SOC)
+        get_filename_component(_soc "${A_SOC}" ABSOLUTE
+            BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+        if(NOT EXISTS "${_soc}")
+            message(FATAL_ERROR "ek_platform_configure: SOC not found: ${_soc}")
+        endif()
+        set(EK_SOC_PATH "${_soc}" CACHE FILEPATH "Path to ek_soc.h" FORCE)
+    endif()
+
+    if(A_SOC_TARGET)
+        set(EK_SOC_TARGET "${A_SOC_TARGET}" CACHE STRING "SoC target" FORCE)
+    endif()
+
     if(A_TEMPLATE)
         get_filename_component(_tpl "${A_TEMPLATE}" ABSOLUTE
             BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -95,10 +115,19 @@ function(ek_platform_configure)
     endif()
     set(EK_LINKER_MODE "${_mode}" CACHE STRING "EK linker mode (auto, off)" FORCE)
 
+    if(NOT EK_CONF_PATH)
+        message(FATAL_ERROR "ek_platform_configure: CONF is required")
+    endif()
+
+    if(EK_PLATFORM_ARCH MATCHES "^cm" AND NOT EK_SOC_PATH)
+        message(FATAL_ERROR
+            "ek_platform_configure: SOC is required for Cortex-M targets (EK_PLATFORM_ARCH=${EK_PLATFORM_ARCH})")
+    endif()
+
     if(EK_LINKER_MODE STREQUAL "auto" AND
        NOT EK_PLATFORM_ARCH MATCHES "^(host|x86_64)$" AND
-       (NOT EK_CONF_PATH OR NOT EK_BOARD_PATH))
+       NOT EK_BOARD_PATH)
         message(FATAL_ERROR
-            "ek_platform_configure: CONF and BOARD are required for cross builds (or use LINKER off)")
+            "ek_platform_configure: BOARD is required for cross builds")
     endif()
 endfunction()

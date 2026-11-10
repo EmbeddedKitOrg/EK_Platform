@@ -69,6 +69,7 @@ function(ek_linker_script out_var)
 
     execute_process(
         COMMAND "${CMAKE_C_COMPILER}" -E -P -x c
+                "-DEK_CONF_PATH=${_conf}"
                 -imacros "${_conf}"
                 -imacros "${_internal}"
                 -imacros "${_board}"

@@ -1,16 +1,14 @@
 /**
- * @file ek_arch.c
+ * @file ek_arch_arm_cm.c
  * @brief 架构相关底层操作实现
  * @author N1netyNine99
  *
- * ARM 分支提供向量表重定向与中断安装；RISC-V 和 host 分支为空实现。
+ * ARM 分支提供向量表重定向与中断安装
  */
-
 #include "ek/core/ek_arch.h"
 
 #if EKCFG_ARCH == 1
 
-#    include "ek/core/ek_assert.h"
 #    include "ek/core/ek_export.h"
 
 extern uint32_t _flash_vtor_start[];
@@ -18,11 +16,40 @@ extern uint32_t _flash_vtor_end[];
 extern uint32_t _sram_vtor_start[];
 extern uint32_t _sram_vtor_end[];
 
-#    if defined(__arm__) || defined(__thumb__)
+#    ifndef EK_SOC_PATH
+#        error "EK_SOC_PATH is not set: add ek_soc.h to the project and pass its path via CMake SOC (required for Cortex-M)"
+#    endif
 
-#        define SCB_VTOR (*(volatile uint32_t *)0xE000ED08UL)
+#    include "ek_soc.h"
 
 static bool s_vtor_redirected;
+
+void ek_arch_isb(void)
+{
+    __ISB();
+}
+
+void ek_arch_dsb(void)
+{
+    __DSB();
+}
+
+void ek_arch_dmb(void)
+{
+    __DMB();
+}
+
+uint32_t ek_arch_irq_lock(void)
+{
+    uint32_t flags = __get_PRIMASK();
+    __disable_irq();
+    return flags;
+}
+
+void ek_arch_irq_unlock(uint32_t flags)
+{
+    __set_PRIMASK(flags);
+}
 
 void ek_arch_redirect_vtor(void)
 {
@@ -33,7 +60,7 @@ void ek_arch_redirect_vtor(void)
     uint32_t flags = ek_arch_irq_lock();
     memcpy(_sram_vtor_start, _flash_vtor_start, size);
 
-    SCB_VTOR = (uintptr_t)_sram_vtor_start;
+    SCB->VTOR = (uintptr_t)_sram_vtor_start;
 
     ek_arch_dsb();
     ek_arch_isb();
@@ -42,16 +69,15 @@ void ek_arch_redirect_vtor(void)
     ek_arch_irq_unlock(flags);
 }
 
-// 启动时先完成 VTOR 重定向，静态 IRQ 安装随后写入 SRAM 表
 EK_EXPORT_BOOT(ek_arch_redirect_vtor, EK_EXPORT_ORDER_BOOT_ARCH);
 
 int ek_arch_irq_install(int32_t irq, ek_arch_isr_t handler)
 {
     if (handler == NULL) return -EINVAL;
     if (irq < -14 || irq >= EKCFG_ARCH_IRQ_COUNT) return -EINVAL;
-    if (SCB_VTOR != (uintptr_t)_sram_vtor_start) return -EAGAIN;
+    if (SCB->VTOR != (uintptr_t)_sram_vtor_start) return -EAGAIN;
 
-    uint32_t *table = (uint32_t *)(uintptr_t)SCB_VTOR;
+    uint32_t *table = (uint32_t *)(uintptr_t)SCB->VTOR;
     if (table == NULL) return -EINVAL;
 
     uint32_t flags = ek_arch_irq_lock();
@@ -62,34 +88,5 @@ int ek_arch_irq_install(int32_t irq, ek_arch_isr_t handler)
 
     return 0;
 }
-#    elif defined(__riscv)
-
-// RISC-V 使用 mtvec 配置异常入口，不使用 VTOR
-void ek_arch_redirect_vtor(void)
-{
-}
-
-int ek_arch_irq_install(int32_t irq, ek_arch_isr_t handler)
-{
-    __EK_UNUSED(irq);
-    __EK_UNUSED(handler);
-    return -ENOSYS;
-}
-
-#    else
-
-// host 构建没有异常向量表
-void ek_arch_redirect_vtor(void)
-{
-}
-
-int ek_arch_irq_install(int32_t irq, ek_arch_isr_t handler)
-{
-    __EK_UNUSED(irq);
-    __EK_UNUSED(handler);
-    return -ENOSYS;
-}
-
-#    endif
 
 #endif // EKCFG_ARCH == 1

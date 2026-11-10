@@ -12,9 +12,9 @@
  * 只需在自己的项目中创建 ek_conf.h（复制仓库根目录的 ek_conf_template.h 并改名），
  * 覆盖所需的宏，其余自动取默认值。
  *
- * 指定用户 ek_conf.h 的两种方式：
- *   A. CMake 参数：cmake -DEK_CONF_PATH="path/to/ek_conf.h"
- *   B. include 优先级：确保你的 ek_conf.h 所在路径先于 ek_utils/inc/ 被搜索到
+ * 指定用户 ek_conf.h：
+ *   CMake 必须定义 EK_CONF_PATH；该宏只用于校验，
+ *   实际包含通过 include 路径中的 "ek_conf.h" 完成。
  */
 
 #ifndef EK_CONF_INTERNAL_H
@@ -24,14 +24,13 @@
  * ========================================================================
  * 引入用户配置
  * ========================================================================
- * 方式 A：CMake 传 -DEK_CONF_PATH="xxx" → 编译期宏展开为 include 路径
- * 方式 B：未设置 EK_CONF_PATH → 使用标准 include 搜索，需保证用户路径优先
+ * EK_CONF_PATH 只做存在性校验；ek_conf.h 由 include 路径提供。
  */
-#ifdef EK_CONF_PATH
-#    include EK_CONF_PATH
-#else
-#    include "ek_conf.h"
+#ifndef EK_CONF_PATH
+#    error "EK_CONF_PATH is not set: add ek_conf.h to the project and pass its path via CMake CONF"
 #endif
+
+#include "ek_conf.h"
 
 /* CMake 的 PICOLIBC 选项是构建事实，优先于 ek_conf.h 中的旧定义。 */
 #ifdef EK_PLATFORM_PICOLIBC

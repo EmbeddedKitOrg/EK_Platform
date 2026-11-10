@@ -4,8 +4,8 @@
  * @author N1netyNine99
  *
  * 提供向量表、Reset_Handler、默认异常处理和 SystemInit 弱桩。
- * Cortex-M 目标由 ek_platform 默认编译，编译时必须能通过 EK_CONF_PATH
- * （或 include 搜索路径）找到 ek_conf.h。
+ * Cortex-M 目标由 ek_platform 默认编译，编译时必须能通过 include
+ * 搜索路径找到 ek_conf.h；EK_CONF_PATH 仅用于配置校验。
  *
  * 外部 IRQ 的向量统一指向 ek_default_irq_handler，通过以下方式绑定：
  *   1. EK_DEFINE_ARCH_IRQ(n, handler)（需要 EKCFG_STATIC_ALLOC=1）
@@ -19,11 +19,11 @@
 .syntax unified
 .thumb
 
-#ifdef EK_CONF_PATH
-#    include EK_CONF_PATH
-#else
-#    include "ek_conf.h"
+#ifndef EK_CONF_PATH
+#    error "EK_CONF_PATH is not set: add ek_conf.h to the project and pass its path via CMake CONF"
 #endif
+
+#include "ek_conf.h"
 
 #if !defined(EKCFG_ARCH_IRQ_COUNT)
 #    error "EKCFG_ARCH_IRQ_COUNT must be defined in ek_conf.h"

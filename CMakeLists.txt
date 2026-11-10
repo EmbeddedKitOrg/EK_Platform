@@ -16,12 +16,10 @@ project(ek_platform C)
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/ek_linker.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/picolibc.cmake")
 
-# ---------- 源文件 ----------
 set(EK_CORES_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_assert.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_export.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_io.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_arch.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_log.c
 )
 
@@ -54,18 +52,30 @@ set(EK_VFS_SRCS
 set(PORT_SRCS)
 if(PICOLIBC)
     list(APPEND PORT_SRCS
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/clib/picolibc/picolibc_port.c)
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/clib/picolibc/picolibc_port.c
+    )
 else()
-    # newlib/nanolibc 端口；是否真正参与编译由 EKCFG_NEWLIB 决定
     list(APPEND PORT_SRCS
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/clib/newlib/newlib_port.c)
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/clib/newlib/newlib_port.c
+    )
 endif()
 
-# Cortex-M 启动文件默认集成；厂商 startup 不再参与编译
 if(EK_PLATFORM_ARCH MATCHES "^cm")
     enable_language(ASM)
     list(APPEND PORT_SRCS
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/startup/cortexm/ek_startup.S)
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/startup/cortexm/ek_startup.S
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/arch/cortexm/ek_arch_arm_cm.c
+    )
+elseif(EK_PLATFORM_ARCH MATCHES "^rv")
+    list(APPEND PORT_SRCS
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/arch/riscv/ek_arch_riscv_generic.c
+    )
+elseif(EK_PLATFORM_ARCH MATCHES "^(host|x86_64)$")
+    list(APPEND PORT_SRCS
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/arch/host/ek_arch_host_x86.c
+    )
+else()
+    message(FATAL_ERROR "ek_platform: unsupported EK_PLATFORM_ARCH=${EK_PLATFORM_ARCH}")
 endif()
 
 set(TP_SRCS
@@ -101,10 +111,24 @@ foreach(_src IN LISTS _ek_all_src)
     endif()
 endforeach()
 
-# ---------- 对象库（配置宏在用户项目中编译时生效） ----------
 add_library(ek_platform OBJECT ${EK_SRCS} ${PORT_SRCS} ${TP_SRCS})
 
 target_include_directories(ek_platform PUBLIC ${EK_INCLUDE_DIRS})
+
+if(EK_SOC_PATH)
+    get_filename_component(_soc_dir "${EK_SOC_PATH}" DIRECTORY)
+    target_include_directories(ek_platform PRIVATE ${_soc_dir})
+    target_compile_definitions(ek_platform PRIVATE EK_SOC_PATH="${EK_SOC_PATH}")
+endif()
+
+if(EK_SOC_TARGET)
+    if(NOT TARGET ${EK_SOC_TARGET})
+        message(FATAL_ERROR
+            "ek_platform: EK_SOC_TARGET is not a defined target: ${EK_SOC_TARGET}")
+    endif()
+    target_link_libraries(ek_platform PRIVATE ${EK_SOC_TARGET})
+endif()
+
 target_compile_options(ek_platform PRIVATE
     -fdiagnostics-color=always
     -Os
@@ -114,6 +138,8 @@ target_compile_options(ek_platform PRIVATE
 )
 
 if(EK_CONF_PATH)
+    get_filename_component(_conf_dir "${EK_CONF_PATH}" DIRECTORY)
+    target_include_directories(ek_platform PUBLIC ${_conf_dir})
     target_compile_definitions(ek_platform PUBLIC EK_CONF_PATH="${EK_CONF_PATH}")
 endif()
 
