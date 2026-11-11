@@ -351,4 +351,41 @@ int ek_vfs_close(int fd)
 
     return ret;
 }
+
+int ek_vfs_bind_fd(int target_fd, const char *path, int flags)
+{
+    if (target_fd < 0 || target_fd >= 3) return -EINVAL;
+
+    vfs_file_t *file = fd_to_file(target_fd);
+    if (!file) return -EBADF;
+
+    vfs_node_t *node = look_up(path, NULL);
+    if (!node || node->type != EK_VFS_DEV) return -ENODEV;
+
+    void *file_priv = node->priv;
+    if (node->ops && node->ops->open)
+    {
+        int ret = node->ops->open(node->priv, flags, &file_priv);
+        if (ret < 0) return ret;
+    }
+
+    if (file->node)
+    {
+        if (file->ops && file->ops->close)
+        {
+            file->ops->close(file->file_priv);
+        }
+        if (file->node->ref_count > 0) file->node->ref_count--;
+    }
+
+    file->node = node;
+    file->ops = node->ops;
+    file->flags = flags;
+    file->file_priv = file_priv;
+    file->offset = 0;
+    node->ref_count++;
+
+    return 0;
+}
+
 #endif // EKCFG_VFS == 1

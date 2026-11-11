@@ -17,6 +17,28 @@ static vfs_node_t *s_node_root = NULL;
 static vfs_file_t s_fd_pool[EKCFG_VFS_MAX_FDS];
 static uint32_t s_bitmap;
 
+static ssize_t _dummy_read(void *file_priv, void *buf, size_t count, ek_off_t *offset)
+{
+    __EK_UNUSED(file_priv);
+    __EK_UNUSED(buf);
+    __EK_UNUSED(count);
+    __EK_UNUSED(offset);
+    return 0;
+}
+
+static ssize_t _dummy_write(void *file_priv, const void *buf, size_t count, ek_off_t *offset)
+{
+    __EK_UNUSED(file_priv);
+    __EK_UNUSED(buf);
+    __EK_UNUSED(offset);
+    return (ssize_t)count;
+}
+
+static const ek_vfs_ops_t s_dummy_stdio_ops = {
+    .read = _dummy_read,
+    .write = _dummy_write,
+};
+
 void root_init(void)
 {
     s_node_root = alloc_node();
@@ -33,6 +55,13 @@ void root_init(void)
     s_node_root->sibling = NULL;
     s_node_root->ops = NULL;
     s_node_root->priv = NULL;
+
+    s_bitmap |= (1UL << 0) | (1UL << 1) | (1UL << 2);
+    for (int i = 0; i < 3; i++)
+    {
+        memset(&s_fd_pool[i], 0, sizeof(vfs_file_t));
+        s_fd_pool[i].ops = &s_dummy_stdio_ops;
+    }
 }
 
 vfs_node_t *alloc_node(void)

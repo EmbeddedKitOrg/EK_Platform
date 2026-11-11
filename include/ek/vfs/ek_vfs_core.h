@@ -18,6 +18,10 @@ extern "C"
 {
 #    endif
 
+#    define EK_VFS_STDIN  0
+#    define EK_VFS_STDOUT 1
+#    define EK_VFS_STDERR 2
+
 /**
  * @brief 初始化 VFS 根节点
  * @note 由 EK_EXPORT_COMPONENT 在 ek_export_init() 中自动调用
@@ -148,6 +152,67 @@ int ek_vfs_poll(int fd, uint32_t events);
  * @note 无论驱动 close 是否失败，fd 都会被释放
  */
 int ek_vfs_close(int fd);
+
+/**
+ * @brief 将指定路径的设备绑定到目标文件描述符槽位
+ * @param target_fd 目标文件描述符（通常为 0=stdin, 1=stdout, 2=stderr）
+ * @param path 设备绝对路径，必须以 '/' 开头
+ * @param flags 打开标志，如 O_RDONLY, O_WRONLY, O_NONBLOCK 等
+ * @return 0 成功；负数 errno 失败
+ * @retval -EBADF target_fd 超出合法范围
+ * @retval -EINVAL 参数非法（path 为空或非绝对路径）
+ * @retval -ENOENT 设备节点不存在
+ * @retval -ENODEV 节点不是设备类型或没有操作表
+ * @note 若目标槽位此前已绑定设备，会先安全调用旧设备的 close 并递减其引用计数
+ */
+int ek_vfs_bind_fd(int target_fd, const char *path, int flags);
+
+/**
+ * @brief 将指定路径的设备绑定为标准输入 (stdin, fd 0)
+ * @param path 设备绝对路径
+ * @return 0 成功；负数 errno 失败
+ * @note 默认以 O_RDONLY | O_NONBLOCK 模式打开
+ */
+__EK_STATIC_INLINE int ek_vfs_bind_stdin(const char *path)
+{
+    return ek_vfs_bind_fd(EK_VFS_STDIN, path, O_RDONLY | O_NONBLOCK);
+}
+
+/**
+ * @brief 将指定路径的设备绑定为标准输出 (stdout, fd 1)
+ * @param path 设备绝对路径
+ * @return 0 成功；负数 errno 失败
+ * @note 默认以 O_WRONLY 模式打开
+ */
+__EK_STATIC_INLINE int ek_vfs_bind_stdout(const char *path)
+{
+    return ek_vfs_bind_fd(EK_VFS_STDOUT, path, O_WRONLY);
+}
+
+/**
+ * @brief 将指定路径的设备绑定为标准错误 (stderr, fd 2)
+ * @param path 设备绝对路径
+ * @return 0 成功；负数 errno 失败
+ * @note 默认以 O_WRONLY 模式打开
+ */
+__EK_STATIC_INLINE int ek_vfs_bind_stderr(const char *path)
+{
+    return ek_vfs_bind_fd(EK_VFS_STDERR, path, O_WRONLY);
+}
+
+/**
+ * @brief 将指定路径的设备同时绑定为标准输入、输出与错误 (stdin/stdout/stderr)
+ * @param path 设备绝对路径（如 "/dev/uart0"）
+ * @return 0 成功；负数 errno 失败
+ * @note 适用于输入输出同源的控制台串口设备
+ */
+__EK_STATIC_INLINE int ek_vfs_bind_stdio(const char *path)
+{
+    int ret;
+    if ((ret = ek_vfs_bind_stdin(path)) < 0) return ret;
+    if ((ret = ek_vfs_bind_stdout(path)) < 0) return ret;
+    return ek_vfs_bind_stderr(path);
+}
 
 #    ifdef __cplusplus
 }
