@@ -2,345 +2,169 @@
 
 # EmbeddedKit (ek_platform)
 
-面向资源受限 MCU 的轻量级嵌入式 C 库，提供数据结构、内存管理、日志、事件调度和微线程等基础设施。不依赖 RTOS，可直接用于裸机项目；模块通过配置宏在编译期按需启用。
+面向资源受限 MCU 的轻量级嵌入式 C 基础库，提供数据结构、内存管理、日志、断言、事件调度（evoke）、协作式微线程（picothread）和 VFS 等模块。零 RTOS 依赖，通过编译期宏按需裁剪。
 
-本文件只说明如何把库集成到你的项目，各模块的 API 见对应头文件。
+## 快速使用（CMake）
 
-## 特性
-
-- 零 RTOS 依赖，可直接集成到裸机工程
-- 配置驱动：所有模块通过 `ek_conf.h` 开关裁剪，关闭的模块不参与编译
-- 支持 GCC、ARM Compiler 5 (armcc)、ARM Compiler 6 (armclang)
-- 平台相关接口以 `__EK_WEAK` 声明，用户提供同名强函数即可覆盖
-
-## 支持平台
-
-`PLATFORM` 用于选择工具链 CPU/ISA 参数。ARM 使用 `cmake/gcc-arm-none-eabi.cmake`，RISC-V 使用 `cmake/gcc-riscv-none-elf.cmake`：
-
-| PLATFORM | CPU / ISA | FPU / ABI |
-|----------|-----------|-----------|
-| cm0 | Cortex-M0 | 无 |
-| cm3 | Cortex-M3 | 无 |
-| cm4 | Cortex-M4 | fpv4-sp-d16 (hard) |
-| cm7 | Cortex-M7 | fpv5-d16 (hard) |
-| cm23 | Cortex-M23 | 无 |
-| cm33 | Cortex-M33 | fpv5-sp-d16 (hard) |
-| cm55 | Cortex-M55 | auto (hard) |
-| rv32imac | RISC-V RV32IMAC | ilp32 |
-| rv32imafc | RISC-V RV32IMAFC | ilp32f |
-| rv64imac | RISC-V RV64IMAC | lp64 |
-| rv64gc | RISC-V RV64GC | lp64d |
-
-RISC-V 编译器不在 PATH 时，用 `RISCV_TOOLCHAIN_PREFIX` 指定前缀（包含目录和末尾 `-`）：
-
-```bash
-cmake -DCMAKE_TOOLCHAIN_FILE=lib/ek_platform/cmake/gcc-riscv-none-elf.cmake \
-      -DPLATFORM=rv32imac \
-      -DRISCV_TOOLCHAIN_PREFIX=/opt/xpack-riscv-none-elf-gcc-<version>/bin/riscv-none-elf- \
-      -B build
-```
-
-`PICOLIBC_BUILD=ON` 会按 `PLATFORM` 自动选择 `-mcpu` / `-mfpu` / `-mfloat-abi`，用 meson 构建一份对应 ABI 的 picolibc，无需预先准备预编译包。
-
-picolibc 预编译包的平台名可以独立用 `PICOLIBC_PLATFORM` 指定（默认同 `PLATFORM`）：
-
-| 架构 | PICOLIBC_PLATFORM |
-|------|-------------------|
-| ARM | cm0, cm3, cm4, cm7, cm23, cm33, cm55 |
-| RISC-V | rv32imac, rv32imafc, rv64imac, rv64gc |
-| x86 | x86_64（裸机 freestanding，链接需要 `-no-pie`） |
-
-RISC-V 和 x86 目前通过 `PICOLIBC_FETCH=ON` 使用 CI 发布的预编译包；`PICOLIBC_BUILD=ON` 的本地源码构建只覆盖 ARM。
-
-## 方式一：CMake 子模块（推荐）
-
-### 1. 添加子模块
+### 1. 准备配置文件
 
 ```bash
 git submodule add https://github.com/EmbeddedKitOrg/EK_Platform.git lib/ek_platform
+
+cp lib/ek_platform/ek_conf_template.h  include/ek_conf.h
+cp lib/ek_platform/ek_board_template.h include/ek_board.h
 ```
 
-### 2. 创建 ek_conf.h 与 ek_board.h
+- `ek_conf.h`：模块开关与参数配置（未定义的宏自动取默认值）。
+- `ek_board.h`：芯片 Flash/RAM 布局，用于自动生成链接脚本（`host` 构建不需要）。
+- `ek_soc.h`（Cortex-M 必需）：自行创建，在其中包含芯片 CMSIS 头文件（如 `#include "gd32f4xx.h"`）。
 
-复制两个模板到你的项目：`ek_conf.h` 只保留需要修改的宏，其余保持默认；`ek_board.h` 按芯片手册填写 `EKLD_*` 内存参数：
-
-```bash
-cp lib/ek_platform/ek_conf_template.h  Core/Inc/ek_conf.h
-cp lib/ek_platform/ek_board_template.h Core/Inc/ek_board.h
-```
-
-### 3. 配置 CMake
+### 2. 编写 `CMakeLists.txt`
 
 ```cmake
 cmake_minimum_required(VERSION 3.20)
 
-# 两阶段配置入口
 include(${CMAKE_CURRENT_SOURCE_DIR}/lib/ek_platform/cmake/ek_platform.cmake)
 
-# 目标平台，同时决定工具链、链接模板和 picolibc 预编译包；project() 之前调用
+# 1. project() 之前：选择架构与是否启用 picolibc
 ek_platform_prepare(ARCH cm4 PICOLIBC ON)
+set(PICOLIBC_FETCH ON) # 自动下载预编译 picolibc
 
-project(my_app C)
+project(my_app LANGUAGES C ASM)
 
-# picolibc 定位（四选一）：
-#   1) 已安装：set(PICOLIBC_ROOT "/path/to/picolibc")
-#   2) 工具链自带 --specs=picolibc.specs：无需额外设置
-#   3) 从源码构建（需要 meson/ninja，按 PLATFORM 自动选参数）：
-#        set(PICOLIBC_BUILD ON)
-#        # set(PICOLIBC_SOURCE_DIR "/path/to/picolibc")  # 可选，留空则下载源码包
-#   4) 下载预编译包：
-#        set(PICOLIBC_FETCH ON)
-#        # set(PICOLIBC_SHA256 "<sha256>")  # 可选，提供则校验
-# 也可以用 PICOLIBC_SPECS 直接指定 specs 文件。
+add_executable(${PROJECT_NAME} src/main.c)
 
-# 装了系统 picolibc（如 apt install picolibc-arm-none-eabi）时，
-# PICOLIBC=ON 会自动检测 /usr/lib/picolibc/<triple>/picolibc.specs。
-# 传统 Arm GNU Toolchain / Ubuntu 的 arm-none-eabi-gcc 默认带 newlib，
-# 可用 arm-none-eabi-gcc -print-file-name=picolibc.specs 确认。
-# specs 默认路径与实际安装位置不同时，用 PICOLIBC_PREFIX 指定前缀。
-
+# 2. add_subdirectory(ek_platform) 之前：绑定配置文件与 SoC 依赖
 ek_platform_configure(
-    CONF "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
-    BOARD "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board.h"
-    SOC "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_soc.h")
-
+    CONF "${CMAKE_CURRENT_SOURCE_DIR}/include/ek_conf.h"
+    BOARD "${CMAKE_CURRENT_SOURCE_DIR}/include/ek_board.h"
+    SOC "${CMAKE_CURRENT_SOURCE_DIR}/include/ek_soc.h"
+    SOC_TARGET gd32f4xx_driver # 提供芯片 CMSIS 头文件路径与宏定义的 target
+)
 add_subdirectory(lib/ek_platform)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform)
+target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
 ```
 
-Cortex-M 目标必须提供 `SOC`：`port/arch/cortexm/ek_arch_arm_cm.c` 在 `EKCFG_ARCH=1` 时用 `#ifndef EK_SOC_PATH` 硬校验，缺少 `SOC` 会直接编译失败。`ek_soc.h` 会引入厂商 CMSIS 头，因此还需要 `SOC_TARGET` 提供厂商 SDK 的 include 路径和编译定义，例如 `SOC_TARGET gd32f4xx_driver`：
-
-```cmake
-ek_platform_configure(
-    CONF "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
-    BOARD "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board.h"
-    SOC "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_soc.h"
-    SOC_TARGET gd32f4xx_driver)
-```
-
-`SOC_TARGET` 可以是已经编译好的厂商库 target，也可以只是携带 include/define 的 INTERFACE target。厂商 SDK 不是 CMake 库时，这样写即可：
-
-```cmake
-add_library(soc INTERFACE)
-target_include_directories(soc INTERFACE
-    "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/Device/Include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/Include")
-target_compile_definitions(soc INTERFACE GD32F470)
-
-ek_platform_configure(
-    CONF "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
-    BOARD "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board.h"
-    SOC "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_soc.h"
-    SOC_TARGET soc)
-```
-
-`SOC` 会生成 `EK_SOC_PATH` 宏；`port/arch/cortexm/ek_arch_arm_cm.c` 用 `#ifndef EK_SOC_PATH` 校验后直接 `#include "ek_soc.h"`。`EK_SOC_PATH` 只用于校验，不参与 include 展开。Cortex-M 构建必须提供 `SOC`；`SOC_TARGET` 负责提供厂商 SDK 的 include 路径和编译定义。`SOC_TARGET` 只参与 C 编译，不参与链接脚本预处理；`ek_conf.h` 不要包含 SoC 头。
-
-`ek_platform_prepare()` 必须在 `project()` 之前调用；`ek_platform_configure()` 必须在 `add_subdirectory(ek_platform)` 之前调用。旧的 `ek_set_*` 接口已删除。
-
-`ek_platform` 是 OBJECT 库，它的 PUBLIC include 目录和链接项会自动传给主工程，不需要手动添加 `include/` 等路径，也不要用 `$<TARGET_OBJECTS:ek_platform>` 代替 `target_link_libraries`。
-
-下载和源码构建的产物都缓存在 `<build>/_deps/`：归档已存在（且 SHA 匹配）时不再下载，解压目录完整时不再解压，源码构建已完成时不再重新构建。删除对应目录即可强制刷新。
-
-### 4. 链接脚本
-
-链接脚本由 `ek_platform` 自动生成，不需要手写。`ek_board.h` 提供内存布局，由 `ek_platform_configure(BOARD ...)` 设置。
-
-`EK_LINKER_MODE=auto`（默认）：交叉编译时用 C 预处理器把 `ek_conf.h`、`ek_conf_internal.h`、`ek_board.h` 和 `cmake/linker/cortexm.ld.S` 合成为 `${build}/ek_platform/ek_platform.ld`；host 构建直接使用 `cmake/linker/host.ld`。生成的脚本包含 `.ek_export`、`.ek_static_alloc`、TCMRAM 以及 SDRAM0/SDRAM1 段，`EKCFG_EXPORT` / `EKCFG_STATIC_ALLOC` 关闭时对应段会自动省略。
-
-若 `ek_conf.h` 在 RTOS 配置里 include 了其他头，把对应目录加入 `EK_LINKER_INCLUDE_DIRS`；预处理器仍只保留宏，不会把 C 声明写进 `.ld`。
-
-RISC-V 项目用 `ek_platform_prepare(ARCH rv32imac)`，库会自动选择 `cmake/gcc-riscv-none-elf.cmake` 和 `cmake/linker/riscv.ld.S`；自定义模板用 `ek_platform_configure(TEMPLATE ...)`。该模板默认入口是 `_start`，TCMRAM 为可选段（`EKLD_TCMRAM_LENGTH` 为 0 时不生成）。host 原生构建用 `ek_platform_prepare(ARCH host)`，不需要 `ek_board.h`。
-
-多 target 或多板子时关闭自动模式，给每个目标单独生成：
-
-```cmake
-ek_platform_configure(... LINKER off)
-...
-ek_linker_attach(app BOARD "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board_a.h")
-```
-
-不使用 CMake 集成时，可以用 `${CMAKE_C_COMPILER} -E -P -x c` 手动预处理 `cmake/linker/cortexm.ld.S`，或直接参考生成结果。
-
-### 5. 通用启动文件
-
-Cortex-M 目标由 `ek_platform` 默认编译 `port/startup/cortexm/ek_startup.S`，不再使用厂商的 `startup_xxx.s`。厂商 startup 文件不要加入目标，否则 `Reset_Handler` 和向量表会重复定义。
-
-启动文件提供：
-
-- 向量表 `.ek_vectors`，外部 IRQ 槽位数由 `ek_conf.h` 的 `EKCFG_ARCH_IRQ_COUNT` 决定
-- `Reset_Handler`：设置 MSP、拷贝 `.data`、清零 `.bss`、拷贝 `.tcmram`，硬件浮点目标还会在调用 C 代码前使能 CP10/CP11
-- 调用弱符号 `SystemInit`，再调用 `__libc_init_array()`（其中包含 `ek_export_init()`），最后进入 `main()`
-- 核心异常使用 CMSIS 标准弱符号（`NMI_Handler`、`HardFault_Handler` 等），实现同名强函数即可覆盖
-- 外部 IRQ 默认指向 `ek_default_irq_handler`，通过下面两种方式绑定
-
-```c
-// 1. 静态注册（EKCFG_EXPORT=1 时在 BOOT 阶段安装；否则回退到 EKCFG_STATIC_ALLOC）
-EK_DEFINE_ARCH_IRQ(USART0_IRQn, USART0_IRQHandler);
-
-// 2. 运行时安装（VTOR 已重定向；EKCFG_EXPORT=1 时启动阶段自动完成）
-ek_arch_irq_install(USART0_IRQn, USART0_IRQHandler);
-```
-
-`EK_DEFINE_ARCH_IRQ` 在 `EKCFG_EXPORT=1` 时于 BOOT 阶段安装，位于 `ek_arch_redirect_vtor()` 之后、BOARD 初始化之前；因此 board init 中可以直接 `nvic_irq_enable()`，不会落到 `ek_default_irq_handler`。`EKCFG_EXPORT=0` 时回退到 COMPONENT 阶段，需要确保使能中断前已完成 `ek_static_alloc_init()`。
-
-`EKCFG_ARCH_IRQ_COUNT` 会被汇编器直接求值，必须写成 `(91)` 这类纯整数表达式，不要加 `U` 后缀。启用 `EKCFG_ARCH=1` 时该宏还会参与 `ek_arch_irq_install()` 的边界检查。
-
-`SystemInit` 是弱符号：链接厂商 `system_xxx.c` 时使用厂商实现，没有时使用空实现。需要在 `SystemInit` 之外做时钟或 FPU 配置的工程，提供同名强函数即可。
-
-### 6. 初始化
-
-启用 `EKCFG_EXPORT=1` 时，`ek_export_init()` 标记为 `__attribute__((constructor))`，由启动代码的 `__libc_init_array()` 在 `main()` 之前自动调用，堆、IO、调度器等模块会按 `level → order` 自动初始化。不要重复调用：
-
-```c
-int main(void)
-{
-    // ek_export_init() 已由 __libc_init_array() 自动调用
-    // ...
-}
-```
-
-未启用 export 时，按依赖顺序手动调用：先 `ek_heap_init()`，再 `ek_io_init()` 及其他模块的 `*_init()`，最后 `ek_static_alloc_init()`。
-
-## 方式二：源文件直接集成
-
-不使用 CMake 时，把下面的路径加入 include 搜索，按需把源文件加入编译：
-
-```
-Include Paths:
-  - include/
-  - third_party/tlsf/
-  - third_party/lwprintf/inc/
-  - <picolibc 安装目录>/include/          （使用 picolibc 时，由你自己提供）
-
-源文件（按需选择）:
-  - src/core/*.c
-  - src/mem/*.c
-  - src/container/*.c
-  - src/sched/*.c
-  - port/clib/picolibc/picolibc_port.c   （使用 picolibc 时）
-  - port/clib/newlib/newlib_port.c       （使用 newlib/nanolibc 时）
-  - port/arch/cortexm/ek_arch_arm_cm.c   （Cortex-M；RISC-V 改用 port/arch/riscv/ek_arch_riscv_generic.c）
-  - port/arch/host/ek_arch_host_x86.c    （host 原生构建）
-  - port/startup/cortexm/ek_startup.S    （Cortex-M；此时不要加入厂商 startup_xxx.s）
-
-第三方源文件（始终编译，由 #if 守卫控制实际使用）:
-  - third_party/tlsf/tlsf.c
-  - third_party/lwprintf/lwprintf.c
-
-必需编译选项（C 和汇编都要加）:
-  -DEK_CONF_PATH="<path>/ek_conf.h"
-  -I"<ek_conf.h 所在目录>"
-  -DEK_SOC_PATH="<path>/ek_soc.h"        （Cortex-M 必需）
-  -I"<ek_soc.h 所在目录>"                （Cortex-M）
-  -I"<厂商 CMSIS/SDK include 目录>"      （Cortex-M，供 ek_soc.h 引入的 CMSIS 头）
-```
-
-picolibc 不再随仓库分发。用 CMake 时见上方 `PICOLIBC_ROOT` / `PICOLIBC_FETCH`；手工编译时用 `--specs=picolibc.specs --picolibc-prefix=<安装前缀>`，或自行添加 `-I`/`-L`。
-
-源文件通过 `#include "ek/ek_conf_internal.h"` 引入配置，因此 `include/` 这一级必须在搜索路径中。Cortex-M 手工构建缺少 `-DEK_SOC_PATH` 时，`port/arch/cortexm/ek_arch_arm_cm.c` 会直接 `#error`；`ek_startup.S` 同样需要 `-DEK_CONF_PATH` 和 `-I<ek_conf.h 所在目录>`。
-
-## 配置
-
-### 指定 ek_conf.h
-
-`ek_conf_internal.h` 只校验 `EK_CONF_PATH` 是否存在，然后通过标准 include 搜索直接包含 `ek_conf.h`：
-
-```c
-#ifndef EK_CONF_PATH
-#    error "EK_CONF_PATH is not set: add ek_conf.h to the project and pass its path via CMake CONF"
-#endif
-#include "ek_conf.h"
-```
-
-在 `add_subdirectory` 之前指定：
-
-```cmake
-ek_platform_configure(CONF "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h")
-add_subdirectory(lib/ek_platform)
-```
-
-`ek_platform_configure()` 写入 `EK_CONF_PATH` cache；库 CMakeLists 会：
-
-1. 定义 `EK_CONF_PATH` 宏，供 `#ifndef` 校验；
-2. 把 `ek_conf.h` 所在目录作为 `PUBLIC` include 路径传给 `ek_platform`。
-
-等价的底层写法：
-
-```cmake
-set(EK_CONF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_conf.h"
-    CACHE STRING "" FORCE)
-add_subdirectory(lib/ek_platform)
-```
-
-务必使用绝对路径。`EK_CONF_PATH` 本身不再参与 `#include` 展开，但库会用它的目录作为 include 路径。
-
-### IO 后端选择
-
-`ek_io.h` 按以下优先级选择后端：`EKCFG_IO_LWPRTF=1` → lwprintf；否则 `EKCFG_PICOLIBC=1` → picolibc；否则使用系统 libc（glibc/newlib 的 `printf`）。
-
-| 后端 | ek_conf.h 配置 | `ek_printf` 等宏 | 需要实现 |
-|------|---------------|------------------|----------|
-| picolibc（内部默认） | `EKCFG_PICOLIBC=1` | 自动映射到 `printf` / `vsnprintf` | `int ek_port_io_fputc(int ch)` |
-| lwprintf（模板默认） | `EKCFG_IO_LWPRTF=1`、`EKCFG_PICOLIBC=0` | 自动映射到 `lwprintf` / `lwvsnprintf` | `int ek_port_io_fputc(int ch)` |
-| 裸机 newlib/nanolibc | `EKCFG_NEWLIB=1`、`EKCFG_PICOLIBC=0`、`EKCFG_IO_LWPRTF=0` | 自动映射到系统 `printf` | `_write` 等由 `port/clib/newlib/newlib_port.c` 提供，可覆盖 `ek_port_io_fputc` |
-| 系统 libc（host） | `EKCFG_PICOLIBC=0`、`EKCFG_IO_LWPRTF=0`、`EKCFG_NEWLIB=0` | 自动映射到系统 `printf` | 无 |
-
-`EKCFG_PICOLIBC` 与 `EKCFG_NEWLIB` 互斥。裸机 newlib 的 syscall port 提供弱符号 `_write` / `_read` / `_close` / `_fstat` / `_isatty` / `_lseek` / `_sbrk`，BSP 可按需覆盖；`_sbrk` 使用链接脚本的 `__heap_start` / `__heap_end`。
-
-`EKCFG_PICOLIBC=1` 时，`EKCFG_IO_LWPRTF` 会被强制设为 0，不需要手动关闭。
-
-### 所有配置宏
-
-完整列表和默认值见 `ek_conf_template.h`。未在 `ek_conf.h` 中定义的宏会自动取默认值，未满足的依赖关系会在编译期报错（例如开启 `EKCFG_PICOTHREAD_SEM` 但没有开启 `EKCFG_PICOTHREAD`，或在 RTOS 模式下开启 `EKCFG_EVOKE`）。
-
-## 平台适配：需要实现的弱函数
-
-以下函数都有弱实现，按使用的后端和模块提供同名强函数即可：
-
-```c
-// ek_io：字符输出（lwprintf / picolibc 后端需要）
-int ek_port_io_fputc(int ch);
-
-// ek_log：系统时间戳
-uint32_t ek_port_log_get_tick(void);
-
-// ek_evoke：临界区、定时器和睡眠
-void ek_evoke_enter_critical(void);
-void ek_evoke_exit_critical(void);
-void ek_evoke_set_timer(uint32_t xtick);
-void ek_evoke_light_sleep(void);
-void ek_evoke_deep_sleep(void);
-
-// ek_assert：断言失败钩子（full 模式）
-void ek_assert_hook(const char *file, uint32_t line, const char *expr);
-
-// ek_heap：仅在 EKCFG_HEAP_TLSF=0 时需要
-void *ek_malloc(size_t size);
-void *ek_realloc(void *ptr, size_t size);
-void ek_free(void *ptr);
-```
-
-以 STM32 为例：
-
-```c
-// ek_port.c
-#include "ek/core/ek_io.h"
-#include "ek/core/ek_log.h"
-
-int ek_port_io_fputc(int ch)
-{
-    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
-    return ch;
-}
-
-uint32_t ek_port_log_get_tick(void)
-{
-    return HAL_GetTick();
-}
-```
+### 3. 启动、中断与平台适配
+
+- **自动初始化**：启用 `EKCFG_EXPORT=1`（默认）时，进入 `main()` 前已自动完成堆、IO、静态对象及 `EK_EXPORT_*` 导出函数的初始化，无需手动调用。
+- **内置启动文件（Cortex-M）**：默认编译 `port/startup/cortexm/ek_startup.S`，**请勿再将厂商 `startup_xxx.s` 加入工程**。需在 `ek_conf.h` 中设置外部中断数 `#define EKCFG_ARCH_IRQ_COUNT (91)`（纯整数，勿加 `U`）。
+- **注册外部中断（Cortex-M）**：
+  ```c
+  EK_DEFINE_ARCH_IRQ(USART0_IRQn, USART0_IRQHandler);      // 静态注册
+  ek_arch_irq_install(USART0_IRQn, USART0_IRQHandler);     // 或运行时动态绑定
+  ```
+- **覆盖弱函数适配硬件**：按需实现同名强函数覆盖默认弱实现：
+  ```c
+  int ek_port_io_fputc(int ch);                                          // printf 字符输出
+  uint32_t ek_port_log_get_tick(void);                                   // 日志时间戳
+  void ek_assert_hook(const char *file, uint32_t line, const char *expr); // 断言钩子
+  void ek_evoke_enter_critical(void);                                    // evoke 临界区与休眠钩子
+  void ek_evoke_exit_critical(void);
+  void ek_evoke_set_timer(uint32_t xtick);
+  void ek_evoke_light_sleep(void);
+  void ek_evoke_deep_sleep(void);
+  void *ek_malloc(size_t size);                                          // EKCFG_HEAP_TLSF=0 时自定义堆
+  void *ek_realloc(void *ptr, size_t size);
+  void *ek_free(void *ptr);
+  ```
+
+### 4. 非 CMake 直接集成（可选）
+
+- **Include 路径**：`include/`、`third_party/tlsf/`、`third_party/lwprintf/inc/`，以及 `ek_conf.h`、`ek_soc.h` 所在目录。
+- **源文件**：`src/**/*.c`、`third_party/tlsf/tlsf.c`、`third_party/lwprintf/lwprintf.c`，以及对应平台的 `port/arch/*`、`port/clib/*`、`port/startup/cortexm/ek_startup.S`。
+- **必需编译宏**（C 与 ASM 均需添加）：`-DEK_CONF_PATH="ek_conf.h"`，Cortex-M 还需 `-DEK_SOC_PATH="ek_soc.h"`。
+
+---
+
+## 可配置项
+
+### 1. CMake 配置项
+
+#### `ek_platform_prepare(ARCH <arch> [PICOLIBC ON|OFF] [TOOLCHAIN <path>])`
+
+| 参数 / 变量 | 可选值 / 说明 |
+|---|---|
+| `ARCH` | **ARM**: `cm0`, `cm3`, `cm4`, `cm7`, `cm23`, `cm33`, `cm55`<br>**RISC-V**: `rv32imac`, `rv32imafc`, `rv64imac`, `rv64gc`<br>**Host**: `host`, `x86_64` |
+| `PICOLIBC` | `ON` / `OFF`（默认 `OFF`）。开启后可通过以下变量之一指定来源：<br>- `PICOLIBC_FETCH=ON`：自动下载对应架构预编译包（缓存于 `build/_deps`）<br>- `PICOLIBC_BUILD=ON`：使用 meson 从源码构建（仅限 ARM）<br>- `PICOLIBC_ROOT="/path"`：使用本地已安装的 picolibc |
+| `RISCV_TOOLCHAIN_PREFIX` | RISC-V 编译器不在 `PATH` 时指定前缀（如 `/opt/.../bin/riscv-none-elf-`） |
+
+#### `ek_platform_configure(...)`
+
+| 参数 | 是否必需 | 说明 |
+|---|---|---|
+| `CONF` | 必需 | `ek_conf.h` 路径 |
+| `BOARD` | 交叉编译必需 | `ek_board.h` 路径（`LINKER off` 或 `host` 构建可省略） |
+| `SOC` | Cortex-M 必需 | `ek_soc.h` 路径 |
+| `SOC_TARGET` | Cortex-M 常用 | 向 `ek_platform` 提供芯片 CMSIS 头文件与编译宏的 CMake target |
+| `LINKER` | 可选 | `auto`（默认自动生成链接脚本）或 `off`（多目标时配合 `ek_linker_attach()` 手动指定） |
+| `TEMPLATE` | 可选 | 自定义链接脚本模板路径（默认按架构选用 `cmake/linker/*.ld.S`） |
+
+### 2. 功能与模块配置 (`ek_conf.h`)
+
+#### 运行环境与基础服务
+
+| 宏 | 默认值 | 说明 |
+|---|---|---|
+| `EKCFG_RTOS` | `0` | `0`=裸机，`1`=RTOS（需同时定义 `EK_LOCK_*` 互斥锁宏） |
+| `EKCFG_IO_LWPRTF` | `1` | `1`=使用内置 lwprintf（启用 `PICOLIBC=ON` 时自动强制为 `0` 并接管 `printf`） |
+| `EKCFG_NEWLIB` | `0` | `1`=启用裸机 newlib/nanolibc 系统调用桩（与 picolibc 互斥） |
+| `EKCFG_STATIC_ALLOC` | `1` | 启用 `EK_DEFINE_*` 静态对象链接器段注册 |
+| `EKCFG_EXPORT` | `1` | 启用 `EK_EXPORT_*` 自动初始化机制 |
+| `EKCFG_ASSERT` | `1` | 启用断言模块 |
+| `EKCFG_LOG` | `1` | 启用分级日志模块 |
+| `EKCFG_ARCH` | `1` | 启用硬件架构抽象层（中断管理、临界区、VTOR 重定向等） |
+
+#### 模块开关（`1`=启用，`0`=关闭）
+
+| 宏 | 默认值 | 说明 |
+|---|---|---|
+| `EKCFG_STR` / `EKCFG_STR_VIEW` | `0` | 动态字符串 / 只读字符串视图 |
+| `EKCFG_LIST` | `0` | 侵入式双向循环链表 |
+| `EKCFG_VEC` | `0` | 类型安全动态数组 |
+| `EKCFG_RINGBUF` / `EKCFG_RINGBUF_SPSC` | `0` | 通用环形缓冲区 / SPSC 无锁环形缓冲区 |
+| `EKCFG_STACK` | `0` | 通用栈 |
+| `EKCFG_SNAPSHOT` | `0` | 状态快照组件 |
+| `EKCFG_BITSTREAM` | `0` | 比特流读写 |
+| `EKCFG_SHARED_PTR` | `0` | 引用计数共享指针 |
+| `EKCFG_EVOKE` | `0` | 事件驱动协作式调度器（仅裸机） |
+| `EKCFG_PICOTHREAD` | `0` | 协作式微线程 |
+| `EKCFG_PICOTHREAD_SEM` / `MSG` | `0` | 微线程信号量 / 消息队列（依赖 `EKCFG_PICOTHREAD`） |
+| `EKCFG_VFS` | `0` | 虚拟文件系统 |
+
+#### 模块参数配置
+
+| 宏 | 默认值 | 说明 |
+|---|---|---|
+| `EKCFG_ARCH_IRQ_COUNT` | 无（ARM 必填） | 外部中断数量，汇编器直接求值，须写为 `(91)` 等纯整数形式 |
+| `EKCFG_HEAP_TLSF` | `1` | `1`=使用内置 TLSF 分配器，`0`=自定义 `ek_malloc/free/realloc` |
+| `EKCFG_HEAP_SECTION` | `".heap"` | 堆内存所在链接器段（如 `".tcmram"`） |
+| `EKCFG_HEAP_SIZE` | `(16 * 1024)` | 默认堆大小（字节） |
+| `EKCFG_TLSF_FL_INDEX_MAX` | `(24)` | TLSF 一级索引上限（最大块 $2^{\text{FL}}$ 字节） |
+| `EKCFG_TLSF_SL_INDEX_COUNT_LOG2` | `(3)` | TLSF 二级索引数量 $\log_2$ |
+| `EKCFG_LOG_DEBUG` | `1` | 启用 DEBUG 级别日志输出 |
+| `EKCFG_LOG_COLOR` | `0` | 启用 ANSI 颜色日志 |
+| `EKCFG_LOG_BUF_SIZE` | `(128)` | 单条日志格式化缓冲区大小（字节） |
+| `EKCFG_ASSERT_TINY` | `1` | `1`=精简断言（不含文件名与表达式字符串），`0`=完整断言 |
+| `EKCFG_ASSERT_LOG` | `1` | 断言失败时输出日志 |
+| `EKCFG_EVOKE_MIN_DEEPSLEEP_TICK` | `(10)` | evoke 进入深度睡眠的最小空闲 tick 阈值 |
+| `EKCFG_PT_PRIO_LOWEST` | `(31)` | 微线程最低优先级数值（优先级档位数为该值 + 1） |
+| `EKCFG_VFS_MAX_FDS` | `(16)` | VFS 最大同时打开文件描述符数 |
+| `EKCFG_VFS_MAX_NODES` | `(30)` | VFS 静态节点池容量 |
+| `EKCFG_VFS_NAME_LEN` | `(12)` | VFS 节点名称最大长度 |
+| `EKCFG_VFS_TREE_DUMP_UTF8` | `0` | VFS 目录树打印是否使用 UTF-8 制表符 |
+
+### 3. 板级内存布局 (`ek_board.h`)
+
+| 宏 | 说明 |
+|---|---|
+| `EKLD_FLASH_ORIGIN` / `EKLD_FLASH_LENGTH` | Flash 起始地址与大小 |
+| `EKLD_RAM_ORIGIN` / `EKLD_RAM_LENGTH` | 主 RAM 起始地址与大小 |
+| `EKLD_TCMRAM_ORIGIN` / `EKLD_TCMRAM_LENGTH` | TCMRAM 起始地址与大小（无则将 `LENGTH` 设为 `0`） |
+| `EKLD_SDRAM0_ORIGIN` / `EKLD_SDRAM0_LENGTH` | 外部 SDRAM0 起始地址与大小（无则设为 `0`） |
+| `EKLD_SDRAM1_ORIGIN` / `EKLD_SDRAM1_LENGTH` | 外部 SDRAM1 起始地址与大小（无则设为 `0`） |
+| `EKLD_STACK_SIZE` / `EKLD_MIN_HEAP_SIZE` | 主栈大小与系统最小堆大小 |
 
 ## 第三方依赖
 
@@ -348,7 +172,7 @@ uint32_t ek_port_log_get_tick(void)
 |----|------|--------|
 | [TLSF](http://tlsf.baisoku.org) v3.1 | 实时内存分配器（O(1) 分配/释放） | BSD-style |
 | [lwprintf](https://github.com/MaJerle/lwprintf) | 轻量 printf 实现 | MIT |
-| [picolibc](https://github.com/picolibc/picolibc) | 嵌入式 C 标准库，含 Cortex-M 预编译库 | BSD |
+| [picolibc](https://github.com/picolibc/picolibc) | 嵌入式 C 标准库 | BSD |
 
 ## 许可
 
