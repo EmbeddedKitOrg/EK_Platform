@@ -137,7 +137,7 @@ void ek_pt_deinit_static(ek_pt_t *pt)
 
 ek_pt_t *ek_pt_create(ek_pt_cb_t cb, uint8_t prio, void *arg)
 {
-    ek_assert_param(s_init == true);
+    ek_assert(s_init == true);
     if (cb == NULL || prio > EKCFG_PT_PRIO_LOWEST) return NULL;
     ek_pt_t *pt = ek_malloc(sizeof(*pt));
     if (pt == NULL) return NULL;
@@ -204,7 +204,7 @@ static ek_pt_t *_pt_next_ready(void)
 
 uint32_t ek_pt_schedule(uint32_t now)
 {
-    ek_assert_param(s_init == true);
+    ek_assert(s_init == true);
 
     s_schedule_now = now;
 
@@ -280,7 +280,7 @@ uint32_t ek_pt_schedule(uint32_t now)
 
 void ek_pt_block(ek_pt_t *pt, uint32_t xtick)
 {
-    ek_assert_param(s_init == true);
+    ek_assert(s_init == true);
     if (pt == NULL) return;
     pt->tick = (xtick == (uint32_t)-1) ? (uint32_t)-1 : s_schedule_now + xtick;
     if (pt == s_cur_pt)
@@ -300,7 +300,7 @@ ek_pt_t *ek_pt_suspend(ek_pt_t *pt)
     // 传入 NULL 表示挂起自己
     ek_pt_t *pt_to_suspend = pt == NULL ? s_cur_pt : pt;
 
-    ek_assert_param(s_init == true);
+    ek_assert(s_init == true);
     if (pt_to_suspend == NULL) return NULL;
 
     if (pt_to_suspend == s_cur_pt)
@@ -317,7 +317,7 @@ ek_pt_t *ek_pt_suspend(ek_pt_t *pt)
 
 void ek_pt_resume(ek_pt_t *pt)
 {
-    ek_assert_param(s_init == true);
+    ek_assert(s_init == true);
     if (pt == NULL || pt->state != EK_PT_STATE_SUSPEND) return;
 
     pt->state = EK_PT_STATE_READY;
@@ -387,7 +387,7 @@ void ek_pt_sem_destroy(ek_pt_sem_t *sem)
 bool ek_pt_sem_take(ek_pt_sem_t *sem)
 {
     if (sem == NULL) return false;
-    ek_assert_param(s_cur_pt != NULL);
+    ek_assert(s_cur_pt != NULL);
 
     if (sem->count)
     {
@@ -523,7 +523,7 @@ void ek_pt_msg_destroy(ek_pt_msg_t *msg)
 bool ek_pt_msg_send(ek_pt_msg_t *msg, const void *data)
 {
     if (msg == NULL || data == NULL) return false;
-    ek_assert_param(s_cur_pt != NULL);
+    ek_assert(s_cur_pt != NULL);
 
     int ret = ek_ringbuf_write(&msg->rb, data);
     if (ret == 0)
@@ -552,7 +552,7 @@ bool ek_pt_msg_send(ek_pt_msg_t *msg, const void *data)
 bool ek_pt_msg_recv(ek_pt_msg_t *msg, void *data)
 {
     if (msg == NULL) return false;
-    ek_assert_param(s_cur_pt != NULL);
+    ek_assert(s_cur_pt != NULL);
 
     int ret = ek_ringbuf_read(&msg->rb, data);
     if (ret == 0)
