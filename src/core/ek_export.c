@@ -10,13 +10,13 @@
 
 #    include "ek/core/ek_assert.h"
 
-extern const _ek_export_item_t _ek_export_fn_start;
-extern const _ek_export_item_t _ek_export_fn_end;
+extern const ek_export_item_t _ek_export_fn_start;
+extern const ek_export_item_t _ek_export_fn_end;
 
 static int _ek_export_item_compare(const void *lhs, const void *rhs)
 {
-    const _ek_export_item_t *lhs_item = (const _ek_export_item_t *)lhs;
-    const _ek_export_item_t *rhs_item = (const _ek_export_item_t *)rhs;
+    const ek_export_item_t *lhs_item = (const ek_export_item_t *)lhs;
+    const ek_export_item_t *rhs_item = (const ek_export_item_t *)rhs;
 
     if (lhs_item->phase < rhs_item->phase) return -1;
     if (lhs_item->phase > rhs_item->phase) return 1;
@@ -27,15 +27,15 @@ static int _ek_export_item_compare(const void *lhs, const void *rhs)
 
 __attribute__((constructor)) void ek_export_init(void)
 {
-    const _ek_export_item_t *items_start = &_ek_export_fn_start;
-    const _ek_export_item_t *items_end = &_ek_export_fn_end;
+    const ek_export_item_t *items_start = &_ek_export_fn_start;
+    const ek_export_item_t *items_end = &_ek_export_fn_end;
     size_t count = (size_t)(items_end - items_start);
     if (count == 0U)
     {
         return;
     }
 
-    _ek_export_item_t items[count];
+    ek_export_item_t items[count];
     for (size_t i = 0; i < count; i++)
     {
         items[i] = items_start[i];
@@ -48,7 +48,7 @@ __attribute__((constructor)) void ek_export_init(void)
 
     for (size_t i = 0; i < count; i++)
     {
-        ek_assert_param(items[i].fn != NULL);
+        ek_assert(items[i].fn != NULL);
         items[i].fn();
     }
 }

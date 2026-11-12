@@ -52,7 +52,7 @@ typedef struct
     uint16_t order; /**< 初始化顺序，数值越小越先执行 */
     const char *name; /**< 实例名，失败日志使用 */
     _ek_static_alloc_init_fn_t fn; /**< 初始化回调 */
-} _ek_static_alloc_item_t;
+} ek_static_alloc_item_t;
 
 /* ========== 静态初始化顺序 ========== */
 /*
@@ -81,9 +81,9 @@ typedef struct
  * @param order    初始化顺序，数值越小越先执行
  * @param fn       返回 int（0 成功、负值失败）的初始化函数
  */
-#    define EK_STATIC_ALLOC_REGISTER(instance, order, fn)                                             \
-        static const _ek_static_alloc_item_t _EK_STATIC_ALLOC_JOIN(__ek_static_alloc_item_, instance) \
-        __EK_USED __EK_SECTION(".ek_static_alloc")                                                    \
+#    define EK_STATIC_ALLOC_REGISTER(instance, order, fn)                                            \
+        static const ek_static_alloc_item_t _EK_STATIC_ALLOC_JOIN(__ek_static_alloc_item_, instance) \
+        __EK_USED __EK_SECTION(".ek_static_alloc")                                                   \
             __EK_ALIGNED(sizeof(void *)) = { (uint16_t)(order), _EK_STATIC_ALLOC_STRING(instance), (fn) }
 
 /**

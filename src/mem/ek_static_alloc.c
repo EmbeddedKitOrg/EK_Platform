@@ -10,31 +10,31 @@
 #    include "ek/core/ek_export.h"
 #    if EKCFG_LOG == 1
 #        include "ek/core/ek_log.h"
-EK_LOG_MODULE("ek_static_alloc.c", EK_LOG_LEVEL_ERROR);
+EK_LOG_MODULE(__FILE_NAME__, EK_LOG_LEVEL_ERROR);
 #    endif
 
-extern const _ek_static_alloc_item_t _ek_static_alloc_start;
-extern const _ek_static_alloc_item_t _ek_static_alloc_end;
+extern const ek_static_alloc_item_t _ek_static_alloc_start;
+extern const ek_static_alloc_item_t _ek_static_alloc_end;
 
 static int s_static_alloc_error;
 
 static int _static_alloc_compare(const void *lhs, const void *rhs)
 {
-    const _ek_static_alloc_item_t *lhs_item = (const _ek_static_alloc_item_t *)lhs;
-    const _ek_static_alloc_item_t *rhs_item = (const _ek_static_alloc_item_t *)rhs;
+    const ek_static_alloc_item_t *lhs_item = (const ek_static_alloc_item_t *)lhs;
+    const ek_static_alloc_item_t *rhs_item = (const ek_static_alloc_item_t *)rhs;
     return (lhs_item->order > rhs_item->order) - (lhs_item->order < rhs_item->order);
 }
 
 void ek_static_alloc_init(void)
 {
-    const _ek_static_alloc_item_t *start = &_ek_static_alloc_start;
-    const _ek_static_alloc_item_t *end = &_ek_static_alloc_end;
+    const ek_static_alloc_item_t *start = &_ek_static_alloc_start;
+    const ek_static_alloc_item_t *end = &_ek_static_alloc_end;
     const size_t count = (size_t)(end - start);
 
     s_static_alloc_error = 0;
     if (count == 0U) return;
 
-    _ek_static_alloc_item_t items[count];
+    ek_static_alloc_item_t items[count];
     for (size_t i = 0; i < count; i++) items[i] = start[i];
 
     if (count > 1U) qsort(items, count, sizeof(items[0]), _static_alloc_compare);
