@@ -72,7 +72,7 @@
 - `EK_LINKER_AUTO` 改为 `EK_LINKER_MODE`（`auto` / `off`）；`ek_linker_attach()` 的 `BOARD_PATH` 参数改名为 `BOARD`，多 target 场景先调用 `ek_platform_configure(... LINKER off)`。
 - `ek_conf_template.h` 不再定义 `EKCFG_PICOLIBC` / `EKCFG_NEWLIB`；裸机 newlib 需要 syscall port 时在项目 `ek_conf.h` 中定义 `EKCFG_NEWLIB 1`。
 - 删除工具链文件中的 `TOOLCHAIN_LINK_LIBRARIES`（未被消费）。
-- 删除旧导出宏 `EK_EXPORT_EARLIEST` / `EK_EXPORT_HARDWARE` / `EK_EXPORT_COMPONENTS` / `EK_EXPORT_USER`；改用 `EK_EXPORT_BOOT` / `EK_EXPORT_BOARD` / `EK_EXPORT_COMPONENT` / `EK_EXPORT_APP`。`EK_EXPORT_LEVEL` 不再公开，`_ek_export_item_t.level` 更名 `phase`。
+- 删除旧导出宏 `EK_EXPORT_EARLIEST` / `EK_EXPORT_HARDWARE` / `EK_EXPORT_COMPONENTS` / `EK_EXPORT_USER`；改用 `EK_EXPORT_BOOT` / `EK_EXPORT_BOARD` / `EK_EXPORT_COMPONENT` / `EK_EXPORT_APP`。`EK_EXPORT_LEVEL` 不再公开，`ek_export_item_t.level` 更名 `phase`。
 - 枚举类型别名统一由 `_t` 改为 `_e`：`ek_pt_state_t` → `ek_pt_state_e`、`ek_evoke_state_t` → `ek_evoke_state_e`、`ek_log_level_t` → `ek_log_level_e`；`ek_vfs_node_e` 原本已使用 `_e`。不保留旧名兼容别名。
 - `ek_vfs_ops_t::read/write` 新增 `ek_off_t *offset`，`lseek` 新增 `ek_off_t *current`；现有驱动需同步签名。
 - `ek_vfs_poll()` / `ek_vfs_close()` 替代原 `poll()` / `close()` 名称。

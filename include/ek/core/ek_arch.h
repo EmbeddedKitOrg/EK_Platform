@@ -113,11 +113,11 @@ void ek_arch_irq_unlock(uint32_t flags);
 #        define _EK_DEFINE_ARCH_IRQ_IMPL(id, irqn, handler) _EK_DEFINE_ARCH_IRQ_IMPL2(id, irqn, handler)
 
 #        if EKCFG_EXPORT == 1
-#            define _EK_DEFINE_ARCH_IRQ_IMPL2(id, irqn, handler)           \
-                static void _ek_arch_irq_init_##id(void)                   \
-                {                                                          \
+#            define _EK_DEFINE_ARCH_IRQ_IMPL2(id, irqn, handler)     \
+                static void _ek_arch_irq_init_##id(void)             \
+                {                                                    \
                     ek_arch_irq_install((int32_t)(irqn), (handler)); \
-                }                                                          \
+                }                                                    \
                 EK_EXPORT_BOOT(_ek_arch_irq_init_##id, EK_EXPORT_ORDER_BOOT_ARCH_IRQ)
 #        else
 #            include "ek/mem/ek_static_alloc.h"
