@@ -56,9 +56,9 @@
  * @note 通过 EKCFG_ASSERT_TINY 宏选择使用 tiny 或 full 版本
  */
 #    if EKCFG_ASSERT_TINY == 1
-#        define ek_assert_param(expr) ek_assert_tiny(expr)
+#        define ek_assert(expr) ek_assert_tiny(expr)
 #    else
-#        define ek_assert_param(expr) ek_assert_full(expr)
+#        define ek_assert(expr) ek_assert_full(expr)
 #    endif /* EKCFG_ASSERT_TINY */
 
 #    ifdef __cplusplus
