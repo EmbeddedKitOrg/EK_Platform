@@ -30,6 +30,7 @@
 - `ek_arch.h` 与 `port/arch/{cortexm,riscv,host}/`：跨平台汇编内联库，Cortex-M 分支提供中断向量重定义到 SRAM；实现按架构拆分为 `port/arch/cortexm/ek_arch_arm_cm.c`、`port/arch/riscv/ek_arch_riscv_generic.c`、`port/arch/host/ek_arch_host_x86.c`。
 - `EKLD_VECTOR_ALIGN`：用于控制向量表的对齐大小，默认下是 0x200。
 - `port/startup/cortexm/ek_startup.S`：通用 Cortex-M 启动文件，提供向量表、`Reset_Handler`、默认异常处理和 `SystemInit` 弱桩；外部 IRQ 槽位数由 `EKCFG_ARCH_IRQ_COUNT` 生成，默认指向 `ek_default_irq_handler`。Cortex-M 目标默认编译，不再需要厂商 startup。
+- `ek_shell` 子模块
 
 ### 变更
 
