@@ -264,6 +264,17 @@ SECTIONS
     } > FLASH
 #endif
 
+#if defined(EKCFG_SHELL) && (EKCFG_SHELL != 0)
+    .ek_shell_cmd :
+    {
+        . = ALIGN(4);
+        _ek_shell_cmd_start = .;
+        KEEP(*(SORT(.ek_shell_cmd*)))
+        . = ALIGN(4);
+        _ek_shell_cmd_end = .;
+    } > FLASH
+#endif
+
 #if defined(EKLD_SDRAM0_LENGTH) && (EKLD_SDRAM0_LENGTH > 0)
     .sdram0_data (NOLOAD) :
     {

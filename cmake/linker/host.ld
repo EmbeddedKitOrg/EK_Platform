@@ -12,5 +12,11 @@ SECTIONS
     KEEP(*(SORT(.ek_static_alloc*)))
     _ek_static_alloc_end = .;
   }
+  .ek_shell_cmd : ALIGN(8)
+  {
+    _ek_shell_cmd_start = .;
+    KEEP(*(SORT(.ek_shell_cmd*)))
+    _ek_shell_cmd_end = .;
+  }
 }
 INSERT AFTER .data;
