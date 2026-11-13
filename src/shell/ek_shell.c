@@ -14,6 +14,7 @@ enum
     ANSI_STATE_NORMAL, // 正常接收普通字符
     ANSI_STATE_ESC, // 收到 0x1B 转义前缀 (ESC)
     ANSI_STATE_BRACKET, // 收到 '[' 控制序列引导符
+    ANSI_STATE_ARG, // 收到数字参数（如 '3'），等待 '~'
 };
 
 // Shell 实例状态与行编辑上下文
@@ -28,6 +29,7 @@ typedef struct
     const char *prompt;
 
     uint8_t ansi_state;
+    char ansi_arg;
 } shell_t;
 
 // 动态注册命令链表节点
@@ -109,7 +111,7 @@ int ek_shell_init(ek_shell_cfg_t *cfg)
     s_default_shell.len = 0;
     s_default_shell.cursor = 0;
     s_default_shell.ansi_state = ANSI_STATE_NORMAL;
-    s_default_shell.buf[0] = '\0';
+    s_default_shell.buf[0] = EK_KEY_NUL;
     if (!s_default_shell.prompt)
     {
         s_default_shell.prompt = EKCFG_SHELL_PROMPT;
@@ -139,6 +141,117 @@ static inline void _shell_puts(shell_t *sh, const char *str)
     ek_vfs_write(sh->out_fd, str, strlen(str));
 }
 
+// 光标移到行首
+static inline void _shell_cursor_home(shell_t *sh)
+{
+    if (sh->cursor == 0) return;
+
+    char seq[16];
+    int n = ek_snprintf(seq, sizeof(seq), "\033[%dD", (int)sh->cursor);
+    _shell_raw_write(sh, seq, n);
+    sh->cursor = 0;
+}
+
+// 光标移到行尾
+static inline void _shell_cursor_end(shell_t *sh)
+{
+    if (sh->cursor >= sh->len) return;
+
+    char seq[16];
+    int n = ek_snprintf(seq, sizeof(seq), "\033[%dC", (int)(sh->len - sh->cursor));
+    _shell_raw_write(sh, seq, n);
+    sh->cursor = sh->len;
+}
+
+// 光标左移一格
+static inline void _shell_cursor_left(shell_t *sh)
+{
+    if (sh->cursor == 0) return;
+
+    sh->cursor--;
+    _shell_putc(sh, EK_KEY_BS);
+}
+
+// 光标右移一格
+static inline void _shell_cursor_right(shell_t *sh)
+{
+    if (sh->cursor >= sh->len) return;
+
+    sh->cursor++;
+    _shell_puts(sh, EK_KEY_VT100_CURSOR_RIGHT);
+}
+
+// 删除光标前一个字符（Backspace）
+static inline void _shell_backspace(shell_t *sh)
+{
+    if (sh->cursor == 0) return;
+
+    sh->cursor--;
+    memmove(sh->buf + sh->cursor, sh->buf + sh->cursor + 1, sh->len - sh->cursor - 1);
+    sh->buf[--sh->len] = EK_KEY_NUL;
+
+    // 删除的是行尾字符，退格后覆盖空格再退格
+    if (sh->cursor == sh->len)
+    {
+        _shell_puts(sh, EK_KEY_VT100_ERASE_BACK);
+        return;
+    }
+
+    // 删除的是行中字符，左移后重绘剩余内容并补空格
+    _shell_putc(sh, EK_KEY_BS);
+    _shell_raw_write(sh, sh->buf + sh->cursor, sh->len - sh->cursor);
+    _shell_putc(sh, ' ');
+
+    char seq[16];
+    int n = ek_snprintf(seq, sizeof(seq), "\033[%dD", (int)(sh->len - sh->cursor) + 1);
+    _shell_raw_write(sh, seq, n);
+}
+
+// 删除光标所在字符（Delete），光标位置不变
+static inline void _shell_delete_forward(shell_t *sh)
+{
+    if (sh->cursor >= sh->len) return;
+
+    memmove(sh->buf + sh->cursor, sh->buf + sh->cursor + 1, sh->len - sh->cursor - 1);
+    sh->buf[--sh->len] = EK_KEY_NUL;
+
+    // 从光标处重绘剩余内容，并补一个空格擦掉行尾残字
+    _shell_raw_write(sh, sh->buf + sh->cursor, sh->len - sh->cursor);
+    _shell_putc(sh, ' ');
+
+    char seq[16];
+    int n = ek_snprintf(seq, sizeof(seq), "\033[%dD", (int)(sh->len - sh->cursor) + 1);
+    _shell_raw_write(sh, seq, n);
+}
+
+// 清空当前行输入
+static inline void _shell_clear_line(shell_t *sh)
+{
+    if (sh->len == 0) return;
+
+    _shell_cursor_home(sh);
+    _shell_puts(sh, EK_KEY_VT100_CLEAR_TO_EOL);
+
+    sh->cursor = 0;
+    sh->len = 0;
+    sh->buf[0] = EK_KEY_NUL;
+}
+
+// 清屏并重绘提示符与当前输入内容
+static inline void _shell_refresh_screen(shell_t *sh)
+{
+    _shell_puts(sh, EK_KEY_VT100_CLEAR_SCREEN);
+    _shell_puts(sh, sh->prompt);
+    _shell_raw_write(sh, sh->buf, sh->len);
+
+    if (sh->cursor < sh->len)
+    {
+        char seq[16];
+        int n = ek_snprintf(seq, sizeof(seq), "\033[%dD", (int)(sh->len - sh->cursor));
+        _shell_raw_write(sh, seq, n);
+    }
+}
+
 static int _shell_parse_args(char *line, char *argv[], int max_args)
 {
     int count = 0;
@@ -148,8 +261,8 @@ static int _shell_parse_args(char *line, char *argv[], int max_args)
     while (*p && count < max_args)
     {
         // 跳过前导空白符
-        while (*p && (*p == ' ' || *p == '\t') && !in_quote) p++;
-        if (*p == '\0') break;
+        while (*p && (*p == ' ' || *p == EK_KEY_TAB) && !in_quote) p++;
+        if (*p == EK_KEY_NUL) break;
 
         // 检测引号包裹参数起始
         if (*p == '"')
@@ -169,16 +282,16 @@ static int _shell_parse_args(char *line, char *argv[], int max_args)
                 if (*p == '"')
                 {
                     in_quote = false;
-                    *p++ = '\0';
+                    *p++ = EK_KEY_NUL;
                     break;
                 }
             }
             // 普通模式匹配空白分隔符
             else
             {
-                if (*p == '\t' || *p == ' ')
+                if (*p == EK_KEY_TAB || *p == ' ')
                 {
-                    *p++ = '\0';
+                    *p++ = EK_KEY_NUL;
                     break;
                 }
             }
@@ -201,7 +314,7 @@ static void _shell_exec(shell_t *sh)
         return;
     }
 
-    sh->buf[sh->len] = '\0';
+    sh->buf[sh->len] = EK_KEY_NUL;
 
     char *argv[EKCFG_SHELL_CMD_MAX_ARGS];
     int argc = _shell_parse_args(sh->buf, argv, EKCFG_SHELL_CMD_MAX_ARGS);
@@ -229,7 +342,7 @@ static void _shell_exec(shell_t *sh)
     // 重置行编辑缓冲区
     sh->len = 0;
     sh->cursor = 0;
-    sh->buf[0] = '\0';
+    sh->buf[0] = EK_KEY_NUL;
 
     _shell_puts(sh, sh->prompt);
 }
@@ -244,33 +357,53 @@ static void _shell_handle_char(shell_t *sh, char ch)
     }
     else if (sh->ansi_state == ANSI_STATE_BRACKET)
     {
+        if (ch >= '0' && ch <= '9')
+        {
+            sh->ansi_arg = ch;
+            sh->ansi_state = ANSI_STATE_ARG;
+            return;
+        }
+
         sh->ansi_state = ANSI_STATE_NORMAL;
         switch (ch)
         {
             case 'A':
-                // 上方向键：历史记录回溯（待实现）
+                // TODO 上方向键：历史记录回溯
                 break;
             case 'B':
-                // 下方向键：历史记录前进（待实现）
+                // TODO 下方向键：历史记录前进
                 break;
             case 'C':
-                // 右方向键：光标右移
-                if (sh->cursor < sh->len)
-                {
-                    sh->cursor++;
-                    _shell_puts(sh, "\033[C");
-                }
+                _shell_cursor_right(sh);
                 break;
             case 'D':
-                // 左方向键：光标左移
-                if (sh->cursor > 0)
-                {
-                    sh->cursor--;
-                    _shell_puts(sh, "\b");
-                }
+                _shell_cursor_left(sh);
                 break;
             default:
                 break;
+        }
+        return;
+    }
+    else if (sh->ansi_state == ANSI_STATE_ARG)
+    {
+        sh->ansi_state = ANSI_STATE_NORMAL;
+
+        if (ch == '~')
+        {
+            switch (sh->ansi_arg)
+            {
+                case '3': // Delete 键：向后删除
+                    _shell_delete_forward(sh);
+                    break;
+                case '1': // Home 键
+                    _shell_cursor_home(sh);
+                    break;
+                case '4': // End 键
+                    _shell_cursor_end(sh);
+                    break;
+                default:
+                    break;
+            }
         }
         return;
     }
@@ -283,47 +416,58 @@ static void _shell_handle_char(shell_t *sh, char ch)
     }
 
     // 回车换行触发命令执行
-    if (ch == '\r' || ch == '\n')
+    if (ch == EK_KEY_CR || ch == EK_KEY_LF)
     {
         return _shell_exec(sh);
     }
 
-    // 制表符触发自动补全（待实现）
-    if (ch == '\t')
+    // 制表符触发自动补全
+    if (ch == EK_KEY_TAB)
     {
+        // TODO 自动补全
         return;
     }
 
     // 退格键：终端通常发 0x7F (DEL)，部分串口终端发 0x08 (BS)
-    // 注意必须放在可见字符判断之前，否则 0x7F 会被当成普通字符插入
-    if (ch == '\b' || (uint8_t)ch == 0x7F)
+    if (ch == EK_KEY_BS || (uint8_t)ch == 0x7F)
     {
-        if (sh->cursor > 0)
-        {
-            // 光标前移并原地删除一个字节
-            sh->cursor--;
-            memmove(sh->buf + sh->cursor, sh->buf + sh->cursor + 1, sh->len - sh->cursor - 1);
-            sh->buf[--sh->len] = '\0';
-
-            if (sh->cursor == sh->len)
-            {
-                // 删除行尾字符，退格后覆盖空格再退格
-                _shell_puts(sh, "\b \b");
-            }
-            else
-            {
-                // 删除行中字符，光标左移后重绘剩余内容并补一个空格
-                _shell_putc(sh, '\b');
-                _shell_raw_write(sh, sh->buf + sh->cursor, sh->len - sh->cursor);
-                _shell_putc(sh, ' ');
-
-                // 把终端光标退回删除位置
-                char seq[16];
-                int n = ek_snprintf(seq, sizeof(seq), "\033[%dD", (int)(sh->len - sh->cursor) + 1);
-                _shell_raw_write(sh, seq, n);
-            }
-        }
+        _shell_backspace(sh);
         return;
+    }
+
+    // 判断是否是 ctrl 快捷键
+    switch (ch)
+    {
+        case EK_KEY_CTRL_A:
+            _shell_cursor_home(sh);
+            return;
+
+        case EK_KEY_CTRL_E:
+            _shell_cursor_end(sh);
+            return;
+
+        case EK_KEY_CTRL_B:
+            _shell_cursor_left(sh);
+            return;
+
+        case EK_KEY_CTRL_F:
+            _shell_cursor_right(sh);
+            return;
+
+        case EK_KEY_CTRL_D:
+            _shell_delete_forward(sh);
+            return;
+
+        case EK_KEY_CTRL_U:
+            _shell_clear_line(sh);
+            return;
+
+        case EK_KEY_CTRL_L:
+            _shell_refresh_screen(sh);
+            return;
+
+        default:
+            break;
     }
 
     // 普通可见字符输入
@@ -335,7 +479,7 @@ static void _shell_handle_char(shell_t *sh, char ch)
             if (sh->cursor == sh->len)
             {
                 sh->buf[sh->cursor++] = ch;
-                sh->buf[++sh->len] = '\0';
+                sh->buf[++sh->len] = EK_KEY_NUL;
                 _shell_putc(sh, ch);
             }
             // 在中间插入字符并移动后续字符
@@ -343,7 +487,7 @@ static void _shell_handle_char(shell_t *sh, char ch)
             {
                 memmove(sh->buf + sh->cursor + 1, sh->buf + sh->cursor, sh->len - sh->cursor);
                 sh->buf[sh->cursor++] = ch;
-                sh->buf[++sh->len] = '\0';
+                sh->buf[++sh->len] = EK_KEY_NUL;
                 _shell_raw_write(sh, sh->buf + sh->cursor - 1, sh->len - sh->cursor + 1);
 
                 // 将终端光标移回插入位置
