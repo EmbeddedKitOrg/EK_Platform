@@ -230,6 +230,21 @@
 #ifndef EKCFG_VFS_TREE_DUMP_UTF8
 #    define EKCFG_VFS_TREE_DUMP_UTF8 (0) /**< VFS 树输出时候是启用 UTF-8 线条支持 */
 #endif
+#ifndef EKCFG_SHELL
+#    define EKCFG_SHELL (0) /**< Shell 子模块 */
+#endif
+#ifndef EKCFG_SHELL_BUF_SIZE
+#    define EKCFG_SHELL_BUF_SIZE (64) /**< Shell 的缓冲区大小（字节） */
+#endif
+#ifndef EKCFG_SHELL_PROMPT
+#    define EKCFG_SHELL_PROMPT "ek>" /**< Shell 提示符 */
+#endif
+#ifndef EKCFG_SHELL_CMD_MAX_ARGS
+#    define EKCFG_SHELL_CMD_MAX_ARGS (8) /**< Shell 命令中最大参数数量 */
+#endif
+#ifndef EKCFG_SHELL_UTF8
+#    define EKCFG_SHELL_UTF8 (0) /**< Shell 支持 UTF-8 处理 */
+#endif
 
 /* ========================================================================
  * 配置依赖校验
@@ -269,6 +284,9 @@
 #endif
 #if !DEPEND_ON(EKCFG_EVOKE, EKCFG_RINGBUF_SPSC)
 #    error "EKCFG_EVOKE requires EKCFG_RINGBUF_SPSC=1"
+#endif
+#if !DEPEND_ON(EKCFG_SHELL, EKCFG_VFS)
+#    error "EKCFG_SHELL requires EKCFG_VFS=1"
 #endif
 
 #if EKCFG_PT_PRIO_LOWEST > 31

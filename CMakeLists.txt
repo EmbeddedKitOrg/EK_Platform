@@ -49,6 +49,10 @@ set(EK_VFS_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/vfs/ek_vfs_bus.c
 )
 
+set(EK_SHELL_SRCS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/shell/ek_shell.c
+)
+
 set(PORT_SRCS)
 if(PICOLIBC)
     list(APPEND PORT_SRCS
@@ -89,6 +93,7 @@ set(EK_SRCS
     ${EK_CONTAINER_SRCS}
     ${EK_SCHED_SRCS}
     ${EK_VFS_SRCS}
+    ${EK_SHELL_SRCS}
 )
 
 set(EK_INCLUDE_DIRS
@@ -99,6 +104,7 @@ set(EK_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ek/container
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ek/sched
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ek/vfs
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ek/shell
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tlsf
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lwprintf/inc
 )

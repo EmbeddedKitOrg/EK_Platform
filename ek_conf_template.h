@@ -88,5 +88,10 @@
 #define EKCFG_VFS_MAX_NODES            (30) /**< VFS 最大节点数量 */
 #define EKCFG_VFS_NAME_LEN             (12) /**< VFS 节点的最大名称长度 */
 #define EKCFG_VFS_TREE_DUMP_UTF8       (0) /**< VFS 树输出时候是启用 UTF-8 线条支持 */
+#define EKCFG_SHELL                    (0) /**< Shell 子模块 */
+#define EKCFG_SHELL_BUF_SIZE           (256) /**< Shell 的缓冲区大小（字节） */
+#define EKCFG_SHELL_PROMPT             "ek>" /**< Shell 提示符 */
+#define EKCFG_SHELL_CMD_MAX_ARGS       (8) /**< Shell 命令中最大参数数量 */
+#define EKCFG_SHELL_UTF8               (0) /**< Shell 支持 UTF-8 处理 */
 
 #endif /* EK_CONF_H */

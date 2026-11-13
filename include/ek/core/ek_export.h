@@ -55,7 +55,7 @@ typedef struct
     uint16_t phase;
     uint16_t order;
     _ek_export_init_fn_t fn;
-} _ek_export_item_t;
+} ek_export_item_t;
 
 /**
  * @brief 导出顺序常量
@@ -67,9 +67,10 @@ typedef struct
 
 #    define EK_EXPORT_ORDER_COMPONENT_HEAP         (1)
 #    define EK_EXPORT_ORDER_COMPONENT_VFS          (5)
-#    define EK_EXPORT_ORDER_COMPONENT_IO           (10)
-#    define EK_EXPORT_ORDER_COMPONENT_SCHED        (10)
-#    define EK_EXPORT_ORDER_COMPONENT_STATIC_ALLOC (11)
+#    define EK_EXPORT_ORDER_COMPONENT_SHELL        (6)
+#    define EK_EXPORT_ORDER_COMPONENT_IO           (7)
+#    define EK_EXPORT_ORDER_COMPONENT_SCHED        (8)
+#    define EK_EXPORT_ORDER_COMPONENT_STATIC_ALLOC (10)
 
 /**
  * @brief 生成唯一符号名（内部使用）
@@ -90,8 +91,8 @@ typedef struct
  */
 #    define _EK_EXPORT_LEVEL(fn, phase, order)          _EK_EXPORT_LEVEL_IMPL(_EK_EXPORT_UNIQUE_ID, fn, phase, order)
 #    define _EK_EXPORT_LEVEL_IMPL(id, fn, phase, order) _EK_EXPORT_LEVEL_IMPL2(id, fn, phase, order)
-#    define _EK_EXPORT_LEVEL_IMPL2(id, fn, phase, order)                      \
-        static const _ek_export_item_t _EK_EXPORT_JOIN(__ek_export_item_, id) \
+#    define _EK_EXPORT_LEVEL_IMPL2(id, fn, phase, order)                     \
+        static const ek_export_item_t _EK_EXPORT_JOIN(__ek_export_item_, id) \
             __attribute__((used, section(".ek_export_fn"))) = { (uint16_t)(phase), (uint16_t)(order), (fn) }
 
 /**
