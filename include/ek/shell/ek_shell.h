@@ -42,9 +42,10 @@ typedef struct ek_shell_cmd ek_shell_cmd_t;
  *
  * @param argc 参数个数（包含命令名本身）
  * @param argv 参数字符串数组
+ * @param sh 传递的 shell 的指针
  * @return 0 表示成功，非 0 或负数错误码表示执行失败
  */
-typedef int (*ek_shell_cmd_fn_t)(int argc, char *argv[]);
+typedef int (*ek_shell_cmd_fn_t)(int argc, char *argv[], void *sh);
 
 /**
  * @brief Shell 初始化配置
@@ -72,7 +73,7 @@ struct ek_shell_cmd
  * @param name 命令名称标识符（如 help、ls，无需双引号）
  * @param fn   命令处理函数指针
  */
-#    define EK_DEFINE_SHELL(cmd_name, cmd_fn)                                                            \
+#    define EK_DEFINE_SHELL_CMD(cmd_name, cmd_fn)                                                        \
         const ek_shell_cmd_t ek_shell_cmd_##cmd_name __attribute__((used, section(".ek_shell_cmd"))) = { \
             .name = #cmd_name,                                                                           \
             .fn = cmd_fn,                                                                                \
