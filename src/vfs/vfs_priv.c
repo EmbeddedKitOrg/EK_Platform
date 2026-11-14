@@ -6,7 +6,7 @@
 
 #include "vfs_priv.h"
 #if EKCFG_VFS == 1
-#    include "ek/ek_conf_internal.h"
+#    include "ek/conf_internal.h"
 
 #    define FD_VALID_MASK ((EKCFG_VFS_MAX_FDS == 32) ? 0xFFFFFFFFUL : ((1UL << EKCFG_VFS_MAX_FDS) - 1UL))
 

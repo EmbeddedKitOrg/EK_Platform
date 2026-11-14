@@ -1,0 +1,63 @@
+/**
+ * @file static_alloc.c
+ * @brief 静态对象自动注册与初始化实现
+ * @author N1netyNine99
+ */
+
+#include "ek/mem/static_alloc.h"
+
+#if EKCFG_STATIC_ALLOC == 1
+#    include "ek/core/export.h"
+#    if EKCFG_LOG == 1
+#        include "ek/core/log.h"
+EK_LOG_MODULE(__FILE_NAME__, EK_LOG_LEVEL_ERROR);
+#    endif
+
+extern const ek_static_alloc_item_t _ek_static_alloc_start;
+extern const ek_static_alloc_item_t _ek_static_alloc_end;
+
+static int s_static_alloc_error;
+
+static int _static_alloc_compare(const void *lhs, const void *rhs)
+{
+    const ek_static_alloc_item_t *lhs_item = (const ek_static_alloc_item_t *)lhs;
+    const ek_static_alloc_item_t *rhs_item = (const ek_static_alloc_item_t *)rhs;
+    return (lhs_item->order > rhs_item->order) - (lhs_item->order < rhs_item->order);
+}
+
+void ek_static_alloc_init(void)
+{
+    const ek_static_alloc_item_t *start = &_ek_static_alloc_start;
+    const ek_static_alloc_item_t *end = &_ek_static_alloc_end;
+    const size_t count = (size_t)(end - start);
+
+    s_static_alloc_error = 0;
+    if (count == 0U) return;
+
+    ek_static_alloc_item_t items[count];
+    for (size_t i = 0; i < count; i++) items[i] = start[i];
+
+    if (count > 1U) qsort(items, count, sizeof(items[0]), _static_alloc_compare);
+
+    for (size_t i = 0; i < count; i++)
+    {
+        if (items[i].fn == NULL) continue;
+        const int err = items[i].fn();
+        if (err < 0)
+        {
+            if (s_static_alloc_error == 0) s_static_alloc_error = err;
+#    if EKCFG_LOG == 1
+            EK_LOG_ERROR("static allocation init failed: %s: %s", items[i].name, strerror(-err));
+#    endif
+        }
+    }
+}
+
+EK_EXPORT_COMPONENT(ek_static_alloc_init, EK_EXPORT_ORDER_COMPONENT_STATIC_ALLOC);
+
+int ek_static_alloc_get_init_error(void)
+{
+    return s_static_alloc_error;
+}
+
+#endif /* EKCFG_STATIC_ALLOC == 1 */

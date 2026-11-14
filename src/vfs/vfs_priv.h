@@ -7,11 +7,11 @@
 #ifndef VFS_PRIV_H
 #define VFS_PRIV_H
 
-#include "ek/ek_conf_internal.h"
+#include "ek/conf_internal.h"
 
 #if EKCFG_VFS == 1
 
-#    include "ek/vfs/ek_vfs_type.h"
+#    include "ek/vfs/vfs_type.h"
 
 #    ifdef __cplusplus
 extern "C"

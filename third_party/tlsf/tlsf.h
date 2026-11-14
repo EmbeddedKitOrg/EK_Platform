@@ -38,7 +38,7 @@
 #ifndef __TLSF_H
 #define __TLSF_H
 
-#include "ek_conf_internal.h"
+#include "ek/conf_internal.h"
 
 #if EKCFG_HEAP_TLSF == 1
 

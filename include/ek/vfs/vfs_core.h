@@ -1,0 +1,257 @@
+/**
+ * @file vfs_core.h
+ * @brief VFS 核心接口：节点注册、路径查找与文件操作
+ * @author N1netyNine99
+ */
+
+#ifndef VFS_CORE_H
+#define VFS_CORE_H
+
+#include "ek/conf_internal.h"
+
+#if EKCFG_VFS == 1
+
+#    include "vfs_type.h"
+
+#    ifdef __cplusplus
+extern "C"
+{
+#    endif
+
+#    define EK_VFS_STDIN  0
+#    define EK_VFS_STDOUT 1
+#    define EK_VFS_STDERR 2
+
+/**
+ * @brief 初始化 VFS 根节点
+ * @note 由 EK_EXPORT_COMPONENT 在 ek_export_init() 中自动调用
+ */
+void ek_vfs_init(void);
+
+/**
+ * @brief 查询剩余可用的 VFS 节点数量
+ * @return 剩余节点数；VFS 未初始化时返回 -EINVAL
+ */
+int ek_vfs_node_avail(void);
+
+/**
+ * @brief 注册一个 VFS 节点
+ * @param path 绝对路径，必须以 '/' 开头
+ * @param type 节点类型：EK_VFS_DIR / EK_VFS_BUS / EK_VFS_DEV / EK_VFS_MOUNT
+ * @param ops 文件操作表：DEV/MOUNT 使用；DIR 忽略；BUS 必须为 NULL
+ * @param priv 节点私有数据：DEV 为设备状态；BUS 为 ek_vfs_bus_t 对象
+ * @return 0 成功；负数 errno 失败
+ * @retval -EINVAL 参数非法
+ * @retval -ENOMEM 节点池已满
+ * @retval -EEXIST 叶子节点已存在
+ * @retval -ENOTDIR 中间路径不是目录
+ * @note 注册多级路径时，缺失的中间目录会自动创建
+ */
+int ek_vfs_register(const char *path, uint8_t type, const void *ops, void *priv);
+
+/**
+ * @brief 注销一个 VFS 节点
+ * @param path 绝对路径
+ * @return 0 成功；负数 errno 失败
+ * @retval -EPERM 不能注销根节点
+ * @retval -ENOENT 节点不存在
+ * @retval -EBUSY 节点仍被打开
+ * @retval -ENOTEMPTY 目录非空
+ */
+int ek_vfs_unregister(const char *path);
+
+/**
+ * @brief 以树形文本输出 VFS 结构
+ * @param buf 输出缓冲区
+ * @param size 缓冲区大小
+ * @return 写入的字符数；参数非法返回 -EINVAL
+ * @note 输出格式受 EKCFG_VFS_TREE_DUMP_UTF8 控制
+ */
+int ek_vfs_tree_dump(char *buf, size_t size);
+
+/**
+ * @brief 打开路径并返回文件描述符
+ * @param path 绝对路径
+ * @param flags O_RDONLY / O_WRONLY / O_RDWR，可与 O_* 标志按位或
+ * @param ... O_CREAT 时传入 mode_t
+ * @return 非负 fd；负数 errno 失败
+ * @retval -EINVAL 参数非法
+ * @retval -ENOENT 路径不存在且没有 O_CREAT
+ * @retval -EISDIR 以写模式打开目录
+ * @retval -EEXIST O_CREAT | O_EXCL 且节点已存在
+ * @retval -EACCES O_TRUNC 与只读模式冲突
+ * @retval -ENOTSUP O_CREAT 或挂载点操作尚未实现
+ * @note 当前 O_CREAT / O_TRUNC 尚未完整实现
+ */
+int ek_vfs_open(const char *path, int flags, ...);
+
+/**
+ * @brief 从 fd 读取数据
+ * @param fd 文件描述符
+ * @param buf 接收缓冲区
+ * @param size 期望读取的字节数
+ * @return 读取的字节数；0 表示 EOF；负数 errno 失败
+ * @retval -EBADF fd 无效，或不是以可读模式打开
+ * @retval -EISDIR fd 指向目录
+ * @retval -ENOTSUP 节点没有 read 回调
+ */
+ssize_t ek_vfs_read(int fd, void *buf, size_t size);
+
+/**
+ * @brief 向 fd 写入数据
+ * @param fd 文件描述符
+ * @param buf 待写入缓冲区
+ * @param size 期望写入的字节数
+ * @return 写入的字节数；负数 errno 失败
+ * @retval -EBADF fd 无效，或不是以可写模式打开
+ * @retval -EISDIR fd 指向目录
+ * @retval -ENOTSUP 节点没有 write 回调
+ */
+ssize_t ek_vfs_write(int fd, const void *buf, size_t size);
+
+/**
+ * @brief 调整 fd 的读写位置
+ * @param fd 文件描述符
+ * @param offset 偏移量，可正可负
+ * @param whence SEEK_SET / SEEK_CUR / SEEK_END
+ * @return 新的绝对位置；负数 errno 失败
+ * @retval -EBADF fd 无效
+ * @retval -ESPIPE 节点不支持 seek
+ * @note 成功后会同步更新 vfs_file_t::offset
+ */
+ek_off_t ek_vfs_lseek(int fd, ek_off_t offset, int whence);
+
+/**
+ * @brief 设备控制
+ * @param fd 文件描述符
+ * @param request 设备相关请求码
+ * @param arg 请求参数
+ * @return 0 或驱动定义的非负值；负数 errno 失败
+ * @retval -EBADF fd 无效
+ * @retval -ENOTTY 节点没有 ioctl 回调
+ * @note 当前实现检查的是 lseek 回调，后续应改为 ioctl 回调
+ */
+int ek_vfs_ioctl(int fd, uint32_t request, void *arg);
+
+/**
+ * @brief 查询 fd 上的事件
+ * @param fd 文件描述符
+ * @param events 请求的事件位
+ * @return revents 事件位；负数 errno 失败
+ * @retval -EBADF fd 无效
+ * @retval -EINVAL events 为 0
+ * @retval -ENOTSUP 节点没有 poll 回调
+ * @note 当前函数名为 poll()，与 libc poll() 同名
+ */
+int ek_vfs_poll(int fd, uint32_t events);
+
+/**
+ * @brief 关闭 fd
+ * @param fd 文件描述符
+ * @return 0 成功；驱动 close 返回的错误码；-EBADF fd 无效
+ * @note 无论驱动 close 是否失败，fd 都会被释放
+ */
+int ek_vfs_close(int fd);
+
+/**
+ * @brief 将指定路径的设备绑定到目标文件描述符槽位
+ * @param target_fd 目标文件描述符（通常为 0=stdin, 1=stdout, 2=stderr）
+ * @param path 设备绝对路径，必须以 '/' 开头
+ * @param flags 打开标志，如 O_RDONLY, O_WRONLY, O_NONBLOCK 等
+ * @return 0 成功；负数 errno 失败
+ * @retval -EBADF target_fd 超出合法范围
+ * @retval -EINVAL 参数非法（path 为空或非绝对路径）
+ * @retval -ENOENT 设备节点不存在
+ * @retval -ENODEV 节点不是设备类型或没有操作表
+ * @note 若目标槽位此前已绑定设备，会先安全调用旧设备的 close 并递减其引用计数
+ */
+int ek_vfs_bind_fd(int target_fd, const char *path, int flags);
+
+/**
+ * @brief 将指定路径的设备绑定为标准输入 (stdin, fd 0)
+ * @param path 设备绝对路径
+ * @return 0 成功；负数 errno 失败
+ * @note 默认以 O_RDONLY | O_NONBLOCK 模式打开
+ */
+__EK_STATIC_INLINE int ek_vfs_bind_stdin(const char *path)
+{
+    return ek_vfs_bind_fd(EK_VFS_STDIN, path, O_RDONLY | O_NONBLOCK);
+}
+
+/**
+ * @brief 将指定路径的设备绑定为标准输出 (stdout, fd 1)
+ * @param path 设备绝对路径
+ * @return 0 成功；负数 errno 失败
+ * @note 默认以 O_WRONLY 模式打开
+ */
+__EK_STATIC_INLINE int ek_vfs_bind_stdout(const char *path)
+{
+    return ek_vfs_bind_fd(EK_VFS_STDOUT, path, O_WRONLY);
+}
+
+/**
+ * @brief 将指定路径的设备绑定为标准错误 (stderr, fd 2)
+ * @param path 设备绝对路径
+ * @return 0 成功；负数 errno 失败
+ * @note 默认以 O_WRONLY 模式打开
+ */
+__EK_STATIC_INLINE int ek_vfs_bind_stderr(const char *path)
+{
+    return ek_vfs_bind_fd(EK_VFS_STDERR, path, O_WRONLY);
+}
+
+/**
+ * @brief 将指定路径的设备同时绑定为标准输入、输出与错误 (stdin/stdout/stderr)
+ * @param path 设备绝对路径（如 "/dev/uart0"）
+ * @return 0 成功；负数 errno 失败
+ * @note 适用于输入输出同源的控制台串口设备
+ */
+__EK_STATIC_INLINE int ek_vfs_bind_stdio(const char *path)
+{
+    int ret;
+    if ((ret = ek_vfs_bind_stdin(path)) < 0) return ret;
+    if ((ret = ek_vfs_bind_stdout(path)) < 0) return ret;
+    return ek_vfs_bind_stderr(path);
+}
+
+#    ifdef __cplusplus
+}
+#    endif
+
+#    if EKCFG_STATIC_ALLOC == 1
+#        include "ek/mem/static_alloc.h"
+
+#        if defined(__COUNTER__)
+#            define _EK_VFS_UNIQUE_ID __COUNTER__
+#        else
+#            define _EK_VFS_UNIQUE_ID __LINE__
+#        endif
+
+/**
+ * @brief 静态声明并自动注册一个 VFS 路径
+ *
+ * @param path 绝对路径，缺失的中间目录会自动创建
+ * @param type 节点类型：EK_VFS_DIR / EK_VFS_DEV / EK_VFS_MOUNT
+ * @param ops  节点操作表；DIR 可为 NULL
+ * @param priv 节点私有数据
+ *
+ * @note 总线节点请使用 EK_DEFINE_VFS_BUS，不要用本宏直接注册 EK_VFS_BUS。
+ * @note 必须在 .c 文件作用域使用；内部用 __COUNTER__ 生成唯一符号，
+ *       没有 __COUNTER__ 时退回 __LINE__，此时同一行只能出现一次。
+ * @note 静态注册项的名称是生成的 vfs_path_<id>，不是路径字符串。
+ */
+#        define EK_DEFINE_VFS_PATH(path, type, ops, priv) \
+            _EK_DEFINE_VFS_PATH_IMPL(_EK_VFS_UNIQUE_ID, path, type, ops, priv)
+#        define _EK_DEFINE_VFS_PATH_IMPL(id, path, type, ops, priv) _EK_DEFINE_VFS_PATH_IMPL2(id, path, type, ops, priv)
+#        define _EK_DEFINE_VFS_PATH_IMPL2(id, path, type, ops, priv)   \
+            static int _static_alloc_init_vfs_path_##id(void)          \
+            {                                                          \
+                return ek_vfs_register((path), (type), (ops), (priv)); \
+            }                                                          \
+            EK_STATIC_ALLOC_REGISTER(vfs_path_##id, EK_STATIC_ALLOC_ORDER_VFS_PATH, _static_alloc_init_vfs_path_##id)
+
+#    endif /* EKCFG_STATIC_ALLOC */
+
+#endif // EKCFG_VFS == 1
+
+#endif // VFS_CORE_H

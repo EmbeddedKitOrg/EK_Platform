@@ -34,7 +34,7 @@
 #ifndef LWPRINTF_HDR_H
 #define LWPRINTF_HDR_H
 
-#include "ek_conf_internal.h"
+#include "ek/conf_internal.h"
 
 #if EKCFG_IO_LWPRTF == 1
 

@@ -24,7 +24,7 @@ cp lib/ek_platform/ek_board_template.h include/ek_board.h
 ```cmake
 cmake_minimum_required(VERSION 3.20)
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/lib/ek_platform/cmake/ek_platform.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/lib/ek_platform/cmake/platform.cmake)
 
 # 1. Before project(): select architecture and whether to enable picolibc
 ek_platform_prepare(ARCH cm4 PICOLIBC ON)
@@ -49,7 +49,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
 ### 3. Startup, Interrupts, and Platform Hooks
 
 - **Auto-initialization**: When `EKCFG_EXPORT=1` (default), the heap, IO, static objects, and `EK_EXPORT_*` functions are initialized automatically before `main()`. Do not call them manually.
-- **Built-in Startup (Cortex-M)**: Compiles `port/startup/cortexm/ek_startup.S` by default; **do not add the vendor `startup_xxx.s` to your project**. Set the external interrupt count in `ek_conf.h` via `#define EKCFG_ARCH_IRQ_COUNT (91)` (plain integer expression, no `U` suffix).
+- **Built-in Startup (Cortex-M)**: Compiles `port/startup/cortexm/startup.S` by default; **do not add the vendor `startup_xxx.s` to your project**. Set the external interrupt count in `ek_conf.h` via `#define EKCFG_ARCH_IRQ_COUNT (91)` (plain integer expression, no `U` suffix).
 - **Register External Interrupts (Cortex-M)**:
   ```c
   EK_DEFINE_ARCH_IRQ(USART0_IRQn, USART0_IRQHandler);      // Static registration
@@ -73,7 +73,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
 ### 4. Direct Source Integration without CMake (Optional)
 
 - **Include Paths**: `include/`, `third_party/tlsf/`, `third_party/lwprintf/inc/`, plus the directories containing `ek_conf.h` and `ek_soc.h`.
-- **Sources**: `src/**/*.c`, `third_party/tlsf/tlsf.c`, `third_party/lwprintf/lwprintf.c`, and the matching `port/arch/*`, `port/clib/*`, and `port/startup/cortexm/ek_startup.S`.
+- **Sources**: `src/**/*.c`, `third_party/tlsf/tlsf.c`, `third_party/lwprintf/lwprintf.c`, and the matching `port/arch/*`, `port/clib/*`, and `port/startup/cortexm/startup.S`.
 - **Required Compile Definitions** (for both C and ASM): `-DEK_CONF_PATH="ek_conf.h"`, plus `-DEK_SOC_PATH="ek_soc.h"` on Cortex-M.
 
 ---

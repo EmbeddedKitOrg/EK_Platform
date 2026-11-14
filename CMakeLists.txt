@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-include("${CMAKE_CURRENT_LIST_DIR}/cmake/ek_platform.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/platform.cmake")
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
     if(NOT PLATFORM)
@@ -13,44 +13,44 @@ endif()
 
 project(ek_platform C)
 
-include("${CMAKE_CURRENT_LIST_DIR}/cmake/ek_linker.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/linker.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/cmake/picolibc.cmake")
 
 set(EK_CORES_SRCS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_assert.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_export.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_io.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_log.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/assert.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/export.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/io.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/log.c
 )
 
 set(EK_MEM_SRCS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/mem/ek_heap.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/mem/ek_static_alloc.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/mem/heap.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/mem/static_alloc.c
 )
 
 set(EK_CONTAINER_SRCS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_str.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_shared_ptr.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_str_view.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_ringbuf.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_snapshot.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_stack.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_bitstream.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/container/str.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/container/shared_ptr.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/container/str_view.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ringbuf.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/container/snapshot.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/container/stack.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/container/bitstream.c
 )
 
 set(EK_SCHED_SRCS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sched/ek_evoke.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sched/ek_picothread.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sched/evoke.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sched/picothread.c
 )
 
 set(EK_VFS_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/vfs/vfs_priv.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/vfs/ek_vfs_core.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/vfs/ek_vfs_bus.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/vfs/vfs_core.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/vfs/vfs_bus.c
 )
 
 set(EK_SHELL_SRCS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/shell/ek_shell.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/shell/shell.c
 )
 
 set(PORT_SRCS)
@@ -67,16 +67,16 @@ endif()
 if(EK_PLATFORM_ARCH MATCHES "^cm")
     enable_language(ASM)
     list(APPEND PORT_SRCS
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/startup/cortexm/ek_startup.S
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/arch/cortexm/ek_arch_arm_cm.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/startup/cortexm/startup.S
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/arch/cortexm/arch_arm_cm.c
     )
 elseif(EK_PLATFORM_ARCH MATCHES "^rv")
     list(APPEND PORT_SRCS
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/arch/riscv/ek_arch_riscv_generic.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/arch/riscv/arch_riscv_generic.c
     )
 elseif(EK_PLATFORM_ARCH MATCHES "^(host|x86_64)$")
     list(APPEND PORT_SRCS
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/arch/host/ek_arch_host_x86.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/arch/host/arch_host_x86.c
     )
 else()
     message(FATAL_ERROR "ek_platform: unsupported EK_PLATFORM_ARCH=${EK_PLATFORM_ARCH}")
@@ -98,13 +98,6 @@ set(EK_SRCS
 
 set(EK_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/ek
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/ek/core
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/ek/mem
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/ek/container
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/ek/sched
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/ek/vfs
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/ek/shell
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/tlsf
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lwprintf/inc
 )

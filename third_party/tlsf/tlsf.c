@@ -2,7 +2,7 @@
 
 #if EKCFG_HEAP_TLSF == 1
 
-#    include "ek_io.h"
+#    include "ek/core/io.h"
 #    include <assert.h>
 #    include <limits.h>
 #    include <stddef.h>

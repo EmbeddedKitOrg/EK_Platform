@@ -2,9 +2,9 @@
  * @file riscv.ld.S
  * @brief 通用 RISC-V 裸机链接脚本模板
  *
- * 由 ek_platform/cmake/ek_linker.cmake 用 C 预处理器生成 .ld。
+ * 由 ek_platform/cmake/linker.cmake 用 C 预处理器生成 .ld。
  * 宏来源：
- *   EKCFG_*  ek_conf.h + ek_conf_internal.h
+ *   EKCFG_*  ek_conf.h + conf_internal.h
  *   EKLD_*   ek_board.h
  *
  * 默认入口为 _start；如果启动代码使用其他符号，覆盖模板或修改 ENTRY。

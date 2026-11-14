@@ -6,7 +6,7 @@
 #                   → 源码构建（PICOLIBC_BUILD）→ 下载（PICOLIBC_FETCH）
 # ============================================================================
 
-include("${CMAKE_CURRENT_LIST_DIR}/ek_arch.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/arch.cmake")
 
 set(PICOLIBC_ROOT "" CACHE PATH "picolibc install prefix (contains include/ and lib/)")
 set(PICOLIBC_SPECS "" CACHE FILEPATH "Path to picolibc.specs")

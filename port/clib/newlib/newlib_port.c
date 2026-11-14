@@ -1,5 +1,5 @@
 /**
- * @file ek_newlib_port.c
+ * @file newlib_port.c
  * @brief newlib/nanolibc syscall 适配
  *
  * 为裸机 newlib 提供最小系统调用桩：
@@ -10,7 +10,7 @@
  * 全部为弱符号，BSP 可以按需覆盖。
  */
 
-#include "ek/ek_conf_internal.h"
+#include "ek/conf_internal.h"
 
 #if EKCFG_NEWLIB == 1
 
@@ -19,8 +19,8 @@
 #    include <sys/stat.h>
 #    include <sys/types.h>
 
-#    include "ek/core/ek_def.h"
-#    include "ek/core/ek_io.h"
+#    include "ek/core/def.h"
+#    include "ek/core/io.h"
 
 /* newlib 的 __libc_init_array() 会调用 _init/_fini；自定义 startup 没有提供 */
 __EK_WEAK void _init(void)

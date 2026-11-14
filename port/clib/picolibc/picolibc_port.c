@@ -1,5 +1,5 @@
 /**
- * @file ek_picolibc_port.c
+ * @file picolibc_port.c
  * @brief picolibc 适配层
  * @author N1netyNine99
  *
@@ -9,12 +9,12 @@
  * - stdout: putchar → ek_port_io_fputc
  */
 
-#include "ek/ek_conf_internal.h"
+#include "ek/conf_internal.h"
 
 #if EKCFG_PICOLIBC == 1
 
-#    include "ek/mem/ek_heap.h"
-#    include "ek/core/ek_io.h"
+#    include "ek/mem/heap.h"
+#    include "ek/core/io.h"
 
 #    if EKCFG_HEAP_TLSF == 1
 

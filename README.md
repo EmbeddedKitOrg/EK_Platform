@@ -24,7 +24,7 @@ cp lib/ek_platform/ek_board_template.h include/ek_board.h
 ```cmake
 cmake_minimum_required(VERSION 3.20)
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/lib/ek_platform/cmake/ek_platform.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/lib/ek_platform/cmake/platform.cmake)
 
 # 1. project() 之前：选择架构与是否启用 picolibc
 ek_platform_prepare(ARCH cm4 PICOLIBC ON)
@@ -49,7 +49,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
 ### 3. 启动、中断与平台适配
 
 - **自动初始化**：启用 `EKCFG_EXPORT=1`（默认）时，进入 `main()` 前已自动完成堆、IO、静态对象及 `EK_EXPORT_*` 导出函数的初始化，无需手动调用。
-- **内置启动文件（Cortex-M）**：默认编译 `port/startup/cortexm/ek_startup.S`，**请勿再将厂商 `startup_xxx.s` 加入工程**。需在 `ek_conf.h` 中设置外部中断数 `#define EKCFG_ARCH_IRQ_COUNT (91)`（纯整数，勿加 `U`）。
+- **内置启动文件（Cortex-M）**：默认编译 `port/startup/cortexm/startup.S`，**请勿再将厂商 `startup_xxx.s` 加入工程**。需在 `ek_conf.h` 中设置外部中断数 `#define EKCFG_ARCH_IRQ_COUNT (91)`（纯整数，勿加 `U`）。
 - **注册外部中断（Cortex-M）**：
   ```c
   EK_DEFINE_ARCH_IRQ(USART0_IRQn, USART0_IRQHandler);      // 静态注册
@@ -73,7 +73,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
 ### 4. 非 CMake 直接集成（可选）
 
 - **Include 路径**：`include/`、`third_party/tlsf/`、`third_party/lwprintf/inc/`，以及 `ek_conf.h`、`ek_soc.h` 所在目录。
-- **源文件**：`src/**/*.c`、`third_party/tlsf/tlsf.c`、`third_party/lwprintf/lwprintf.c`，以及对应平台的 `port/arch/*`、`port/clib/*`、`port/startup/cortexm/ek_startup.S`。
+- **源文件**：`src/**/*.c`、`third_party/tlsf/tlsf.c`、`third_party/lwprintf/lwprintf.c`，以及对应平台的 `port/arch/*`、`port/clib/*`、`port/startup/cortexm/startup.S`。
 - **必需编译宏**（C 与 ASM 均需添加）：`-DEK_CONF_PATH="ek_conf.h"`，Cortex-M 还需 `-DEK_SOC_PATH="ek_soc.h"`。
 
 ---
