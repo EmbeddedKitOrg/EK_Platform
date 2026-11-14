@@ -245,6 +245,9 @@
 #ifndef EKCFG_SHELL_UTF8
 #    define EKCFG_SHELL_UTF8 (0) /**< Shell 支持 UTF-8 处理 */
 #endif
+#ifndef EKCFG_SHELL_BUILTIN_CMDS
+#    define EKCFG_SHELL_BUILTIN_CMDS (0) /**< 启动几个默认的 Shell 命令 */
+#endif
 
 /* ========================================================================
  * 配置依赖校验

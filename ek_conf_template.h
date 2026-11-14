@@ -93,5 +93,6 @@
 #define EKCFG_SHELL_PROMPT             "ek>" /**< Shell 提示符 */
 #define EKCFG_SHELL_CMD_MAX_ARGS       (8) /**< Shell 命令中最大参数数量 */
 #define EKCFG_SHELL_UTF8               (0) /**< Shell 支持 UTF-8 处理 */
+#define EKCFG_SHELL_BUILTIN_CMDS       (0) /**< 启动几个默认的 Shell 命令 */
 
 #endif /* EK_CONF_H */

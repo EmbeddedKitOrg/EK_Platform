@@ -46,6 +46,24 @@ extern const ek_shell_cmd_t _ek_shell_cmd_end;
 static shell_t s_default_shell;
 static ek_list_node_t s_dynamic_cmd_head = { .next = &s_dynamic_cmd_head, .prev = &s_dynamic_cmd_head };
 
+// 发送原始数据块到输出文件描述符
+static inline ssize_t _shell_raw_write(shell_t *sh, const void *data, size_t len)
+{
+    return ek_vfs_write(sh->out_fd, data, len);
+}
+
+// 发送单个字符
+static inline void _shell_putc(shell_t *sh, char ch)
+{
+    ek_vfs_write(sh->out_fd, &ch, 1);
+}
+
+// 发送以空字符结尾的字符串
+static inline void _shell_puts(shell_t *sh, const char *str)
+{
+    ek_vfs_write(sh->out_fd, str, strlen(str));
+}
+
 // 在静态链接器段与动态链表中查找匹配的命令
 static const ek_shell_cmd_t *_shell_cmd_find(const char *name)
 {
@@ -123,88 +141,182 @@ int ek_shell_init(ek_shell_cfg_t *cfg)
     return 0;
 }
 
-// 发送原始数据块到输出文件描述符
-static inline ssize_t _shell_raw_write(shell_t *sh, const void *data, size_t len)
+#    if EKCFG_SHELL_UTF8 == 1
+
+// 光标向前跳过一个完整 UTF-8 字符，返回该字符的显示列宽
+static inline size_t _utf8_prev_char(shell_t *sh)
 {
-    return ek_vfs_write(sh->out_fd, data, len);
+    if (!sh->cursor) return 0;
+
+    size_t i = sh->cursor - 1;
+    while (i > 0 && EK_KEY_IS_UTF8_CONT_BYTE(sh->buf[i])) i--;
+
+    size_t cols = EK_KEY_CHAR_DISPLAY_WIDTH(sh->buf[i]);
+    sh->cursor = i;
+
+    return cols;
 }
 
-// 发送单个字符
-static inline void _shell_putc(shell_t *sh, char ch)
+// 光标向后跳过一个完整 UTF-8 字符，返回该字符的显示列宽
+static inline size_t _utf8_next_char(shell_t *sh)
 {
-    ek_vfs_write(sh->out_fd, &ch, 1);
+    if (sh->cursor >= sh->len) return 0;
+
+    size_t cols = EK_KEY_CHAR_DISPLAY_WIDTH(sh->buf[sh->cursor]);
+    size_t step = EK_KEY_UTF8_CHAR_LEN(sh->buf[sh->cursor]);
+
+    sh->cursor += step;
+    if (sh->cursor > sh->len) sh->cursor = sh->len;
+
+    return cols;
 }
 
-// 发送以空字符结尾的字符串
-static inline void _shell_puts(shell_t *sh, const char *str)
+// 统计 [from, to) 字节区间对应的显示列宽
+static inline size_t _utf8_cols(const shell_t *sh, size_t from, size_t to)
 {
-    ek_vfs_write(sh->out_fd, str, strlen(str));
+    size_t cols = 0;
+
+    for (size_t i = from; i < to;)
+    {
+        cols += EK_KEY_CHAR_DISPLAY_WIDTH(sh->buf[i]);
+        i += EK_KEY_UTF8_CHAR_LEN(sh->buf[i]);
+    }
+
+    return cols;
+}
+
+#    endif // EKCFG_SHELL_UTF8 == 1
+
+// 终端光标左移 cols 列
+static inline void _move_left(shell_t *sh, size_t cols)
+{
+    if (!cols) return;
+
+    if (cols == 1)
+    {
+        _shell_putc(sh, EK_KEY_BS);
+        return;
+    }
+
+    char seq[16];
+    int n = ek_snprintf(seq, sizeof(seq), "\033[%dD", (int)cols);
+    _shell_raw_write(sh, seq, n);
+}
+
+// 终端光标右移 cols 列
+static inline void _move_right(shell_t *sh, size_t cols)
+{
+    if (!cols) return;
+
+    if (cols == 1)
+    {
+        _shell_puts(sh, EK_KEY_VT100_CURSOR_RIGHT);
+        return;
+    }
+
+    char seq[16];
+    int n = ek_snprintf(seq, sizeof(seq), "\033[%dC", (int)cols);
+    _shell_raw_write(sh, seq, n);
 }
 
 // 光标移到行首
-static inline void _shell_cursor_home(shell_t *sh)
+static inline void _cursor_home(shell_t *sh)
 {
-    if (sh->cursor == 0) return;
+    if (!sh->cursor) return;
 
+#    if EKCFG_SHELL_UTF8 == 1
+    _move_left(sh, _utf8_cols(sh, 0, sh->cursor));
+#    else
     char seq[16];
     int n = ek_snprintf(seq, sizeof(seq), "\033[%dD", (int)sh->cursor);
     _shell_raw_write(sh, seq, n);
+#    endif
+
     sh->cursor = 0;
 }
 
 // 光标移到行尾
-static inline void _shell_cursor_end(shell_t *sh)
+static inline void _cursor_end(shell_t *sh)
 {
     if (sh->cursor >= sh->len) return;
 
+#    if EKCFG_SHELL_UTF8 == 1
+    _move_right(sh, _utf8_cols(sh, sh->cursor, sh->len));
+#    else
     char seq[16];
     int n = ek_snprintf(seq, sizeof(seq), "\033[%dC", (int)(sh->len - sh->cursor));
     _shell_raw_write(sh, seq, n);
+#    endif
+
     sh->cursor = sh->len;
 }
 
 // 光标左移一格
-static inline void _shell_cursor_left(shell_t *sh)
+static inline void _cursor_left(shell_t *sh)
 {
-    if (sh->cursor == 0) return;
+    if (!sh->cursor) return;
 
+#    if EKCFG_SHELL_UTF8 == 1
+    size_t cols = _utf8_prev_char(sh);
+#    else
+    size_t cols = 1;
     sh->cursor--;
-    _shell_putc(sh, EK_KEY_BS);
+#    endif
+
+    _move_left(sh, cols);
 }
 
 // 光标右移一格
-static inline void _shell_cursor_right(shell_t *sh)
+static inline void _cursor_right(shell_t *sh)
 {
     if (sh->cursor >= sh->len) return;
 
+#    if EKCFG_SHELL_UTF8 == 1
+    size_t cols = _utf8_next_char(sh);
+#    else
+    size_t cols = 1;
     sh->cursor++;
-    _shell_puts(sh, EK_KEY_VT100_CURSOR_RIGHT);
+#    endif
+
+    _move_right(sh, cols);
 }
 
 // 删除光标前一个字符（Backspace）
 static inline void _shell_backspace(shell_t *sh)
 {
-    if (sh->cursor == 0) return;
+    if (!sh->cursor) return;
 
+#    if EKCFG_SHELL_UTF8 == 1
+    size_t i = sh->cursor - 1;
+    while (i > 0 && EK_KEY_IS_UTF8_CONT_BYTE(sh->buf[i])) i--;
+
+    size_t bytes = sh->cursor - i;
+    size_t cols = EK_KEY_CHAR_DISPLAY_WIDTH(sh->buf[i]);
+    sh->cursor = i;
+#    else
+    size_t bytes = 1;
+    size_t cols = 1;
     sh->cursor--;
-    memmove(sh->buf + sh->cursor, sh->buf + sh->cursor + 1, sh->len - sh->cursor - 1);
-    sh->buf[--sh->len] = EK_KEY_NUL;
+#    endif
 
-    // 删除的是行尾字符，退格后覆盖空格再退格
+    memmove(sh->buf + sh->cursor, sh->buf + sh->cursor + bytes, sh->len - sh->cursor - bytes);
+    sh->len -= bytes;
+    sh->buf[sh->len] = EK_KEY_NUL;
+
+    // 行尾删除：左移 cols 列、打 cols 个空格、再左移 cols 列
     if (sh->cursor == sh->len)
     {
-        _shell_puts(sh, EK_KEY_VT100_ERASE_BACK);
+        _move_left(sh, cols);
+        for (size_t k = 0; k < cols; k++) _shell_putc(sh, ' ');
+        _move_left(sh, cols);
         return;
     }
 
-    // 删除的是行中字符，左移后重绘剩余内容并补空格
-    _shell_putc(sh, EK_KEY_BS);
+    // 行中删除：左移 cols 列后重绘剩余内容，补空格，再退回
+    _move_left(sh, cols);
     _shell_raw_write(sh, sh->buf + sh->cursor, sh->len - sh->cursor);
-    _shell_putc(sh, ' ');
-
-    char seq[16];
-    int n = ek_snprintf(seq, sizeof(seq), "\033[%dD", (int)(sh->len - sh->cursor) + 1);
-    _shell_raw_write(sh, seq, n);
+    for (size_t k = 0; k < cols; k++) _shell_putc(sh, ' ');
+    _move_left(sh, (sh->len - sh->cursor) + cols);
 }
 
 // 删除光标所在字符（Delete），光标位置不变
@@ -212,16 +324,24 @@ static inline void _shell_delete_forward(shell_t *sh)
 {
     if (sh->cursor >= sh->len) return;
 
-    memmove(sh->buf + sh->cursor, sh->buf + sh->cursor + 1, sh->len - sh->cursor - 1);
-    sh->buf[--sh->len] = EK_KEY_NUL;
+#    if EKCFG_SHELL_UTF8 == 1
+    size_t bytes = EK_KEY_UTF8_CHAR_LEN(sh->buf[sh->cursor]);
+    size_t cols = EK_KEY_CHAR_DISPLAY_WIDTH(sh->buf[sh->cursor]);
+#    else
+    size_t bytes = 1;
+    size_t cols = 1;
+#    endif
 
-    // 从光标处重绘剩余内容，并补一个空格擦掉行尾残字
+    if (sh->cursor + bytes > sh->len) bytes = sh->len - sh->cursor;
+
+    memmove(sh->buf + sh->cursor, sh->buf + sh->cursor + bytes, sh->len - sh->cursor - bytes);
+    sh->len -= bytes;
+    sh->buf[sh->len] = EK_KEY_NUL;
+
+    // 光标不动，从当前位置重绘剩余内容并补空格擦尾
     _shell_raw_write(sh, sh->buf + sh->cursor, sh->len - sh->cursor);
-    _shell_putc(sh, ' ');
-
-    char seq[16];
-    int n = ek_snprintf(seq, sizeof(seq), "\033[%dD", (int)(sh->len - sh->cursor) + 1);
-    _shell_raw_write(sh, seq, n);
+    for (size_t k = 0; k < cols; k++) _shell_putc(sh, ' ');
+    _move_left(sh, (sh->len - sh->cursor) + cols);
 }
 
 // 清空当前行输入
@@ -229,7 +349,7 @@ static inline void _shell_clear_line(shell_t *sh)
 {
     if (sh->len == 0) return;
 
-    _shell_cursor_home(sh);
+    _cursor_home(sh);
     _shell_puts(sh, EK_KEY_VT100_CLEAR_TO_EOL);
 
     sh->cursor = 0;
@@ -244,12 +364,15 @@ static inline void _shell_refresh_screen(shell_t *sh)
     _shell_puts(sh, sh->prompt);
     _shell_raw_write(sh, sh->buf, sh->len);
 
-    if (sh->cursor < sh->len)
-    {
-        char seq[16];
-        int n = ek_snprintf(seq, sizeof(seq), "\033[%dD", (int)(sh->len - sh->cursor));
-        _shell_raw_write(sh, seq, n);
-    }
+    if (sh->cursor >= sh->len) return;
+
+#    if EKCFG_SHELL_UTF8 == 1
+    _move_left(sh, _utf8_cols(sh, sh->cursor, sh->len));
+#    else
+    char seq[16];
+    int n = ek_snprintf(seq, sizeof(seq), "\033[%dD", (int)(sh->len - sh->cursor));
+    _shell_raw_write(sh, seq, n);
+#    endif
 }
 
 static int _shell_parse_args(char *line, char *argv[], int max_args)
@@ -305,7 +428,7 @@ static int _shell_parse_args(char *line, char *argv[], int max_args)
 static void _shell_exec(shell_t *sh)
 {
     // 输出换行
-    _shell_puts(sh, "\r\n");
+    _shell_puts(sh, CRLF);
 
     // 空行直接重显提示符
     if (!sh->len)
@@ -323,19 +446,19 @@ static void _shell_exec(shell_t *sh)
         const ek_shell_cmd_t *cmd = _shell_cmd_find(argv[0]);
         if (cmd)
         {
-            int ret = cmd->fn(argc, argv);
+            int ret = cmd->fn(argc, argv, sh);
             if (ret)
             {
                 char err_buf[32];
-                int n = ek_snprintf(err_buf, sizeof(err_buf), "[Process exited %d]\r\n", ret);
+                int n = ek_snprintf(err_buf, sizeof(err_buf), "[Process exited %d]." CRLF, ret);
                 ek_vfs_write(sh->out_fd, err_buf, n);
             }
         }
         else
         {
-            _shell_puts(sh, "ek: command not found: ");
+            _shell_puts(sh, "shell: command not found: ");
             _shell_puts(sh, argv[0]);
-            _shell_puts(sh, "\r\n");
+            _shell_puts(sh, CRLF);
         }
     }
 
@@ -367,17 +490,17 @@ static void _shell_handle_char(shell_t *sh, char ch)
         sh->ansi_state = ANSI_STATE_NORMAL;
         switch (ch)
         {
-            case 'A':
+            case EK_KEY_ANSI_CODE_UP:
                 // TODO 上方向键：历史记录回溯
                 break;
-            case 'B':
+            case EK_KEY_ANSI_CODE_DOWN:
                 // TODO 下方向键：历史记录前进
                 break;
-            case 'C':
-                _shell_cursor_right(sh);
+            case EK_KEY_ANSI_CODE_RIGHT:
+                _cursor_right(sh);
                 break;
-            case 'D':
-                _shell_cursor_left(sh);
+            case EK_KEY_ANSI_CODE_LEFT:
+                _cursor_left(sh);
                 break;
             default:
                 break;
@@ -392,14 +515,17 @@ static void _shell_handle_char(shell_t *sh, char ch)
         {
             switch (sh->ansi_arg)
             {
-                case '3': // Delete 键：向后删除
+                case EK_KEY_ANSI_NUM_DELETE:
+                    // Delete 键：向后删除
                     _shell_delete_forward(sh);
                     break;
-                case '1': // Home 键
-                    _shell_cursor_home(sh);
+                case EK_KEY_ANSI_NUM_HOME:
+                    // Home 键
+                    _cursor_home(sh);
                     break;
-                case '4': // End 键
-                    _shell_cursor_end(sh);
+                case EK_KEY_ANSI_NUM_END:
+                    // End 键
+                    _cursor_end(sh);
                     break;
                 default:
                     break;
@@ -408,50 +534,42 @@ static void _shell_handle_char(shell_t *sh, char ch)
         return;
     }
 
-    // 检测到 ESC 转义序列起始字符
-    if ((uint8_t)ch == 0x1B)
-    {
-        sh->ansi_state = ANSI_STATE_ESC;
-        return;
-    }
-
-    // 回车换行触发命令执行
-    if (ch == EK_KEY_CR || ch == EK_KEY_LF)
-    {
-        return _shell_exec(sh);
-    }
-
-    // 制表符触发自动补全
-    if (ch == EK_KEY_TAB)
-    {
-        // TODO 自动补全
-        return;
-    }
-
-    // 退格键：终端通常发 0x7F (DEL)，部分串口终端发 0x08 (BS)
-    if (ch == EK_KEY_BS || (uint8_t)ch == 0x7F)
-    {
-        _shell_backspace(sh);
-        return;
-    }
-
-    // 判断是否是 ctrl 快捷键
     switch (ch)
     {
+        case EK_KEY_ESC:
+            // 检测到 ESC 转义序列起始字符
+            sh->ansi_state = ANSI_STATE_ESC;
+            return;
+
+        case EK_KEY_CR:
+        case EK_KEY_LF:
+            // 回车换行触发命令执行
+            return _shell_exec(sh);
+
+        case EK_KEY_TAB:
+            // TODO 制表符触发自动补全
+            return;
+
+        case EK_KEY_BS:
+        case EK_KEY_DEL:
+            // 退格键：终端通常发 0x7F (DEL)，部分串口终端发 0x08 (BS)
+            _shell_backspace(sh);
+            return;
+
         case EK_KEY_CTRL_A:
-            _shell_cursor_home(sh);
+            _cursor_home(sh);
             return;
 
         case EK_KEY_CTRL_E:
-            _shell_cursor_end(sh);
+            _cursor_end(sh);
             return;
 
         case EK_KEY_CTRL_B:
-            _shell_cursor_left(sh);
+            _cursor_left(sh);
             return;
 
         case EK_KEY_CTRL_F:
-            _shell_cursor_right(sh);
+            _cursor_right(sh);
             return;
 
         case EK_KEY_CTRL_D:
@@ -470,33 +588,40 @@ static void _shell_handle_char(shell_t *sh, char ch)
             break;
     }
 
-    // 普通可见字符输入
-    if ((uint8_t)ch >= 0x20)
-    {
-        if (sh->len < EKCFG_SHELL_BUF_SIZE - 1)
-        {
-            // 在末尾追加字符
-            if (sh->cursor == sh->len)
-            {
-                sh->buf[sh->cursor++] = ch;
-                sh->buf[++sh->len] = EK_KEY_NUL;
-                _shell_putc(sh, ch);
-            }
-            // 在中间插入字符并移动后续字符
-            else if (sh->cursor < sh->len)
-            {
-                memmove(sh->buf + sh->cursor + 1, sh->buf + sh->cursor, sh->len - sh->cursor);
-                sh->buf[sh->cursor++] = ch;
-                sh->buf[++sh->len] = EK_KEY_NUL;
-                _shell_raw_write(sh, sh->buf + sh->cursor - 1, sh->len - sh->cursor + 1);
+    // 忽略未被上面处理的控制字符，避免污染行缓冲
+    if ((uint8_t)ch < 0x20) return;
 
-                // 将终端光标移回插入位置
-                char restore_seq[16];
-                int seq_len = ek_snprintf(restore_seq, sizeof(restore_seq), "\033[%dD", (int)(sh->len - sh->cursor));
-                _shell_raw_write(sh, restore_seq, seq_len);
-            }
+    // 普通可见字符输入
+#    if EKCFG_SHELL_UTF8 == 1
+    // UTF-8 模式下字节原样存储与回显，由终端负责拼字
+    char disp_ch = ch;
+#    else
+    // 非 UTF-8 模式下多字节字符统一显示为 ?
+    char disp_ch = EK_KEY_IS_ASCII(ch) ? ch : '?';
+#    endif
+
+    if (sh->len < EKCFG_SHELL_BUF_SIZE - 1)
+    {
+        // 在末尾追加字符
+        if (sh->cursor == sh->len)
+        {
+            sh->buf[sh->cursor++] = disp_ch;
+            sh->buf[++sh->len] = EK_KEY_NUL;
+            _shell_putc(sh, disp_ch);
         }
-        return;
+        // 在中间插入字符并移动后续字符
+        else if (sh->cursor < sh->len)
+        {
+            memmove(sh->buf + sh->cursor + 1, sh->buf + sh->cursor, sh->len - sh->cursor);
+            sh->buf[sh->cursor++] = disp_ch;
+            sh->buf[++sh->len] = EK_KEY_NUL;
+            _shell_raw_write(sh, sh->buf + sh->cursor - 1, sh->len - sh->cursor + 1);
+
+            // 将终端光标移回插入位置
+            char restore_seq[16];
+            int seq_len = ek_snprintf(restore_seq, sizeof(restore_seq), "\033[%dD", (int)(sh->len - sh->cursor));
+            _shell_raw_write(sh, restore_seq, seq_len);
+        }
     }
 }
 
@@ -533,5 +658,69 @@ int ek_shell_input(const void *data, size_t len)
 
     return 0;
 }
+
+// 内置命令
+#    if EKCFG_SHELL_BUILTIN_CMDS == 1
+
+static int _builtin_cmd_hello(int argc, char *argv[], void *sh)
+{
+    __EK_UNUSED(argc);
+    __EK_UNUSED(argv);
+    __EK_UNUSED(sh);
+
+    ek_printf("hello, ek_platform!" CRLF);
+    return 0;
+}
+EK_DEFINE_SHELL_CMD(hello, _builtin_cmd_hello);
+
+static int _builtin_cmd_echo(int argc, char *argv[], void *sh)
+{
+    for (int i = 1; i < argc; i++)
+    {
+        ek_printf("%s%s", argv[i], (i + 1 < argc) ? " " : "");
+    }
+    ek_printf(CRLF);
+
+    return 0;
+}
+EK_DEFINE_SHELL_CMD(echo, _builtin_cmd_echo);
+
+static int _builtin_cmd_tree(int argc, char *argv[], void *sh)
+{
+    __EK_UNUSED(argc);
+    __EK_UNUSED(argv);
+    __EK_UNUSED(sh);
+    static char buf[256];
+
+    int len = ek_vfs_tree_dump(buf, sizeof(buf));
+    if (len < 0) return len;
+
+    ek_printf("%s", buf);
+    return 0;
+}
+EK_DEFINE_SHELL_CMD(tree, _builtin_cmd_tree);
+
+static int _builtin_cmd_clear(int argc, char *argv[], void *sh)
+{
+    __EK_UNUSED(argc);
+    __EK_UNUSED(argv);
+
+    _shell_puts((shell_t *)sh, EK_KEY_VT100_CLEAR_SCREEN);
+    return 0;
+}
+EK_DEFINE_SHELL_CMD(clear, _builtin_cmd_clear);
+
+static int _builtin_cmd_version(int argc, char *argv[], void *sh)
+{
+    __EK_UNUSED(argc);
+    __EK_UNUSED(argv);
+    __EK_UNUSED(sh);
+
+    int len = ek_printf("version: v%d.%d.%d." CRLF, EK_VERSION_MAJOR, EK_VERSION_MINOR, EK_VERSION_PATCH);
+    return len > 0 ? 0 : 1;
+}
+EK_DEFINE_SHELL_CMD(version, _builtin_cmd_version);
+
+#    endif // EKCFG_SHELL_BUILTIN_CMDS == 1
 
 #endif // EKCFG_SHELL == 1
