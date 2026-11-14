@@ -1,5 +1,5 @@
 /**
- * @file arch_riscv_generic.c
+ * @file arch.c
  * @brief 架构相关底层操作实现
  * @author N1netyNine99
  *

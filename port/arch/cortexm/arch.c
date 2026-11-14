@@ -1,5 +1,5 @@
 /**
- * @file arch_arm_cm.c
+ * @file arch.c
  * @brief 架构相关底层操作实现
  * @author N1netyNine99
  *
@@ -21,6 +21,36 @@ extern uint32_t _sram_vtor_end[];
 #    endif
 
 #    include "ek_soc.h"
+
+struct cm_stack_frame
+{
+    struct
+    {
+#    if defined(__FPU_PRESENT) && (__FPU_PRESENT == 1) && defined(__VFP_FP__) && !defined(__SOFTFP__)
+        uint32_t exc_return;
+#    endif
+        uint32_t r4;
+        uint32_t r5;
+        uint32_t r6;
+        uint32_t r7;
+        uint32_t r8;
+        uint32_t r9;
+        uint32_t r10;
+        uint32_t r11;
+    } sf_save;
+
+    struct
+    {
+        uint32_t r0;
+        uint32_t r1;
+        uint32_t r2;
+        uint32_t r3;
+        uint32_t r12;
+        uint32_t lr;
+        uint32_t pc;
+        uint32_t xpsr;
+    } hw_save;
+};
 
 static bool s_vtor_redirected;
 
@@ -87,6 +117,21 @@ int ek_arch_irq_install(int32_t irq, ek_arch_isr_t handler)
     ek_arch_irq_unlock(flags);
 
     return 0;
+}
+
+void *eK_arch_stack_init(void *stack_top, void (*entry)(void *), void *arg, void (*exit)(void))
+{
+    uintptr_t sp = (uintptr_t)EK_ALIGN_DOWN(stack_top, 8);
+    struct cm_stack_frame *frame = (struct cm_stack_frame *)(sp - sizeof(*frame));
+
+    memset(frame, 0, sizeof(*frame));
+
+    frame->hw_save.r0 = (uint32_t)(uintptr_t)arg;
+    frame->hw_save.lr = (uint32_t)(uintptr_t)exit;
+    frame->hw_save.pc = (uint32_t)(uintptr_t)entry;
+    frame->hw_save.xpsr = 0x01000000U; // bit24 (Thumb 位) 必须为 1
+
+    return (void *)frame;
 }
 
 #endif // EKCFG_ARCH == 1
