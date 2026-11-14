@@ -121,6 +121,8 @@
 #define EK_FREQ_M(x)                       ((x) * 1000UL * 1000UL)
 #define EK_ARRAY_LEN(x)                    (sizeof(x) / (sizeof((x)[0])))
 #define EK_CONTAINER_OF(ptr, type, member) ((type *)((char *)(ptr) - offsetof(type, member)))
+#define EK_ALIGN_UP(n, align)              (((uintptr_t)(n) + ((uintptr_t)(align) - 1U)) & ~((uintptr_t)(align) - 1U))
+#define EK_ALIGN_DOWN(n, align)            ((uintptr_t)(n) & ~((uintptr_t)(align) - 1U))
 
 #define EK_DIV_CEIL(x, div)             \
     ({                                  \
