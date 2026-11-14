@@ -43,7 +43,7 @@
 #ifdef __linux__
 #    define CRLF "\n"
 #else
-#    define CRLF " \r\n"
+#    define CRLF "\r\n"
 #endif /* __linux__ */
 
 /* ========== GCC 编译器宏定义 ========== */
