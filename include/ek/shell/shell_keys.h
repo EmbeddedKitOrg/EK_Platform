@@ -2,8 +2,8 @@
  * @file shell_keys.h
  * @brief Shell 终端按键编码、VT100/ANSI 转义序列与 UTF-8 判定宏定义
  */
-#ifndef SHELL_KEYS_H
-#define SHELL_KEYS_H
+#ifndef EK_SHELL_KEYS_H
+#define EK_SHELL_KEYS_H
 
 #include <stdint.h>
 
@@ -128,4 +128,4 @@
      : EK_KEY_IS_UTF8_4BYTE_HEAD(c) ? 2 \
                                     : 1)
 
-#endif // SHELL_KEYS_H
+#endif // EK_SHELL_KEYS_H

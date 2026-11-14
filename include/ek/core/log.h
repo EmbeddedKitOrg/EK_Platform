@@ -12,8 +12,8 @@
  * @note 使用前需实现 ek_port_log_get_tick() 函数，用于获取系统时间戳
  */
 
-#ifndef LOG_H
-#define LOG_H
+#ifndef EK_LOG_H
+#define EK_LOG_H
 
 #include "ek/conf_internal.h"
 

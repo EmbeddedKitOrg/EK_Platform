@@ -7,8 +7,8 @@
  * RISC-V 和 host 分支不提供 VTOR 重定向。
  */
 
-#ifndef ARCH_H
-#define ARCH_H
+#ifndef EK_ARCH_H
+#define EK_ARCH_H
 
 #include "ek/conf_internal.h"
 
@@ -137,4 +137,4 @@ void ek_arch_irq_unlock(uint32_t flags);
 
 #endif // EKCFG_ARCH == 1
 
-#endif // ARCH_H
+#endif // EK_ARCH_H

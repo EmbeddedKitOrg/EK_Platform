@@ -10,8 +10,8 @@
  * @note 视图不拥有底层内存，需保证被引用的字符串在视图使用期间始终有效
  */
 
-#ifndef STR_VIEW_H
-#define STR_VIEW_H
+#ifndef EK_STR_VIEW_H
+#define EK_STR_VIEW_H
 
 #include "ek/conf_internal.h"
 
@@ -86,4 +86,4 @@ ek_str_view_t ek_str_view_split(ek_str_view_t *sv, char c);
 
 #endif // EKCFG_STR_VIEW
 
-#endif // STR_VIEW_H
+#endif // EK_STR_VIEW_H

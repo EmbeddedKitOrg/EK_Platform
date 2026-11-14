@@ -68,7 +68,7 @@
 - `EK_STATIC_ALLOC_REGISTER` 增加 `__EK_ALIGNED(sizeof(void *))`，修复 64 位 host 上静态注册项按更大步进排列导致 `end - start` 误算、启动期 qsort 崩溃的问题。
 
 ### 破坏性变更
-- 文件与头文件保护宏移除 `ek_` 前缀：头文件统一为 `include/ek/<模块>/<文件>.h`（如 `core/def.h`、`vfs/vfs_core.h`），源文件与 CMake 模块同步改名；`include/ek/**` 各子目录不再作为扁平 include 路径导出，使用方需把 `#include "ek_log.h"` 改为 `#include "ek/core/log.h"`。
+- 文件与 CMake 模块移除 `ek_` 前缀：头文件统一为 `include/ek/<模块>/<文件>.h`（如 `core/def.h`、`vfs/vfs_core.h`），源文件同步改名；头文件保护宏保留 `EK_` 前缀（如 `EK_DEF_H`）。`include/ek/**` 各子目录不再作为扁平 include 路径导出，使用方需把 `#include "ek_log.h"` 改为 `#include "ek/core/log.h"`。
 
 - 删除 `cmake/config.cmake` 和全部 `ek_set_*` 接口；消费者改用 `ek_platform_prepare()` / `ek_platform_configure()`，调用顺序不变（`project()` 前 / `add_subdirectory()` 前）。
 - `EK_LINKER_AUTO` 改为 `EK_LINKER_MODE`（`auto` / `off`）；`ek_linker_attach()` 的 `BOARD_PATH` 参数改名为 `BOARD`，多 target 场景先调用 `ek_platform_configure(... LINKER off)`。

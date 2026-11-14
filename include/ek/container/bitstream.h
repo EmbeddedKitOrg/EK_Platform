@@ -6,8 +6,8 @@
  * 提供比特流的读写
  */
 
-#ifndef BITSTREAM_H
-#define BITSTREAM_H
+#ifndef EK_BITSTREAM_H
+#define EK_BITSTREAM_H
 
 #include "ek/conf_internal.h"
 
@@ -96,4 +96,4 @@ int ek_bitstream_read(ek_bitreader_t *br, uint8_t bits);
 
 #endif // EKCFG_BITSTREAM
 
-#endif // BITSTREAM_H
+#endif // EK_BITSTREAM_H

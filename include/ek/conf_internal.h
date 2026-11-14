@@ -17,8 +17,8 @@
  *   实际包含通过 include 路径中的 "ek_conf.h" 完成。
  */
 
-#ifndef CONF_INTERNAL_H
-#define CONF_INTERNAL_H
+#ifndef EK_CONF_INTERNAL_H
+#define EK_CONF_INTERNAL_H
 
 /*
  * ========================================================================
@@ -319,4 +319,4 @@
 #undef DEPEND_ON
 #undef MUTUAL_EXCLUSION
 
-#endif /* CONF_INTERNAL_H */
+#endif /* EK_CONF_INTERNAL_H */

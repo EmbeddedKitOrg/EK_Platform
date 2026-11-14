@@ -6,8 +6,8 @@
  * 提供基于 TLSF 算法的动态内存分配功能
  */
 
-#ifndef HEAP_H
-#define HEAP_H
+#ifndef EK_HEAP_H
+#define EK_HEAP_H
 
 #include "ek/core/def.h"
 #include "ek/conf_internal.h"
@@ -85,4 +85,4 @@ size_t ek_pool_used(pool_t pool);
 }
 #endif
 
-#endif /* HEAP_H */
+#endif /* EK_HEAP_H */

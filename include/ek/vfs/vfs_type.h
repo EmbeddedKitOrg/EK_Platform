@@ -4,8 +4,8 @@
  * @author N1netyNine99
  */
 
-#ifndef VFS_TYPE_H
-#define VFS_TYPE_H
+#ifndef EK_VFS_TYPE_H
+#define EK_VFS_TYPE_H
 
 #include "ek/conf_internal.h"
 
@@ -214,4 +214,4 @@ struct ek_vfs_bus_ops
 
 #endif // EKCFG_VFS == 1
 
-#endif // VFS_TYPE_H
+#endif // EK_VFS_TYPE_H

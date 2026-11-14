@@ -10,8 +10,8 @@
  * @note 返回的数据指针必须交给 ek_shared_ptr_unref() 释放
  */
 
-#ifndef SHARED_PTR_H
-#define SHARED_PTR_H
+#ifndef EK_SHARED_PTR_H
+#define EK_SHARED_PTR_H
 
 #include "ek/conf_internal.h"
 
@@ -60,4 +60,4 @@ size_t ek_shared_ptr_size(const void *ptr);
 
 #endif
 
-#endif // SHARED_PTR_H
+#endif // EK_SHARED_PTR_H

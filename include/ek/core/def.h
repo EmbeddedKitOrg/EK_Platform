@@ -12,8 +12,8 @@
  * 支持的编译器：GCC、ARM Compiler 6、ARM Compiler 5
  */
 
-#ifndef DEF_H
-#define DEF_H
+#ifndef EK_DEF_H
+#define EK_DEF_H
 
 /* ========== 软件版本号 ========== */
 #define EK_VERSION_MAJOR 7
@@ -187,4 +187,4 @@ typedef long off_t;
 
 typedef int64_t ek_off_t;
 
-#endif /* DEF_H */
+#endif /* EK_DEF_H */

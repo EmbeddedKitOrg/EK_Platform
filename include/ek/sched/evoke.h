@@ -10,8 +10,8 @@
  * @note 需要用户实现睡眠和定时器回调的弱函数
  */
 
-#ifndef EVOKE_H
-#define EVOKE_H
+#ifndef EK_EVOKE_H
+#define EK_EVOKE_H
 
 #include "ek/conf_internal.h"
 
@@ -302,4 +302,4 @@ void ek_evoke_deep_sleep(void);
 
 #endif // EKCFG_RTOS == 0 && EKCFG_EVOKE == 1
 
-#endif // EVOKE_H
+#endif // EK_EVOKE_H

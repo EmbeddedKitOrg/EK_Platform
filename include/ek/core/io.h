@@ -8,8 +8,8 @@
  * @note lwprintf 与 picolibc 后端使用前需实现 ek_port_io_fputc() 函数，用于底层字符输出
  */
 
-#ifndef IO_H
-#define IO_H
+#ifndef EK_IO_H
+#define EK_IO_H
 
 #include "ek/conf_internal.h"
 

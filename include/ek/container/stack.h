@@ -13,8 +13,8 @@
  *          传入 NULL 指针等非法参数会返回对应错误码（或直接返回），不触发断言。
  */
 
-#ifndef STACK_H
-#define STACK_H
+#ifndef EK_STACK_H
+#define EK_STACK_H
 
 #include "ek/conf_internal.h"
 
@@ -167,4 +167,4 @@ int ek_stack_pop(ek_stack_t *sk, void *item);
 
 #endif /* EKCFG_STACK */
 
-#endif /* STACK_H */
+#endif /* EK_STACK_H */

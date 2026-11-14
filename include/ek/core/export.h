@@ -18,8 +18,8 @@
  * @endcode
  */
 
-#ifndef EXPORT_H
-#define EXPORT_H
+#ifndef EK_EXPORT_H
+#define EK_EXPORT_H
 
 #include "ek/conf_internal.h"
 
@@ -141,4 +141,4 @@ void ek_export_init(void);
 }
 #endif
 
-#endif /* EXPORT_H */
+#endif /* EK_EXPORT_H */

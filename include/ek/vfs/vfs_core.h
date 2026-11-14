@@ -4,8 +4,8 @@
  * @author N1netyNine99
  */
 
-#ifndef VFS_CORE_H
-#define VFS_CORE_H
+#ifndef EK_VFS_CORE_H
+#define EK_VFS_CORE_H
 
 #include "ek/conf_internal.h"
 
@@ -254,4 +254,4 @@ __EK_STATIC_INLINE int ek_vfs_bind_stdio(const char *path)
 
 #endif // EKCFG_VFS == 1
 
-#endif // VFS_CORE_H
+#endif // EK_VFS_CORE_H

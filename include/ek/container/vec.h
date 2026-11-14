@@ -10,8 +10,8 @@
  * @note 所有内存操作使用 ek_malloc/ek_realloc/ek_free，需确保内存管理模块已初始化
  */
 
-#ifndef VEC_H
-#define VEC_H
+#ifndef EK_VEC_H
+#define EK_VEC_H
 
 #include "ek/conf_internal.h"
 
@@ -211,4 +211,4 @@
 
 #endif /* EKCFG_VEC */
 
-#endif /* VEC_H */
+#endif /* EK_VEC_H */

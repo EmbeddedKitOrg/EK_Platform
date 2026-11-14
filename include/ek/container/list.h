@@ -6,8 +6,8 @@
  * 提供轻量级的双向循环链表实现，所有操作为 O(1) 时间复杂度
  */
 
-#ifndef LIST_H
-#define LIST_H
+#ifndef EK_LIST_H
+#define EK_LIST_H
 
 #include "ek/conf_internal.h"
 
@@ -184,4 +184,4 @@ __EK_STATIC_INLINE ek_list_node_t *ek_list_get_last(ek_list_node_t *head)
 
 #endif /* EKCFG_LIST */
 
-#endif /* LIST_H */
+#endif /* EK_LIST_H */

@@ -1,5 +1,5 @@
-#ifndef PICOTHREAD_H
-#define PICOTHREAD_H
+#ifndef EK_PICOTHREAD_H
+#define EK_PICOTHREAD_H
 
 #include "ek/conf_internal.h"
 
@@ -488,4 +488,4 @@ bool ek_pt_msg_recv(ek_pt_msg_t *msg, void *data);
 
 #endif /* EKCFG_PICOTHREAD */
 
-#endif /* PICOTHREAD_H */
+#endif /* EK_PICOTHREAD_H */

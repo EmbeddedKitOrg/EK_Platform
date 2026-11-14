@@ -6,8 +6,8 @@
  * 通用的环形缓冲区实现，支持任意数据类型的存储
  */
 
-#ifndef RINGBUF_H
-#define RINGBUF_H
+#ifndef EK_RINGBUF_H
+#define EK_RINGBUF_H
 
 #include "ek/conf_internal.h"
 #include "ek/core/def.h"
@@ -245,4 +245,4 @@ int ek_ringbuf_peek_spsc(ek_ringbuf_spsc_t *rb, void *item);
 
 #endif /* EKCFG_RINGBUF || EKCFG_RINGBUF_SPSC */
 
-#endif /* RINGBUF_H */
+#endif /* EK_RINGBUF_H */

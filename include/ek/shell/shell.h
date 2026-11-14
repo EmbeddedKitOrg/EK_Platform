@@ -13,8 +13,8 @@
  * @note 依赖 EKCFG_VFS=1
  */
 
-#ifndef SHELL_H
-#define SHELL_H
+#ifndef EK_SHELL_H
+#define EK_SHELL_H
 
 #include "ek/conf_internal.h"
 
@@ -137,4 +137,4 @@ int ek_shell_input(const void *data, size_t len);
 
 #endif // EKCFG_SHELL == 1
 
-#endif // SHELL_H
+#endif // EK_SHELL_H

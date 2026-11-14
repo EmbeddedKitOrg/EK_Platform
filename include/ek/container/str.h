@@ -12,8 +12,8 @@
  * @note 使用前需调用 ek_str_create() 创建，使用完毕后需调用 ek_str_free() 释放
  */
 
-#ifndef STR_H
-#define STR_H
+#ifndef EK_STR_H
+#define EK_STR_H
 
 #include "ek/conf_internal.h"
 #include "ek/core/def.h"
@@ -161,4 +161,4 @@ int ek_str_ncmp(ek_str_t *s1, ek_str_t *s2, size_t n);
 
 #endif // EKCFG_STR
 
-#endif // STR_H
+#endif // EK_STR_H

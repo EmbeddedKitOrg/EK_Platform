@@ -4,8 +4,8 @@
  * @author N1netyNine99
  */
 
-#ifndef VFS_BUS_H
-#define VFS_BUS_H
+#ifndef EK_VFS_BUS_H
+#define EK_VFS_BUS_H
 
 #include "ek/conf_internal.h"
 
@@ -180,4 +180,4 @@ int ek_vfs_bus_reset(const char *name);
 
 #endif // EKCFG_VFS == 1
 
-#endif // VFS_BUS_H
+#endif // EK_VFS_BUS_H

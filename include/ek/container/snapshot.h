@@ -11,8 +11,8 @@
  * @note 动态使用前需调用 ek_snapshot_create() 创建，使用完毕后需调用 ek_snapshot_destroy() 释放
  */
 
-#ifndef SNAPSHOT_H
-#define SNAPSHOT_H
+#ifndef EK_SNAPSHOT_H
+#define EK_SNAPSHOT_H
 
 #include "ek/conf_internal.h"
 
@@ -146,4 +146,4 @@ uint32_t ek_snapshot_get_unique(ek_snapshot_t *snapshot);
 
 #endif // EKCFG_SNAPSHOT == 1
 
-#endif // SNAPSHOT_H
+#endif // EK_SNAPSHOT_H

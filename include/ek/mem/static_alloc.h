@@ -24,8 +24,8 @@
  *       ek_static_alloc_init()。
  */
 
-#ifndef STATIC_ALLOC_H
-#define STATIC_ALLOC_H
+#ifndef EK_STATIC_ALLOC_H
+#define EK_STATIC_ALLOC_H
 
 #include "ek/conf_internal.h"
 
@@ -106,4 +106,4 @@ int ek_static_alloc_get_init_error(void);
 
 #endif /* EKCFG_STATIC_ALLOC == 1 */
 
-#endif /* STATIC_ALLOC_H */
+#endif /* EK_STATIC_ALLOC_H */

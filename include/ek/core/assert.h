@@ -11,8 +11,8 @@
  * @warning 断言失败会导致程序停止运行
  */
 
-#ifndef ASSERT_H
-#define ASSERT_H
+#ifndef EK_ASSERT_H
+#define EK_ASSERT_H
 
 #include "ek/conf_internal.h"
 
@@ -92,4 +92,4 @@ void ek_assert_hook(const char *file, uint32_t line, const char *expr);
 
 #endif // EKCFG_ASSERT
 
-#endif /* ASSERT_H */
+#endif /* EK_ASSERT_H */
