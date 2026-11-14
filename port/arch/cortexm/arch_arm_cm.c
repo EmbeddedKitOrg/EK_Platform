@@ -17,8 +17,7 @@ extern uint32_t _sram_vtor_start[];
 extern uint32_t _sram_vtor_end[];
 
 #    ifndef EK_SOC_PATH
-#        error \
-            "EK_SOC_PATH is not set: add ek_soc.h to the project and pass its path via CMake SOC (required for Cortex-M)"
+#        error "EK_SOC_PATH is not set: add ek_soc.h to the project and pass its path via CMake SOC."
 #    endif
 
 #    include "ek_soc.h"
