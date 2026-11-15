@@ -18,7 +18,7 @@
  * 平台/运行环境
  * ======================================================================== */
 
-#define EKCFG_RTOS (0) /**< 是否使用 RTOS (0=裸机) */
+#define EKCFG_RTOS (0) /**< 是否使用 RTOS (0=裸机 1=默认后端 定义其他的数字可以自定义后端) */
 /* RTOS 锁配置（EKCFG_RTOS == 1 时需在 ek_conf.h 中定义）：
  * 包含你的 RTOS 头文件，然后定义锁类型和操作宏：
  *   #include "FreeRTOS.h"
@@ -94,5 +94,10 @@
 #define EKCFG_SHELL_CMD_MAX_ARGS       (8) /**< Shell 命令中最大参数数量 */
 #define EKCFG_SHELL_UTF8               (0) /**< Shell 支持 UTF-8 处理 */
 #define EKCFG_SHELL_BUILTIN_CMDS       (0) /**< 启动几个默认的 Shell 命令 */
+#define EKCFG_OS_THREAD_NAME_LEN       (16) /**< OS 线程的名字的最大长度 */
+#define EKCFG_OS_THREADS_MAX           (16) /**< OS 最大线程数  */
+#define EKCFG_OS_THREAD_MIN_STACK      (256) /**< OS 线程最小的任务栈大小  */
+#define EKCFG_OS_THREAD_MIN_PRIO       (31U) /**< OS 线程最小优先级  */
+#define EKCFG_OS_IDLE_THREAD_STACK     (512) /**< OS 空闲任务的堆栈大小  */
 
 #endif /* EK_CONF_H */

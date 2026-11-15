@@ -30,6 +30,9 @@
 #    error "EK_CONF_PATH is not set: add ek_conf.h to the project and pass its path via CMake CONF"
 #endif
 
+#ifndef __ASSEMBLER__
+#    include <stdint.h>
+#endif
 #include "ek_conf.h"
 
 /* CMake 的 PICOLIBC 选项是构建事实，优先于 ek_conf.h 中的旧定义。 */
@@ -248,6 +251,21 @@
 #ifndef EKCFG_SHELL_BUILTIN_CMDS
 #    define EKCFG_SHELL_BUILTIN_CMDS (0) /**< 启动几个默认的 Shell 命令 */
 #endif
+#ifndef EKCFG_OS_THREAD_NAME_LEN
+#    define EKCFG_OS_THREAD_NAME_LEN (16) /**< OS 线程的名字的最大长度 */
+#endif
+#ifndef EKCFG_OS_THREADS_MAX
+#    define EKCFG_OS_THREADS_MAX (16) /**< OS 最大线程数  */
+#endif
+#ifndef EKCFG_OS_THREAD_MIN_STACK
+#    define EKCFG_OS_THREAD_MIN_STACK (256) /**< OS 线程最小的任务栈大小  */
+#endif
+#ifndef EKCFG_OS_THREAD_MIN_PRIO
+#    define EKCFG_OS_THREAD_MIN_PRIO (31U) /**< OS 线程最小优先级，就绪队列档位数为该值 + 1 */
+#endif
+#ifndef EKCFG_OS_IDLE_THREAD_STACK
+#    define EKCFG_OS_IDLE_THREAD_STACK (512) /**< OS 空闲任务的堆栈大小  */
+#endif
 
 /* ========================================================================
  * 配置依赖校验
@@ -314,6 +332,14 @@
 #    if EKCFG_ARCH_IRQ_COUNT > 240
 #        error "EKCFG_ARCH_IRQ_COUNT must be <= 240 for ARMv7-M NVIC"
 #    endif
+#endif
+
+#if EKCFG_OS_THREADS_MAX > 64
+#    error "EKCFG_OS_THREADS_MAX must be <= 64"
+#endif
+
+#if EKCFG_OS_THREAD_MIN_PRIO > 31
+#    error "EKCFG_OS_THREAD_MIN_PRIO must be <= 31"
 #endif
 
 #undef DEPEND_ON

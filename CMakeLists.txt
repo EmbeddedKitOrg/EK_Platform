@@ -53,6 +53,14 @@ set(EK_SHELL_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/shell/shell.c
 )
 
+set(EK_OS_SRCS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/kernel.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/thread.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/mutex.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/msgq.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/sem.c
+)
+
 set(PORT_SRCS)
 if(PICOLIBC)
     list(APPEND PORT_SRCS
@@ -68,15 +76,16 @@ if(EK_PLATFORM_ARCH MATCHES "^cm")
     enable_language(ASM)
     list(APPEND PORT_SRCS
         ${CMAKE_CURRENT_SOURCE_DIR}/port/startup/cortexm/startup.S
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/arch/cortexm/arch_arm_cm.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/arch/cortexm/arch.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/arch/cortexm/context.S
     )
 elseif(EK_PLATFORM_ARCH MATCHES "^rv")
     list(APPEND PORT_SRCS
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/arch/riscv/arch_riscv_generic.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/arch/riscv/arch.c
     )
 elseif(EK_PLATFORM_ARCH MATCHES "^(host|x86_64)$")
     list(APPEND PORT_SRCS
-        ${CMAKE_CURRENT_SOURCE_DIR}/port/arch/host/arch_host_x86.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/arch/host/arch.c
     )
 else()
     message(FATAL_ERROR "ek_platform: unsupported EK_PLATFORM_ARCH=${EK_PLATFORM_ARCH}")
@@ -94,6 +103,7 @@ set(EK_SRCS
     ${EK_SCHED_SRCS}
     ${EK_VFS_SRCS}
     ${EK_SHELL_SRCS}
+    ${EK_OS_SRCS}
 )
 
 set(EK_INCLUDE_DIRS
