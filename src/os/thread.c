@@ -6,12 +6,14 @@
 
 #include "ek/os/thread.h"
 
-#include "os_priv.h"
-#include "ek/mem/heap.h"
+#if EKCFG_RTOS == 1
 
-#if EKCFG_STATIC_ALLOC == 1
+#    include "os_priv.h"
+#    include "ek/mem/heap.h"
+
+#    if EKCFG_STATIC_ALLOC == 1
 static_assert(EK_OS_THREAD_TCB_SIZE >= sizeof(os_thread_t), "EK_OS_THREAD_TCB_SIZE is smaller than os_thread_t");
-#endif
+#    endif
 
 static int _thread_setup(os_thread_t *thrd,
                          const char *name,
@@ -222,3 +224,5 @@ int ek_os_thread_sleep(int64_t timeout)
 
     return 0;
 }
+
+#endif /* EKCFG_RTOS == 1 */

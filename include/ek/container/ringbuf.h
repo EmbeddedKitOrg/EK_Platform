@@ -28,9 +28,6 @@ struct ek_ringbuf
     uint32_t item_amount; /**< 当前元素个数 */
     size_t cap; /**< 缓冲区容量（元素个数） */
     size_t item_size; /**< 单个元素大小（字节） */
-#        if EKCFG_RTOS == 1
-    EK_LOCK_TYPE lock;
-#        endif /* EKCFG_RTOS */
     uint8_t data[]; /**< 唯一数据位置：动态=malloc 尾部，静态=union 尾部 */
 };
 #    endif /* EKCFG_RINGBUF */
@@ -123,7 +120,6 @@ void ek_ringbuf_deinit_static(ek_ringbuf_t *rb);
  * @param item 要写入的元素指针
  * @return 0 写入成功
  * @return -ENOSPC 缓冲区已满
- * @return -EBUSY 资源忙（RTOS 模式）
  */
 int ek_ringbuf_write(ek_ringbuf_t *rb, const void *item);
 
@@ -133,7 +129,6 @@ int ek_ringbuf_write(ek_ringbuf_t *rb, const void *item);
  * @param item 存储读取结果的缓冲区指针，传入 NULL 则直接丢弃数据
  * @return 0 读取成功
  * @return -ENODATA 缓冲区为空
- * @return -EBUSY 资源忙（RTOS 模式）
  */
 int ek_ringbuf_read(ek_ringbuf_t *rb, void *item);
 
@@ -143,7 +138,6 @@ int ek_ringbuf_read(ek_ringbuf_t *rb, void *item);
  * @param item 存储查看结果的缓冲区指针
  * @return 0 查看成功
  * @return -ENODATA 缓冲区为空
- * @return -EBUSY 资源忙（RTOS 模式）
  */
 int ek_ringbuf_peek(ek_ringbuf_t *rb, void *item);
 #    endif /* EKCFG_RINGBUF */

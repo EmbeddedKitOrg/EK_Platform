@@ -33,18 +33,12 @@ int ek_ringbuf_init_static(ek_ringbuf_t *rb, size_t item_size, uint32_t item_amo
     rb->read_idx = 0U;
     rb->write_idx = 0U;
     rb->item_amount = 0U;
-#        if EKCFG_RTOS == 1
-    EK_LOCK_INIT(rb->lock);
-#        endif /* EKCFG_RTOS */
     return 0;
 }
 
 void ek_ringbuf_deinit_static(ek_ringbuf_t *rb)
 {
     if (rb == NULL) return;
-#        if EKCFG_RTOS == 1
-    EK_LOCK_DEINIT(rb->lock);
-#        endif
     rb->cap = 0U;
     rb->item_size = 0U;
     rb->read_idx = 0U;
@@ -72,18 +66,12 @@ ek_ringbuf_t *ek_ringbuf_create(size_t item_size, uint32_t item_amount)
     rb->read_idx = 0U;
     rb->write_idx = 0U;
     rb->item_amount = 0U;
-#        if EKCFG_RTOS == 1
-    EK_LOCK_INIT(rb->lock);
-#        endif /* EKCFG_RTOS */
     return rb;
 }
 
 void ek_ringbuf_destroy(ek_ringbuf_t *rb)
 {
     if (rb == NULL) return;
-#        if EKCFG_RTOS == 1
-    EK_LOCK_DEINIT(rb->lock);
-#        endif
 
     ek_free(rb);
 }
@@ -92,11 +80,8 @@ int ek_ringbuf_write(ek_ringbuf_t *rb, const void *item)
 {
     if (rb == NULL || item == NULL) return -EINVAL;
 
-    if (!EK_LOCK_TRY(rb)) return -EBUSY;
-
     if (ek_ringbuf_full(rb) == true)
     {
-        EK_LOCK_RELEASE(rb);
         return -ENOSPC;
     }
 
@@ -106,8 +91,6 @@ int ek_ringbuf_write(ek_ringbuf_t *rb, const void *item)
     rb->write_idx = (rb->write_idx + 1) % rb->cap;
     rb->item_amount++;
 
-    EK_LOCK_RELEASE(rb);
-
     return 0;
 }
 
@@ -115,11 +98,8 @@ int ek_ringbuf_read(ek_ringbuf_t *rb, void *item)
 {
     if (rb == NULL) return -EINVAL;
 
-    if (!EK_LOCK_TRY(rb)) return -EBUSY;
-
     if (ek_ringbuf_empty(rb) == true)
     {
-        EK_LOCK_RELEASE(rb);
         return -ENODATA;
     }
 
@@ -132,8 +112,6 @@ int ek_ringbuf_read(ek_ringbuf_t *rb, void *item)
     rb->read_idx = (rb->read_idx + 1) % rb->cap;
     rb->item_amount--;
 
-    EK_LOCK_RELEASE(rb);
-
     return 0;
 }
 
@@ -141,18 +119,13 @@ int ek_ringbuf_peek(ek_ringbuf_t *rb, void *item)
 {
     if (rb == NULL || item == NULL) return -EINVAL;
 
-    if (!EK_LOCK_TRY(rb)) return -EBUSY;
-
     if (ek_ringbuf_empty(rb) == true)
     {
-        EK_LOCK_RELEASE(rb);
         return -ENODATA;
     }
 
     const uint8_t *source = rb->data + (rb->read_idx * rb->item_size);
     memcpy(item, source, rb->item_size);
-
-    EK_LOCK_RELEASE(rb);
 
     return 0;
 }

@@ -33,10 +33,6 @@ typedef struct ek_snapshot ek_snapshot_t;
  */
 struct ek_snapshot
 {
-#    if EKCFG_RTOS == 1
-    EK_LOCK_TYPE lock; /**< 互斥锁（仅 RTOS 模式） */
-#    endif /* EKCFG_RTOS */
-
     uint32_t unique; /**< 当前快照的唯一 id，0 表示无数据 */
     size_t data_size; /**< 快照数据大小（字节） */
     uint8_t data[]; /**< 唯一数据位置：动态=malloc 尾部，静态=union 尾部 */
@@ -119,7 +115,6 @@ void ek_snapshot_destroy(ek_snapshot_t *snapshot);
  * @param unique 本次快照的唯一 id，不得为 0 或与当前 id 相同
  * @return 0 成功
  * @return -EINVAL unique 与当前 id 相同
- * @return -EBUSY 资源忙（RTOS 模式）
  */
 int ek_snapshot_set(ek_snapshot_t *snapshot, void *data, uint32_t unique);
 
@@ -129,7 +124,6 @@ int ek_snapshot_set(ek_snapshot_t *snapshot, void *data, uint32_t unique);
  * @param data 接收缓冲区指针，拷出 data_size 字节
  * @return 0 成功
  * @return -ENODATA 快照为空（尚未写入或已被清空）
- * @return -EBUSY 资源忙（RTOS 模式）
  */
 int ek_snapshot_get(ek_snapshot_t *snapshot, void *data);
 

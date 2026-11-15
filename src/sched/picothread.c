@@ -482,9 +482,6 @@ ek_pt_msg_t *ek_pt_msg_create(size_t item_size, uint32_t item_amount)
     msg->rb.read_idx = 0U;
     msg->rb.write_idx = 0U;
     msg->rb.item_amount = 0U;
-#        if EKCFG_RTOS == 1
-    EK_LOCK_INIT(msg->rb.lock);
-#        endif
     ek_list_init(&msg->recv_wait);
     ek_list_init(&msg->send_wait);
     return msg;

@@ -5,14 +5,17 @@
  */
 
 #include "os_priv.h"
-#include "ek/os/kernel.h"
-#include "ek/mem/heap.h"
-#include "ek/core/def.h"
 
-#define TID_SLOT_BITS       6
-#define TID_SLOT_MASK       ((1U << TID_SLOT_BITS) - 1U)
-#define MAKE_TID(gen, slot) ((int)(((uint32_t)(gen) << TID_SLOT_BITS) | (uint32_t)(slot)))
-#define TID_SLOT(tid)       ((uint32_t)(tid) & TID_SLOT_MASK)
+#if EKCFG_RTOS == 1
+
+#    include "ek/os/kernel.h"
+#    include "ek/mem/heap.h"
+#    include "ek/core/def.h"
+
+#    define TID_SLOT_BITS       6
+#    define TID_SLOT_MASK       ((1U << TID_SLOT_BITS) - 1U)
+#    define MAKE_TID(gen, slot) ((int)(((uint32_t)(gen) << TID_SLOT_BITS) | (uint32_t)(slot)))
+#    define TID_SLOT(tid)       ((uint32_t)(tid) & TID_SLOT_MASK)
 
 static_assert(EKCFG_OS_THREADS_MAX <= (1U << TID_SLOT_BITS), "EKCFG_OS_THREADS_MAX exceeds TID_SLOT_BITS capacity");
 static_assert(EKCFG_OS_THREAD_MIN_PRIO < 32, "EKCFG_OS_THREAD_MIN_PRIO must be < 32");
@@ -539,3 +542,5 @@ int ek_os_kernel_current_tid(void)
 {
     return g_cur_thrd ? g_cur_thrd->tid : -ESRCH;
 }
+
+#endif /* EKCFG_RTOS == 1 */

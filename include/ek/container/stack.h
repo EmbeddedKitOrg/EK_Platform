@@ -34,9 +34,6 @@ struct ek_stack
     uint32_t sp; /**< 栈顶指针（stack pointer），指向下一个写入位置 */
     size_t item_size; /**< 单个元素的大小（字节） */
     uint32_t cap; /**< 栈的最大容量 */
-#    if EKCFG_RTOS == 1
-    EK_LOCK_TYPE lock;
-#    endif /* EKCFG_RTOS */
     uint8_t data[]; /**< 唯一数据位置：动态=malloc 尾部，静态=union 尾部 */
 };
 
@@ -136,7 +133,6 @@ void ek_stack_deinit_static(ek_stack_t *sk);
  * @param item 指向要压入的元素的指针
  * @return 0 成功压入
  * @return -ENOSPC 栈已满
- * @return -EBUSY 资源忙（RTOS 模式）
  *
  * @warning sk 和 item 为 NULL 时返回 -EINVAL
  * @note 复杂度：O(1)
@@ -153,7 +149,6 @@ int ek_stack_push(ek_stack_t *sk, const void *item);
  * @param item 指向接收弹出元素的缓冲区的指针
  * @return 0 成功弹出
  * @return -ENODATA 栈为空
- * @return -EBUSY 资源忙（RTOS 模式）
  *
  * @warning sk 和 item 为 NULL 时返回 -EINVAL
  * @note 复杂度：O(1)

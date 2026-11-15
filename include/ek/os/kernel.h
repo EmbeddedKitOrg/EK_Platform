@@ -8,9 +8,12 @@
 #define EK_OS_KERNEL_H
 
 #include "ek/conf_internal.h"
-#include "ek/core/def.h"
 
-#define EK_OS_FOREVER ((int64_t)(-1)) /**< 永久阻塞超时值 */
+#if EKCFG_RTOS == 1
+
+#    include "ek/core/def.h"
+
+#    define EK_OS_FOREVER ((int64_t)(-1)) /**< 永久阻塞超时值 */
 
 /**
  * @brief 内核时间源与定时唤醒操作表（由 BSP/Port 实现）
@@ -43,5 +46,7 @@ void ek_os_kernel_announce_isr(void);
  * @return > 0 表示当前工作线程的 tid，< 0 表示内核没就绪
  */
 int ek_os_kernel_current_tid(void);
+
+#endif /* EKCFG_RTOS == 1 */
 
 #endif // EK_OS_KERNEL_H

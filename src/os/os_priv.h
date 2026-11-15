@@ -8,9 +8,12 @@
 #define EK_OS_PRIV_H
 
 #include "ek/conf_internal.h"
-#include "ek/os/thread.h"
-#include "ek/container/list.h"
-#include "ek/core/arch.h"
+
+#if EKCFG_RTOS == 1
+
+#    include "ek/os/thread.h"
+#    include "ek/container/list.h"
+#    include "ek/core/arch.h"
 
 typedef struct os_thread os_thread_t;
 
@@ -156,5 +159,7 @@ bool kernel_wake_one(ek_list_node_t *wait_list, int err);
  * @return true 至少唤醒了一个线程，false 等待队列为空
  */
 bool kernel_wake_all(ek_list_node_t *wait_list, int err);
+
+#endif /* EKCFG_RTOS == 1 */
 
 #endif // EK_OS_PRIV_H
