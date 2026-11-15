@@ -86,6 +86,33 @@ uint32_t ek_arch_irq_lock(void);
  */
 void ek_arch_irq_unlock(uint32_t flags);
 
+/**
+ * @brief 在线程栈顶构造初始寄存器上下文
+ *
+ * @param stack_top 线程可用栈区最高地址（函数内部会向下做架构要求的对齐）
+ * @param entry     线程入口函数
+ * @param arg       传递给线程入口函数的参数
+ * @param exit      线程入口函数意外返回时的兜底退出函数
+ * @return 构造完成后的初始栈顶指针（写入 TCB 的 sp）
+ *
+ * @note 内部伪造中断返回现场，供首次上下文切换直接恢复并跳转至 entry。
+ */
+void *ek_arch_stack_init(void *stack_top, void (*entry)(void *), void *arg, void (*exit)(void));
+
+/**
+ * @brief 触发一次线程上下文切换请求
+ *
+ * @note Cortex-M 分支通过置位 PendSV 悬起异常，在退出临界区或中断后完成切换。
+ */
+void ek_arch_switch_yield(void);
+
+/**
+ * @brief 启动操作系统调度器并切入首个线程
+ *
+ * @note Cortex-M 分支配置 PendSV/SVC 优先级、开中断并触发 SVC 进入首个线程，永不返回。
+ */
+__EK_NO_RETURN void ek_arch_sched_start(void);
+
 #    if (defined(__arm__) || defined(__thumb__)) && (EKCFG_EXPORT == 1 || EKCFG_STATIC_ALLOC == 1)
 
 #        if defined(__COUNTER__)
@@ -93,7 +120,6 @@ void ek_arch_irq_unlock(uint32_t flags);
 #        else
 #            define _EK_ARCH_UNIQUE_ID __LINE__
 #        endif
-
 /**
  * @brief 静态声明并自动安装一个中断处理函数
  *
