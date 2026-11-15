@@ -87,6 +87,13 @@ uint32_t ek_arch_irq_lock(void);
 void ek_arch_irq_unlock(uint32_t flags);
 
 /**
+ * @brief 判断当前是否处于中断
+ *
+ * @return true 表示在中断中， false 表示不在中断
+ */
+bool ek_arch_in_isr(void);
+
+/**
  * @brief 在线程栈顶构造初始寄存器上下文
  *
  * @param stack_top 线程可用栈区最高地址（函数内部会向下做架构要求的对齐）

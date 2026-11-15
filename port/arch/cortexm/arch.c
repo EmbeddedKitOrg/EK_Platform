@@ -138,6 +138,11 @@ void *ek_arch_stack_init(void *stack_top, void (*entry)(void *), void *arg, void
     return (void *)frame;
 }
 
+bool ek_arch_in_isr(void)
+{
+    return (__get_IPSR() & 0x1FFU) != 0U;
+}
+
 void ek_arch_switch_yield(void)
 {
     SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
