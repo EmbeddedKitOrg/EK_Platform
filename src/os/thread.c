@@ -206,6 +206,7 @@ int ek_os_thread_abort(int tid)
 
 int ek_os_thread_sleep(int64_t timeout)
 {
+    if (ek_arch_in_isr()) return -EPERM;
     if (timeout < 0) return -EINVAL;
     if (timeout == 0) return 0;
 
