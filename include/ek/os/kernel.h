@@ -13,6 +13,11 @@
 
 #    include "ek/core/def.h"
 
+#    ifdef __cplusplus
+extern "C"
+{
+#    endif
+
 #    define EK_OS_FOREVER ((int64_t)(-1)) /**< 永久阻塞超时值 */
 
 /**
@@ -46,6 +51,10 @@ void ek_os_kernel_announce_isr(void);
  * @return > 0 表示当前工作线程的 tid，< 0 表示内核没就绪
  */
 int ek_os_kernel_current_tid(void);
+
+#    ifdef __cplusplus
+}
+#    endif
 
 #endif /* EKCFG_RTOS == 1 */
 

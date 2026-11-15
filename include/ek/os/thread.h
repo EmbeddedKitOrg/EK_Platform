@@ -13,6 +13,11 @@
 
 #    include "ek/core/def.h"
 
+#    ifdef __cplusplus
+extern "C"
+{
+#    endif
+
 /**
  * @brief 线程入口函数类型
  * @param arg 创建线程时传入的用户参数
@@ -118,6 +123,10 @@ int ek_os_thread_sleep(int64_t timeout);
             }                                                                                                           \
             EK_STATIC_ALLOC_REGISTER(handle, EK_STATIC_ALLOC_ORDER_OS_THREAD, _static_alloc_init_##handle)
 #    endif /* EKCFG_STATIC_ALLOC == 1 */
+
+#    ifdef __cplusplus
+}
+#    endif
 
 #endif /* EKCFG_RTOS == 1 */
 

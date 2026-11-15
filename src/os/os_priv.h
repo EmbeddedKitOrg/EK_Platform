@@ -15,6 +15,11 @@
 #    include "ek/container/list.h"
 #    include "ek/core/arch.h"
 
+#    ifdef __cplusplus
+extern "C"
+{
+#    endif
+
 typedef struct os_thread os_thread_t;
 
 struct os_thread
@@ -159,6 +164,10 @@ bool kernel_wake_one(ek_list_node_t *wait_list, int err);
  * @return true 至少唤醒了一个线程，false 等待队列为空
  */
 bool kernel_wake_all(ek_list_node_t *wait_list, int err);
+
+#    ifdef __cplusplus
+}
+#    endif
 
 #endif /* EKCFG_RTOS == 1 */
 
