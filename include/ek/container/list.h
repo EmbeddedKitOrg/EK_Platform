@@ -48,7 +48,11 @@ struct ek_list_node
     for (pos = (head)->next, n = pos->next; pos != (head); pos = n, n = pos->next)
 
 /* clang-format on */
-
+/**
+ * @brief 静态初始化链表头
+ * @param name 链表头变量名
+ */
+#    define EK_LIST_HEAD_INIT(name) { .prev = &(name), .next = &(name) }
 /**
  * @brief 初始化链表头
  * @param head 链表头节点指针
@@ -134,6 +138,7 @@ __EK_STATIC_INLINE void _ek_list_remove(ek_list_node_t *prev, ek_list_node_t *ne
  */
 __EK_STATIC_INLINE void ek_list_remove(ek_list_node_t *remove)
 {
+    if (!remove || !remove->prev || !remove->next) return;
     _ek_list_remove(remove->prev, remove->next);
     remove->prev = NULL;
     remove->next = NULL;
