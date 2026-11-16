@@ -10,6 +10,7 @@
 
 #    include "os_priv.h"
 #    include "ek/mem/heap.h"
+#    include "ek/os/kernel.h"
 
 #    if EKCFG_STATIC_ALLOC == 1
 static_assert(EK_OS_THREAD_TCB_SIZE >= sizeof(os_thread_t), "EK_OS_THREAD_TCB_SIZE is smaller than os_thread_t");
