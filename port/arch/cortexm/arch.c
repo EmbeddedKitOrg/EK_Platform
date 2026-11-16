@@ -124,35 +124,9 @@ int ek_arch_irq_install(int32_t irq, ek_arch_isr_t handler)
     return 0;
 }
 
-void *ek_arch_stack_init(void *stack_top, void (*entry)(void *), void *arg, void (*exit)(void))
-{
-    uintptr_t sp = (uintptr_t)EK_ALIGN_DOWN(stack_top, 8);
-    struct cm_stack_frame *frame = (struct cm_stack_frame *)(sp - sizeof(*frame));
-
-    memset(frame, 0, sizeof(*frame));
-
-#    if defined(__FPU_PRESENT) && (__FPU_PRESENT == 1) && defined(__VFP_FP__) && !defined(__SOFTFP__)
-    frame->sf_save.exc_return = 0xFFFFFFFDU;
-#    endif
-
-    frame->hw_save.r0 = (uint32_t)(uintptr_t)arg;
-    frame->hw_save.lr = (uint32_t)(uintptr_t)exit;
-    frame->hw_save.pc = (uint32_t)(uintptr_t)entry;
-    frame->hw_save.xpsr = 0x01000000U; // bit24 (Thumb 位) 必须为 1
-
-    return (void *)frame;
-}
-
 bool ek_arch_in_isr(void)
 {
     return (__get_IPSR() & 0x1FFU) != 0U;
-}
-
-void ek_arch_switch_yield(void)
-{
-    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
-    __DSB();
-    __ISB();
 }
 
 __EK_NO_RETURN void ek_arch_sched_start(void)
@@ -168,11 +142,41 @@ __EK_NO_RETURN void ek_arch_sched_start(void)
 
 #    if defined(EKCFG_RTOS) && (EKCFG_RTOS == 1)
 
+#        include "ek/os/thread.h"
+
 extern void ek_arch_start_first_thread(void);
 extern void ek_arch_switch_thread(void);
+extern void ek_os_thread_entry_wrapper(ek_os_thread_fn_t entry, void *arg);
 
 EK_DEFINE_ARCH_IRQ(SVCall_IRQn, ek_arch_start_first_thread);
 EK_DEFINE_ARCH_IRQ(PendSV_IRQn, ek_arch_switch_thread);
+
+void *ek_arch_stack_init(void *stack_top, ek_os_thread_fn_t entry, void *arg, void (*exit)(void))
+{
+    uintptr_t sp = (uintptr_t)EK_ALIGN_DOWN(stack_top, 8);
+    struct cm_stack_frame *frame = (struct cm_stack_frame *)(sp - sizeof(*frame));
+
+    memset(frame, 0, sizeof(*frame));
+
+#        if defined(__FPU_PRESENT) && (__FPU_PRESENT == 1) && defined(__VFP_FP__) && !defined(__SOFTFP__)
+    frame->sf_save.exc_return = 0xFFFFFFFDU;
+#        endif
+
+    frame->hw_save.r0 = (uint32_t)(uintptr_t)entry;
+    frame->hw_save.r1 = (uint32_t)(uintptr_t)arg;
+    frame->hw_save.lr = (uint32_t)(uintptr_t)exit;
+    frame->hw_save.pc = (uint32_t)(uintptr_t)ek_os_thread_entry_wrapper;
+    frame->hw_save.xpsr = 0x01000000U; // bit24 (Thumb 位) 必须为 1
+
+    return (void *)frame;
+}
+
+void ek_arch_switch_yield(void)
+{
+    SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+    __DSB();
+    __ISB();
+}
 
 #    endif
 

@@ -16,6 +16,13 @@
 static_assert(EK_OS_THREAD_TCB_SIZE >= sizeof(os_thread_t), "EK_OS_THREAD_TCB_SIZE is smaller than os_thread_t");
 #    endif
 
+void ek_os_thread_entry_wrapper(ek_os_thread_fn_t entry, void *arg)
+{
+    entry(arg);
+
+    ek_os_thread_abort(kernel_thread_to_tid(g_cur_thrd));
+}
+
 static int _thread_setup(os_thread_t *thrd,
                          const char *name,
                          ek_os_thread_fn_t fn,
