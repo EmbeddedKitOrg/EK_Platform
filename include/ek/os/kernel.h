@@ -12,6 +12,7 @@
 #if EKCFG_RTOS == 1
 
 #    include "ek/core/def.h"
+#    include "ek/core/arch.h"
 
 #    ifdef __cplusplus
 extern "C"
@@ -28,6 +29,31 @@ typedef struct
     uint64_t (*now)(void); /**< 获取当前单调 64 位时间 */
     void (*set_timeout)(int64_t delta); /**< 预约 delta 后触发 ek_os_kernel_announce_isr()；< 0 表示停表 */
 } ek_os_timer_ops_t;
+
+/**
+ * @brief 进入内核临界区（关闭中断并保存进入前的状态）
+ *
+ * 所有会操作就绪队列、超时链表、等待队列等共享调度状态的内核路径都必须调用。
+ * 支持嵌套：内层返回的 flags 必须原样传回 ek_os_kernel_exit_critical()。
+ *
+ * @return 进入前的中断状态标志，必须与 ek_os_kernel_exit_critical() 配对使用
+ */
+__EK_STATIC_INLINE uint32_t ek_os_kernel_enter_critical(void)
+{
+    return ek_arch_irq_lock();
+}
+
+/**
+ * @brief 退出内核临界区（恢复进入前的中断状态）
+ *
+ * @param flags ek_os_kernel_enter_critical() 返回的状态标志
+ *
+ * @note 若这是最外层临界区且期间已置位 PendSV，本调用会直接触发上下文切换。
+ */
+__EK_STATIC_INLINE void ek_os_kernel_exit_critical(uint32_t flags)
+{
+    ek_arch_irq_unlock(flags);
+}
 
 /**
  * @brief 启动内核调度器（永不返回）

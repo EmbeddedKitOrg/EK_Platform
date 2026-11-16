@@ -141,7 +141,7 @@ void kernel_schedule(void);
 
 /**
  * @brief 将当前线程挂入等待队列并阻塞，唤醒后返回结果
- * @note 调用前必须已持 ek_arch_irq_lock() 临界区；本函数内部负责恢复 irq_flags 并切出
+ * @note 调用前必须已持 ek_os_kernel_enter_critical() 临界区；本函数内部负责恢复 irq_flags 并切出
  * @param wait_list 同步对象的等待链表头
  * @param timeout   相对超时时长（< 0 表示永久阻塞）
  * @param irq_flags 调用方保存的中断状态标志

@@ -48,16 +48,16 @@ static int _thread_setup(os_thread_t *thrd,
     ek_list_init(&thrd->state_node);
     ek_list_init(&thrd->wait_node);
 
-    uint32_t flags = ek_arch_irq_lock();
+    uint32_t flags = ek_os_kernel_enter_critical();
     int tid = kernel_alloc_thread(thrd);
     if (tid <= 0)
     {
-        ek_arch_irq_unlock(flags);
+        ek_os_kernel_exit_critical(flags);
         return tid;
     }
     kernel_thread_ready(thrd);
     kernel_schedule();
-    ek_arch_irq_unlock(flags);
+    ek_os_kernel_exit_critical(flags);
 
     return tid;
 }
@@ -140,7 +140,7 @@ int ek_os_thread_suspend(int tid)
     if (ek_arch_in_isr()) return -EPERM;
 
     os_thread_t *thrd = NULL;
-    uint32_t flags = ek_arch_irq_lock();
+    uint32_t flags = ek_os_kernel_enter_critical();
     int err = _thread_get(tid, false, &thrd);
     if (err == 0)
     {
@@ -150,7 +150,7 @@ int ek_os_thread_suspend(int tid)
             kernel_schedule();
         }
     }
-    ek_arch_irq_unlock(flags);
+    ek_os_kernel_exit_critical(flags);
     return err;
 }
 
@@ -159,14 +159,14 @@ int ek_os_thread_resume(int tid)
     if (ek_arch_in_isr()) return -EPERM;
 
     os_thread_t *thrd = NULL;
-    uint32_t flags = ek_arch_irq_lock();
+    uint32_t flags = ek_os_kernel_enter_critical();
     int err = _thread_get(tid, true, &thrd);
     if (err == 0 && thrd->state == EK_OS_THREAD_SUSPEND)
     {
         kernel_thread_resume(thrd);
         kernel_schedule();
     }
-    ek_arch_irq_unlock(flags);
+    ek_os_kernel_exit_critical(flags);
     return err;
 }
 
@@ -175,14 +175,14 @@ int ek_os_thread_set_prio(int tid, uint8_t prio)
     if (ek_arch_in_isr()) return -EPERM;
 
     os_thread_t *thrd = NULL;
-    uint32_t flags = ek_arch_irq_lock();
+    uint32_t flags = ek_os_kernel_enter_critical();
     int err = _thread_get(tid, false, &thrd);
     if (err == 0)
     {
         kernel_thread_set_prio(thrd, prio);
         kernel_schedule();
     }
-    ek_arch_irq_unlock(flags);
+    ek_os_kernel_exit_critical(flags);
     return err;
 }
 
@@ -191,11 +191,11 @@ int ek_os_thread_abort(int tid)
     if (ek_arch_in_isr()) return -EPERM;
 
     os_thread_t *thrd = NULL;
-    uint32_t flags = ek_arch_irq_lock();
+    uint32_t flags = ek_os_kernel_enter_critical();
     int err = _thread_get(tid, false, &thrd);
     if (err < 0)
     {
-        ek_arch_irq_unlock(flags);
+        ek_os_kernel_exit_critical(flags);
         return err;
     }
 
@@ -204,7 +204,7 @@ int ek_os_thread_abort(int tid)
     kernel_thread_abort(thrd);
     if (reschedule) kernel_schedule();
 
-    ek_arch_irq_unlock(flags);
+    ek_os_kernel_exit_critical(flags);
 
     if (is_self)
     {
@@ -222,17 +222,17 @@ int ek_os_thread_sleep(int64_t timeout)
     if (timeout < 0) return -EINVAL;
     if (timeout == 0) return 0;
 
-    uint32_t flags = ek_arch_irq_lock();
+    uint32_t flags = ek_os_kernel_enter_critical();
     os_thread_t *cur = g_cur_thrd;
     if (!cur || kernel_is_idle_thread(cur))
     {
-        ek_arch_irq_unlock(flags);
+        ek_os_kernel_exit_critical(flags);
         return -EPERM;
     }
 
     kernel_thread_block(cur, timeout);
     kernel_schedule();
-    ek_arch_irq_unlock(flags);
+    ek_os_kernel_exit_critical(flags);
     ek_arch_isb();
 
     return 0;
