@@ -31,6 +31,7 @@
 #include <inttypes.h>
 #include <errno.h>
 #include <sys/types.h>
+#include <limits.h>
 
 /* lwprintf 自带 va_list 支持，使用 lwprintf 时不需要 stdarg */
 #include "ek/conf_internal.h"
