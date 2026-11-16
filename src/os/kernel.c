@@ -43,7 +43,6 @@ void kernel_thread_exit(void)
     ek_os_thread_exit(NULL);
 }
 
-
 int kernel_alloc_thread(os_thread_t *thrd)
 {
     if (!thrd) return -EINVAL;
@@ -392,9 +391,9 @@ void kernel_schedule(void)
     os_thread_t *cur = g_next_thrd ? g_next_thrd : g_cur_thrd;
     if (cur->state == EK_OS_THREAD_RUNNING)
     {
-        if (s_ready_bitmap != 0)
+        if (s_ready_bitmap)
         {
-            if (cur->sched_lock > 0U)
+            if (cur->sched_lock)
             {
                 ek_os_kernel_spin_unlock(flags);
                 return;
