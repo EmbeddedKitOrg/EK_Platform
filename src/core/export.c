@@ -9,6 +9,7 @@
 #if (EKCFG_EXPORT == 1)
 
 #    include "ek/core/assert.h"
+#    include "ek/core/def.h"
 
 extern const ek_export_item_t _ek_export_fn_start;
 extern const ek_export_item_t _ek_export_fn_end;

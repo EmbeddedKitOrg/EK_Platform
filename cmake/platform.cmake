@@ -2,7 +2,7 @@
 # EK 平台配置入口（两阶段）
 #
 # project() 之前：
-#   ek_platform_prepare(ARCH cm4 PICOLIBC ON)
+#   ek_platform_prepare(ARCH cm4 PICOLIBC ON [BUILD_TYPE Debug|Release])
 #
 # add_subdirectory(ek_platform) 之前：
 #   ek_platform_configure(
@@ -20,7 +20,7 @@ if(NOT DEFINED EK_LINKER_MODE)
 endif()
 
 function(ek_platform_prepare)
-    cmake_parse_arguments(A "" "ARCH;PICOLIBC;TOOLCHAIN" "" ${ARGN})
+    cmake_parse_arguments(A "" "ARCH;PICOLIBC;TOOLCHAIN;BUILD_TYPE" "" ${ARGN})
 
     if(CMAKE_C_COMPILER_LOADED)
         message(FATAL_ERROR "ek_platform_prepare() must be called before project()")
@@ -51,6 +51,21 @@ function(ek_platform_prepare)
     set(CMAKE_TOOLCHAIN_FILE "${_tc}" CACHE FILEPATH "EK toolchain file" FORCE)
     set(EK_PLATFORM_ARCH "${A_ARCH}" CACHE INTERNAL "EK target arch")
     set(EK_LINKER_ARCH "${_ek_arch_LINKER_ARCH}" CACHE STRING "EK linker arch" FORCE)
+
+    # 优先级：命令行 -DCMAKE_BUILD_TYPE > prepare(BUILD_TYPE ...) > 默认 Debug
+    if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+        if(A_BUILD_TYPE)
+            set(_bt "${A_BUILD_TYPE}")
+        else()
+            set(_bt "Debug")
+        endif()
+        set(CMAKE_BUILD_TYPE "${_bt}" CACHE STRING
+            "Build type (Debug, Release, RelWithDebInfo, MinSizeRel)" FORCE)
+    endif()
+
+    if(CMAKE_BUILD_TYPE AND NOT CMAKE_BUILD_TYPE MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel)$")
+        message(FATAL_ERROR "ek_platform_prepare: invalid CMAKE_BUILD_TYPE='${CMAKE_BUILD_TYPE}'")
+    endif()
 endfunction()
 
 function(ek_platform_configure)

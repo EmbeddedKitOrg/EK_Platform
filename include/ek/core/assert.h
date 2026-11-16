@@ -15,9 +15,9 @@
 #define EK_ASSERT_H
 
 #include "ek/conf_internal.h"
+#include "ek/core/def.h"
 
 #if EKCFG_ASSERT
-#    include "ek/core/def.h"
 
 /**
  * @brief 是否使用轻量级断言
@@ -90,6 +90,10 @@ void ek_assert_hook(const char *file, uint32_t line, const char *expr);
 }
 #    endif
 
+#else
+#    define ek_assert_tiny(expr) ((void)0)
+#    define ek_assert_full(expr) ((void)0)
+#    define ek_assert(expr)      ((void)0)
 #endif // EKCFG_ASSERT
 
 #endif /* EK_ASSERT_H */

@@ -26,8 +26,8 @@ cmake_minimum_required(VERSION 3.20)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/lib/ek_platform/cmake/platform.cmake)
 
-# 1. project() 之前：选择架构与是否启用 picolibc
-ek_platform_prepare(ARCH cm4 PICOLIBC ON)
+# 1. project() 之前：选择架构、picolibc 与默认构建模式
+ek_platform_prepare(ARCH cm4 PICOLIBC ON BUILD_TYPE Debug)
 set(PICOLIBC_FETCH ON) # 自动下载预编译 picolibc
 
 project(my_app LANGUAGES C ASM)
@@ -82,12 +82,13 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
 
 ### 1. CMake 配置项
 
-#### `ek_platform_prepare(ARCH <arch> [PICOLIBC ON|OFF] [TOOLCHAIN <path>])`
+#### `ek_platform_prepare(ARCH <arch> [PICOLIBC ON|OFF] [BUILD_TYPE Debug|Release|RelWithDebInfo|MinSizeRel] [TOOLCHAIN <path>])`
 
 | 参数 / 变量 | 可选值 / 说明 |
 |---|---|
 | `ARCH` | **ARM**: `cm0`, `cm3`, `cm4`, `cm7`, `cm23`, `cm33`, `cm55`<br>**RISC-V**: `rv32imac`, `rv32imafc`, `rv64imac`, `rv64gc`<br>**Host**: `host`, `x86_64` |
 | `PICOLIBC` | `ON` / `OFF`（默认 `OFF`）。开启后可通过以下变量之一指定来源：<br>- `PICOLIBC_FETCH=ON`：自动下载对应架构预编译包（缓存于 `build/_deps`）<br>- `PICOLIBC_BUILD=ON`：使用 meson 从源码构建（仅限 ARM）<br>- `PICOLIBC_ROOT="/path"`：使用本地已安装的 picolibc |
+| `BUILD_TYPE` | 可选，默认 `Debug`（命令行 `-DCMAKE_BUILD_TYPE=...` 优先级更高）。自动注入 `EK_PLATFORM_DEBUG` 联动 `EKCFG_DEBUG`、`EKCFG_ASSERT` 与 `EKCFG_LOG_DEBUG` 默认值，业务代码可用 `EK_IS_DEBUG`、`EK_DEBUG_ONLY(...)`、`ek_is_debug()`、`ek_build_mode_str()` |
 | `RISCV_TOOLCHAIN_PREFIX` | RISC-V 编译器不在 `PATH` 时指定前缀（如 `/opt/.../bin/riscv-none-elf-`） |
 
 #### `ek_platform_configure(...)`

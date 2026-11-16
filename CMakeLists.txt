@@ -140,10 +140,8 @@ endif()
 
 target_compile_options(ek_platform PRIVATE
     -fdiagnostics-color=always
-    -Os
     -fdata-sections
     -ffunction-sections
-    -Wl,--gc-sections
 )
 
 if(EK_CONF_PATH)
@@ -157,6 +155,11 @@ if(PICOLIBC)
 else()
     target_compile_definitions(ek_platform PUBLIC EK_PLATFORM_PICOLIBC=0)
 endif()
+
+target_compile_definitions(ek_platform PUBLIC
+    $<$<CONFIG:Debug>:EK_PLATFORM_DEBUG=1>
+    $<$<NOT:$<CONFIG:Debug>>:EK_PLATFORM_DEBUG=0>
+)
 
 if(NOT EK_LINKER_MODE STREQUAL "off")
     ek_linker_attach(ek_platform)

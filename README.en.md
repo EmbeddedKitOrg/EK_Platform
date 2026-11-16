@@ -26,8 +26,8 @@ cmake_minimum_required(VERSION 3.20)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/lib/ek_platform/cmake/platform.cmake)
 
-# 1. Before project(): select architecture and whether to enable picolibc
-ek_platform_prepare(ARCH cm4 PICOLIBC ON)
+# 1. Before project(): select architecture, picolibc, and default build type
+ek_platform_prepare(ARCH cm4 PICOLIBC ON BUILD_TYPE Debug)
 set(PICOLIBC_FETCH ON) # Automatically download prebuilt picolibc
 
 project(my_app LANGUAGES C ASM)
@@ -82,12 +82,13 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
 
 ### 1. CMake Options
 
-#### `ek_platform_prepare(ARCH <arch> [PICOLIBC ON|OFF] [TOOLCHAIN <path>])`
+#### `ek_platform_prepare(ARCH <arch> [PICOLIBC ON|OFF] [BUILD_TYPE Debug|Release|RelWithDebInfo|MinSizeRel] [TOOLCHAIN <path>])`
 
 | Argument / Variable | Values / Description |
 |---|---|
 | `ARCH` | **ARM**: `cm0`, `cm3`, `cm4`, `cm7`, `cm23`, `cm33`, `cm55`<br>**RISC-V**: `rv32imac`, `rv32imafc`, `rv64imac`, `rv64gc`<br>**Host**: `host`, `x86_64` |
 | `PICOLIBC` | `ON` / `OFF` (default `OFF`). When enabled, select the source via one of:<br>- `PICOLIBC_FETCH=ON`: Automatically download the prebuilt package (cached under `build/_deps`)<br>- `PICOLIBC_BUILD=ON`: Build from source with meson (ARM only)<br>- `PICOLIBC_ROOT="/path"`: Use a locally installed picolibc |
+| `BUILD_TYPE` | Optional, defaults to `Debug` (CLI `-DCMAKE_BUILD_TYPE=...` takes precedence). Injects `EK_PLATFORM_DEBUG` to drive `EKCFG_DEBUG`, `EKCFG_ASSERT`, and `EKCFG_LOG_DEBUG` defaults; application code can use `EK_IS_DEBUG`, `EK_DEBUG_ONLY(...)`, `ek_is_debug()`, and `ek_build_mode_str()` |
 | `RISCV_TOOLCHAIN_PREFIX` | Toolchain prefix when the RISC-V compiler is not in `PATH` (e.g., `/opt/.../bin/riscv-none-elf-`) |
 
 #### `ek_platform_configure(...)`

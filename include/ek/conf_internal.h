@@ -45,6 +45,18 @@
 #    endif
 #endif
 
+/* CMake 的构建模式是构建事实，优先于 ek_conf.h 或默认兜底。 */
+#ifdef EK_PLATFORM_DEBUG
+#    undef EKCFG_DEBUG
+#    define EKCFG_DEBUG EK_PLATFORM_DEBUG
+#elif !defined(EKCFG_DEBUG)
+#    define EKCFG_DEBUG (1) /**< 构建模式 (1=Debug, 0=Release) */
+#endif
+#if (EKCFG_DEBUG != 0) && (EKCFG_DEBUG != 1)
+#    error "EKCFG_DEBUG must be 0 or 1"
+#endif
+#define EKCFG_RELEASE (!(EKCFG_DEBUG))
+
 /* ========================================================================
  * 平台 / 运行环境
  * ======================================================================== */
@@ -100,14 +112,14 @@
  * ======================================================================== */
 
 #ifndef EKCFG_ASSERT
-#    define EKCFG_ASSERT (1) /**< 断言模块 */
+#    define EKCFG_ASSERT EKCFG_DEBUG /**< 断言模块（未显式配置时默认跟随 Debug 模式） */
 #endif
 #if EKCFG_ASSERT == 1
 #    ifndef EKCFG_ASSERT_TINY
-#        define EKCFG_ASSERT_TINY (1) /**< 使用轻量级断言模式 */
+#        define EKCFG_ASSERT_TINY EKCFG_RELEASE /**< 轻量级断言（Debug 用完整断言，Release 用轻量版） */
 #    endif
 #    ifndef EKCFG_ASSERT_LOG
-#        define EKCFG_ASSERT_LOG (1) /**< 断言失败时输出日志 */
+#        define EKCFG_ASSERT_LOG EKCFG_DEBUG /**< 断言失败时输出日志 */
 #    endif
 #endif
 
@@ -120,7 +132,7 @@
 #endif
 #if EKCFG_LOG == 1
 #    ifndef EKCFG_LOG_DEBUG
-#        define EKCFG_LOG_DEBUG (1) /**< 启用 DEBUG 级别日志 */
+#        define EKCFG_LOG_DEBUG EKCFG_DEBUG /**< 启用 DEBUG 级别日志（默认跟随 Debug 模式） */
 #    endif
 #    ifndef EKCFG_LOG_COLOR
 #        define EKCFG_LOG_COLOR (1) /**< 启用 ANSI 彩色日志 */

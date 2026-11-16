@@ -39,6 +39,38 @@
 #    include <stdarg.h>
 #endif
 
+/* ========== 构建模式接口 ========== */
+#define EK_IS_DEBUG   (EKCFG_DEBUG == 1)
+#define EK_IS_RELEASE (EKCFG_RELEASE == 1)
+
+#if EK_IS_DEBUG
+#    define EK_DEBUG_ONLY(stmt) \
+        do                      \
+        {                       \
+            stmt;               \
+        } while (0)
+#else
+#    define EK_DEBUG_ONLY(stmt) ((void)0)
+#endif
+
+/**
+ * @brief 查询当前是否以 Debug 模式构建
+ * @return true 为 Debug 模式，false 为 Release（非 Debug）模式
+ */
+static inline bool ek_is_debug(void)
+{
+    return EK_IS_DEBUG;
+}
+
+/**
+ * @brief 获取当前构建模式名称字符串
+ * @return "Debug" 或 "Release"
+ */
+static inline const char *ek_build_mode_str(void)
+{
+    return EK_IS_DEBUG ? "Debug" : "Release";
+}
+
 /**
  * @brief 换行符定义
  * @note Linux 平台使用 \n，其他平台使用 \r\n

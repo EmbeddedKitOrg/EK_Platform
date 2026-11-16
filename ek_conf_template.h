@@ -45,10 +45,10 @@
  * Assert 断言模块
  * ======================================================================== */
 
-#define EKCFG_ASSERT (1) /**< 断言模块 */
+#define EKCFG_ASSERT (1) /**< 断言模块（删去则跟随 Debug/Release 自动开关） */
 #if EKCFG_ASSERT == 1
-#    define EKCFG_ASSERT_TINY (1) /**< 使用轻量级断言模式 */
-#    define EKCFG_ASSERT_LOG  (1) /**< 断言失败时输出日志 */
+#    define EKCFG_ASSERT_TINY (1) /**< 使用轻量级断言模式（删去则 Debug=0 / Release=1） */
+#    define EKCFG_ASSERT_LOG  (1) /**< 断言失败时输出日志（删去则跟随 Debug/Release） */
 #endif
 
 /* ========================================================================
@@ -57,7 +57,7 @@
 
 #define EKCFG_LOG (1) /**< 日志模块 */
 #if EKCFG_LOG == 1
-#    define EKCFG_LOG_DEBUG    (1) /**< 启用 DEBUG 级别日志 */
+#    define EKCFG_LOG_DEBUG    (1) /**< 启用 DEBUG 级别日志（删去则跟随 Debug/Release） */
 #    define EKCFG_LOG_COLOR    (0) /**< 启用 ANSI 彩色日志 */
 #    define EKCFG_LOG_BUF_SIZE (128) /**< 日志缓冲区大小（字节） */
 #endif
