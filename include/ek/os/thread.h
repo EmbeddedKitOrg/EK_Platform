@@ -110,17 +110,18 @@ int ek_os_thread_sleep(int64_t timeout);
  * @param prio       线程优先级（数值越低优先级越高）
  * @param stack_size 线程栈大小（字节，不得小于 EKCFG_OS_THREAD_MIN_STACK）
  */
-#        define EK_DEFINE_OS_THREAD(handle, fn, arg, prio, stack_size)                                                  \
-            static int handle = -1;                                                                                     \
-            static uint8_t _ek_os_thrd_stk_##handle[_EK_OS_ALIGN8(stack_size) + EK_OS_THREAD_TCB_SIZE] __EK_ALIGNED(8); \
-            static int _static_alloc_init_##handle(void)                                                                \
-            {                                                                                                           \
-                int tid = ek_os_thread_create_static(                                                                   \
-                    #handle, (fn), (arg), (prio), _ek_os_thrd_stk_##handle, sizeof(_ek_os_thrd_stk_##handle));          \
-                if (tid < 0) return tid;                                                                                \
-                handle = tid;                                                                                           \
-                return 0;                                                                                               \
-            }                                                                                                           \
+#        define EK_DEFINE_OS_THREAD(handle, fn, arg, prio, stack_size)                                                \
+            static int handle = -1;                                                                                   \
+            static uint8_t _ek_os_thrd_stk_##handle[EK_ALIGN_UP(stack_size, 8) + EK_OS_THREAD_TCB_SIZE] __EK_ALIGNED( \
+                8);                                                                                                   \
+            static int _static_alloc_init_##handle(void)                                                              \
+            {                                                                                                         \
+                int tid = ek_os_thread_create_static(                                                                 \
+                    #handle, (fn), (arg), (prio), _ek_os_thrd_stk_##handle, sizeof(_ek_os_thrd_stk_##handle));        \
+                if (tid < 0) return tid;                                                                              \
+                handle = tid;                                                                                         \
+                return 0;                                                                                             \
+            }                                                                                                         \
             EK_STATIC_ALLOC_REGISTER(handle, EK_STATIC_ALLOC_ORDER_OS_THREAD, _static_alloc_init_##handle)
 #    endif /* EKCFG_STATIC_ALLOC == 1 */
 

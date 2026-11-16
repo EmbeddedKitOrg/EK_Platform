@@ -34,11 +34,11 @@ typedef struct
  * @brief 进入内核临界区（关闭中断并保存进入前的状态）
  *
  * 所有会操作就绪队列、超时链表、等待队列等共享调度状态的内核路径都必须调用。
- * 支持嵌套：内层返回的 flags 必须原样传回 ek_os_kernel_exit_critical()。
+ * 支持嵌套：内层返回的 flags 必须原样传回 ek_os_kernel_spin_unlock()。
  *
- * @return 进入前的中断状态标志，必须与 ek_os_kernel_exit_critical() 配对使用
+ * @return 进入前的中断状态标志，必须与 ek_os_kernel_spin_unlock() 配对使用
  */
-__EK_STATIC_INLINE uint32_t ek_os_kernel_enter_critical(void)
+__EK_STATIC_INLINE uint32_t ek_os_kernel_spin_lock(void)
 {
     return ek_arch_irq_lock();
 }
@@ -46,11 +46,11 @@ __EK_STATIC_INLINE uint32_t ek_os_kernel_enter_critical(void)
 /**
  * @brief 退出内核临界区（恢复进入前的中断状态）
  *
- * @param flags ek_os_kernel_enter_critical() 返回的状态标志
+ * @param flags ek_os_kernel_spin_lock() 返回的状态标志
  *
  * @note 若这是最外层临界区且期间已置位 PendSV，本调用会直接触发上下文切换。
  */
-__EK_STATIC_INLINE void ek_os_kernel_exit_critical(uint32_t flags)
+__EK_STATIC_INLINE void ek_os_kernel_spin_unlock(uint32_t flags)
 {
     ek_arch_irq_unlock(flags);
 }
