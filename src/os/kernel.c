@@ -466,6 +466,7 @@ static void _kernel_idle_thread(void *arg)
     for (;;)
     {
         _kernel_gc();
+        ek_arch_idle();
     }
 }
 

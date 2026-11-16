@@ -47,4 +47,9 @@ void ek_arch_irq_unlock(uint32_t flags)
     __EK_ASM("csrs mstatus, %0" ::"r"(flags & 8U) : "memory");
 }
 
+void ek_arch_idle(void)
+{
+    __EK_ASM("wfi");
+}
+
 #endif // EKCFG_ARCH == 1

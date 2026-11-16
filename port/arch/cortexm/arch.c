@@ -81,6 +81,11 @@ void ek_arch_irq_unlock(uint32_t flags)
     __set_PRIMASK(flags);
 }
 
+void ek_arch_idle(void)
+{
+    __WFI();
+}
+
 void ek_arch_redirect_vtor(void)
 {
     if (s_vtor_redirected) return;

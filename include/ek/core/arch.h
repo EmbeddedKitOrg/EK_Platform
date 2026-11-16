@@ -87,6 +87,16 @@ uint32_t ek_arch_irq_lock(void);
 void ek_arch_irq_unlock(uint32_t flags);
 
 /**
+ * @brief 在无可调度线程时让 CPU 进入低功耗等待
+ *
+ * Cortex-M 实现为 WFI：任意使能的中断都会把 CPU 唤醒，因此调用前无需再检查
+ * PendSV 是否挂起。RISC-V 实现为 WFI，host 分支为空操作。
+ *
+ * @note 调用时应已开中断，否则会永久休眠；内核 idle 线程在每次 GC 之后调用。
+ */
+void ek_arch_idle(void);
+
+/**
  * @brief 判断当前是否处于中断
  *
  * @return true 表示在中断中， false 表示不在中断

@@ -32,6 +32,10 @@ void ek_arch_irq_unlock(uint32_t flags)
     __EK_UNUSED(flags);
 }
 
+void ek_arch_idle(void)
+{
+}
+
 // host 构建没有异常向量表
 void ek_arch_redirect_vtor(void)
 {
