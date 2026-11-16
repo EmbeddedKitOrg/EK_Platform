@@ -32,7 +32,6 @@ static ek_list_node_t s_ready_thrds[EKCFG_OS_THREAD_MIN_PRIO + 1];
 static uint32_t s_ready_bitmap;
 static ek_list_node_t s_block_thrds = EK_LIST_HEAD_INIT(s_block_thrds);
 static ek_list_node_t s_suspend_thrds = EK_LIST_HEAD_INIT(s_suspend_thrds);
-static ek_list_node_t s_gc_thrds = EK_LIST_HEAD_INIT(s_gc_thrds);
 static os_thread_t *s_idle_thrd;
 static ek_os_timer_ops_t s_timer_ops;
 
@@ -41,19 +40,9 @@ os_thread_t *g_cur_thrd;
 
 void kernel_thread_exit(void)
 {
-    uint32_t flags = ek_os_kernel_spin_lock();
-    os_thread_t *cur = g_cur_thrd;
-    if (cur && !kernel_is_idle_thread(cur))
-    {
-        kernel_thread_abort(cur);
-        kernel_schedule();
-    }
-    ek_os_kernel_spin_unlock(flags);
-
-    for (;;)
-    {
-    }
+    ek_os_thread_exit(0);
 }
+
 
 int kernel_alloc_thread(os_thread_t *thrd)
 {
@@ -128,10 +117,28 @@ static inline void _kernel_clear_ready_bit(uint8_t prio)
     }
 }
 
+void kernel_thread_dead(os_thread_t *thrd, int err)
+{
+    uint32_t flags = ek_os_kernel_spin_lock();
+    if (thrd->state == EK_OS_THREAD_DEAD || thrd->state == EK_OS_THREAD_UNUSED)
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return;
+    }
+
+    thrd->wait_err = (err < 0) ? 0 : err;
+    thrd->state = EK_OS_THREAD_DEAD;
+    ek_list_remove(&thrd->state_node);
+    ek_list_remove(&thrd->wait_node);
+    _kernel_clear_ready_bit(thrd->prio);
+    kernel_wake_all(&thrd->join_wait, 0);
+    ek_os_kernel_spin_unlock(flags);
+}
+
 void kernel_thread_ready(os_thread_t *thrd)
 {
     uint32_t flags = ek_os_kernel_spin_lock();
-    if (thrd->state == EK_OS_THREAD_ABORT)
+    if (thrd->state == EK_OS_THREAD_DEAD)
     {
         ek_os_kernel_spin_unlock(flags);
         return;
@@ -176,7 +183,7 @@ static void _kernel_block_timer_sync(void)
 void kernel_thread_suspend(os_thread_t *thrd)
 {
     uint32_t flags = ek_os_kernel_spin_lock();
-    if (thrd->state == EK_OS_THREAD_ABORT || thrd->state == EK_OS_THREAD_UNUSED || thrd->state == EK_OS_THREAD_SUSPEND)
+    if (thrd->state == EK_OS_THREAD_DEAD || thrd->state == EK_OS_THREAD_UNUSED || thrd->state == EK_OS_THREAD_SUSPEND)
     {
         ek_os_kernel_spin_unlock(flags);
         return;
@@ -208,35 +215,10 @@ void kernel_thread_resume(os_thread_t *thrd)
     ek_os_kernel_spin_unlock(flags);
 }
 
-void kernel_thread_abort(os_thread_t *thrd)
-{
-    uint32_t flags = ek_os_kernel_spin_lock();
-    if (thrd->state == EK_OS_THREAD_ABORT || thrd->state == EK_OS_THREAD_UNUSED)
-    {
-        ek_os_kernel_spin_unlock(flags);
-        return;
-    }
-
-    bool was_block_head = _kernel_is_block_head(thrd);
-
-    thrd->state = EK_OS_THREAD_ABORT;
-    ek_list_remove(&thrd->state_node);
-    ek_list_remove(&thrd->wait_node);
-    _kernel_clear_ready_bit(thrd->prio);
-    if (was_block_head) _kernel_block_timer_sync();
-    // 立即释放 tid 槽位，避免待回收期间仍可通过 tid 访问该线程
-    kernel_free_thread(thrd->tid);
-    if (thrd->stack_owned)
-    {
-        ek_list_insert_tail(&s_gc_thrds, &thrd->state_node);
-    }
-    ek_os_kernel_spin_unlock(flags);
-}
-
 void kernel_thread_set_prio(os_thread_t *thrd, uint8_t prio)
 {
     uint32_t flags = ek_os_kernel_spin_lock();
-    if (thrd->state == EK_OS_THREAD_ABORT || thrd->state == EK_OS_THREAD_UNUSED)
+    if (thrd->state == EK_OS_THREAD_DEAD || thrd->state == EK_OS_THREAD_UNUSED)
     {
         ek_os_kernel_spin_unlock(flags);
         return;
@@ -319,7 +301,7 @@ void kernel_thread_unblock(os_thread_t *thrd, int err)
     ek_os_kernel_spin_unlock(flags);
 }
 
-int kernel_wait_on(ek_list_node_t *wait_list, int64_t timeout, uint32_t irq_flags)
+int kernel_wait_on_locked(ek_list_node_t *wait_list, int64_t timeout, uint32_t irq_flags)
 {
     os_thread_t *cur = g_cur_thrd;
     if (!cur || kernel_is_idle_thread(cur))
@@ -438,36 +420,15 @@ void kernel_schedule(void)
     ek_os_kernel_spin_unlock(flags);
 }
 
-static inline void _kernel_gc(void)
-{
-    for (;;)
-    {
-        uint32_t flags = ek_os_kernel_spin_lock();
-        if (ek_list_is_empty(&s_gc_thrds))
-        {
-            ek_os_kernel_spin_unlock(flags);
-            break;
-        }
-        ek_list_node_t *node = ek_list_get_first(&s_gc_thrds);
-        ek_list_remove(node);
-        os_thread_t *thrd = EK_CONTAINER_OF(node, os_thread_t, state_node);
-        bool stack_owned = thrd->stack_owned;
-        void *stack_base = thrd->stack_base;
-        thrd->state = EK_OS_THREAD_UNUSED;
-        ek_os_kernel_spin_unlock(flags);
-
-        if (stack_owned) ek_free(stack_base);
-    }
-}
-
-static void _kernel_idle_thread(void *arg)
+static int _kernel_idle_thread(void *arg)
 {
     __EK_UNUSED(arg);
     for (;;)
     {
-        _kernel_gc();
         ek_arch_idle();
     }
+
+    __builtin_unreachable();
 }
 
 static uint8_t _kernel_idle_stack[EKCFG_OS_IDLE_THREAD_STACK + sizeof(os_thread_t)] __EK_ALIGNED(8);

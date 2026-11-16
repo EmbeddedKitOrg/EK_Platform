@@ -151,7 +151,7 @@ extern void thread_entry_wrapper(ek_os_thread_fn_t entry, void *arg);
 EK_DEFINE_ARCH_IRQ(SVCall_IRQn, ek_arch_start_first_thread);
 EK_DEFINE_ARCH_IRQ(PendSV_IRQn, ek_arch_switch_thread);
 
-void *ek_arch_stack_init(void *stack_top, ek_os_thread_fn_t entry, void *arg, void (*exit)(void))
+void *ek_arch_stack_init(void *stack_top, void (*entry)(void *), void *arg, void (*exit)(void))
 {
     uintptr_t sp = (uintptr_t)EK_ALIGN_DOWN(stack_top, 8);
     struct cm_stack_frame *frame = (struct cm_stack_frame *)(sp - sizeof(*frame));

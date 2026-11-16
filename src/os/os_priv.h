@@ -36,16 +36,17 @@ struct os_thread
 
     ek_os_thread_fn_t fn; /**< 线程入口函数 */
     void *arg; /**< 传给入口函数的参数 */
-    ek_list_node_t state_node; /**< 挂在就绪/阻塞/挂起/回收队列上的侵入式节点 */
-    ek_list_node_t wait_node; /**< 挂在同步对象（信号量/互斥量/消息队列）等待队列上的侵入式节点 */
+    ek_list_node_t state_node; /**< 挂在就绪/阻塞/挂起队列上的侵入式节点 */
+    ek_list_node_t wait_node; /**< 挂在同步对象（信号量/互斥量/消息队列/join）等待队列上的侵入式节点 */
+    ek_list_node_t join_wait; /**< 等待本线程结束的 joiner 队列头 */
 
-    int tid; /**< 线程 ID；销毁后槽位被回收，旧 tid 不再有效 */
-    int wait_err; /**< 阻塞唤醒结果：0 成功、-ETIMEDOUT 超时、-EINTR 被打断、-ECANCELED 对象销毁 */
     uint8_t state; /**< 当前状态，取值见 enum ek_thread_state */
     uint8_t prio; /**< 优先级，数值越小优先级越高 */
     uint8_t sched_lock; /**< 调度器锁嵌套层数；> 0 时禁止被更高优先级线程抢占 */
     bool stack_owned; /**< true 表示栈由内核堆分配，销毁时需 ek_free；false 表示外部静态栈 */
     int64_t deadline; /**< 阻塞到期时刻（绝对时间）；EK_OS_FOREVER 表示无限等待 */
+    int tid; /**< 线程 ID；销毁后槽位被回收，旧 tid 不再有效 */
+    int wait_err; /**< 阻塞唤醒结果：0 成功、-ETIMEDOUT 超时、-EINTR 被打断、-ECANCELED 对象销毁 */
     char name[EKCFG_OS_THREAD_NAME_LEN]; /**< 线程名，以 '\0' 结尾 */
 };
 
@@ -108,10 +109,11 @@ void kernel_thread_suspend(os_thread_t *thrd);
 void kernel_thread_resume(os_thread_t *thrd);
 
 /**
- * @brief 终止线程（置为 ABORT、释放槽位并在需要时放入 GC 回收队列）
+ * @brief 终止线程（置为 DEAD、保存退出码、摘出队列并唤醒所有 joiner）
  * @param thrd 线程控制块指针
+ * @param err  线程退出码
  */
-void kernel_thread_abort(os_thread_t *thrd);
+void kernel_thread_dead(os_thread_t *thrd, int err);
 
 /**
  * @brief 修改线程优先级并同步调整所在就绪链表
@@ -154,7 +156,7 @@ void kernel_schedule(void);
  * @param irq_flags 调用方保存的中断状态标志
  * @return 0 等待成功被正常唤醒，-ETIMEDOUT 超时，或其它负数错误码
  */
-int kernel_wait_on(ek_list_node_t *wait_list, int64_t timeout, uint32_t irq_flags);
+int kernel_wait_on_locked(ek_list_node_t *wait_list, int64_t timeout, uint32_t irq_flags);
 
 /**
  * @brief 从等待队列头部唤醒一个等待中的线程

@@ -18,9 +18,11 @@ static_assert(EK_OS_THREAD_TCB_SIZE >= sizeof(os_thread_t), "EK_OS_THREAD_TCB_SI
 
 void thread_entry_wrapper(ek_os_thread_fn_t entry, void *arg)
 {
-    entry(arg);
+    int ret = entry(arg);
 
-    ek_os_thread_abort(kernel_thread_to_tid(g_cur_thrd));
+    ek_os_thread_exit(ret);
+
+    __builtin_unreachable();
 }
 
 static int _thread_setup(os_thread_t *thrd,
@@ -50,12 +52,13 @@ static int _thread_setup(os_thread_t *thrd,
     thrd->arg = arg;
     // 数值越低 优先级越高
     thrd->prio = EK_MIN(prio, (uint8_t)EKCFG_OS_THREAD_MIN_PRIO);
-    thrd->sp = (uintptr_t)ek_arch_stack_init(stack_top, fn, arg, kernel_thread_exit);
+    thrd->sp = (uintptr_t)ek_arch_stack_init(stack_top, (void (*)(void *))fn, arg, kernel_thread_exit);
     thrd->state = EK_OS_THREAD_READY;
     thrd->sched_lock = 0;
     thrd->deadline = 0;
     ek_list_init(&thrd->state_node);
     ek_list_init(&thrd->wait_node);
+    ek_list_init(&thrd->join_wait);
 
     uint32_t flags = ek_os_kernel_spin_lock();
     int tid = kernel_alloc_thread(thrd);
@@ -132,7 +135,7 @@ int ek_os_thread_create_static(
 static int _thread_get(int tid, bool allow_idle, os_thread_t **out_thrd)
 {
     os_thread_t *thrd = kernel_tid_to_thread(tid);
-    if (!thrd || thrd->state == EK_OS_THREAD_ABORT || thrd->state == EK_OS_THREAD_UNUSED)
+    if (!thrd || thrd->state == EK_OS_THREAD_DEAD || thrd->state == EK_OS_THREAD_UNUSED)
     {
         return -ESRCH;
     }
@@ -195,34 +198,85 @@ int ek_os_thread_set_prio(int tid, uint8_t prio)
     return err;
 }
 
-int ek_os_thread_abort(int tid)
+static inline int _thread_reap_locked(os_thread_t *thrd, uint32_t flags)
+{
+    int code = thrd->wait_err;
+    bool owned = thrd->stack_owned;
+    void *buf = thrd->stack_base;
+
+    kernel_free_thread(thrd->tid);
+    thrd->state = EK_OS_THREAD_UNUSED;
+    ek_os_kernel_spin_unlock(flags);
+
+    if (owned) ek_free(buf);
+    return code;
+}
+
+int ek_os_thread_join(int tid, int64_t timeout)
 {
     if (ek_arch_in_isr()) return -EPERM;
 
-    os_thread_t *thrd = NULL;
+    os_thread_t *cur = g_cur_thrd;
+    if (!cur) return -EPERM;
+    if (tid == cur->tid) return -EDEADLK;
+
     uint32_t flags = ek_os_kernel_spin_lock();
-    int err = _thread_get(tid, false, &thrd);
-    if (err < 0)
+    os_thread_t *thrd = kernel_tid_to_thread(tid);
+    if (!thrd || thrd->state == EK_OS_THREAD_UNUSED)
     {
         ek_os_kernel_spin_unlock(flags);
-        return err;
+        return -ESRCH;
+    }
+    if (kernel_is_idle_thread(thrd))
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return -EPERM;
     }
 
-    bool is_self = (thrd == g_cur_thrd);
-    bool reschedule = is_self || (thrd == g_next_thrd);
-    kernel_thread_abort(thrd);
-    if (reschedule) kernel_schedule();
+    if (thrd->state == EK_OS_THREAD_DEAD)
+    {
+        return _thread_reap_locked(thrd, flags);
+    }
 
+    if (timeout == 0)
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return -EAGAIN;
+    }
+
+    if (!ek_list_is_empty(&thrd->join_wait))
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return -EBUSY;
+    }
+
+    int err = kernel_wait_on_locked(&thrd->join_wait, timeout, flags);
+    if (err < 0) return err;
+
+    flags = ek_os_kernel_spin_lock();
+    thrd = kernel_tid_to_thread(tid);
+    if (!thrd || thrd->state == EK_OS_THREAD_UNUSED)
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return -ESRCH;
+    }
+    return _thread_reap_locked(thrd, flags);
+}
+
+__EK_NO_RETURN void ek_os_thread_exit(int err)
+{
+    uint32_t flags = ek_os_kernel_spin_lock();
+    os_thread_t *cur = g_cur_thrd;
+    if (cur && !kernel_is_idle_thread(cur))
+    {
+        kernel_thread_dead(cur, err);
+        kernel_schedule();
+    }
     ek_os_kernel_spin_unlock(flags);
 
-    if (is_self)
+    for (;;)
     {
-        for (;;)
-        {
-        }
     }
-
-    return 0;
 }
 
 int ek_os_thread_sleep(int64_t timeout)

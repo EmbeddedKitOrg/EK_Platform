@@ -32,7 +32,7 @@
 - `port/startup/cortexm/startup.S`：通用 Cortex-M 启动文件，提供向量表、`Reset_Handler`、默认异常处理和 `SystemInit` 弱桩；外部 IRQ 槽位数由 `EKCFG_ARCH_IRQ_COUNT` 生成，默认指向 `ek_default_irq_handler`。Cortex-M 目标默认编译，不再需要厂商 startup。
 - `ek_shell` 子模块
 - `include/ek/core/compiler.h`：将原 `def.h` 中的编译器属性与内联抽象宏（GCC / ARM Compiler 6 / ARM Compiler 5）拆分为独立零依赖头文件，`def.h` 改为直接引入 `compiler.h`。
-- 无滴答 RTOS 内核（`src/os/`、`include/ek/os/`）：新增基于 `ek_os_timer_ops_t`（`now` / `set_timeout`）与 `ek_os_kernel_announce_isr()` 的时间及超时调度抽象、线程管理接口（`ek_os_thread_create` / `create_static` / `suspend` / `resume` / `set_prio` / `abort` / `sleep`）、等待队列原语（`kernel_wait_on` / `kernel_wake_one` / `kernel_wake_all`）及 `EK_DEFINE_OS_THREAD` 静态线程自动注册宏（`EK_STATIC_ALLOC_ORDER_OS_THREAD`）。
+- 无滴答 RTOS 内核（`src/os/`、`include/ek/os/`）：新增基于 `ek_os_timer_ops_t`（`now` / `set_timeout`）与 `ek_os_kernel_announce_isr()` 的时间及超时调度抽象、线程管理接口（`ek_os_thread_create` / `create_static` / `suspend` / `resume` / `set_prio` / `abort` / `sleep`）、等待队列原语（`kernel_wait_on_locked` / `kernel_wake_one` / `kernel_wake_all`）及 `EK_DEFINE_OS_THREAD` 静态线程自动注册宏（`EK_STATIC_ALLOC_ORDER_OS_THREAD`）。
 ### 变更
 
 - CMake 配置收敛为 `ek_platform_prepare()` / `ek_platform_configure()` 两个函数；`PICOLIBC` 成为构建事实，`EKCFG_PICOLIBC` / `EKCFG_NEWLIB` 由 CMake 的 `PICOLIBC` 选项派生，`ek_conf_template.h` 不再重复定义。
