@@ -281,6 +281,9 @@
 #    define EKCFG_RTOS (0) /**< 是否使用 RTOS (0=裸机 1=内置 RTOS) */
 #endif
 #if EKCFG_RTOS == 1
+#    ifndef EKCFG_OS_KERNEL_TIMEBASE_HZ
+#        define EKCFG_OS_KERNEL_TIMEBASE_HZ (1000000U) /**< OS 内核频率 */
+#    endif
 #    ifndef EKCFG_OS_THREAD_NAME_LEN
 #        define EKCFG_OS_THREAD_NAME_LEN (16) /**< OS 线程名字的最大长度 */
 #    endif
