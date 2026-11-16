@@ -36,7 +36,9 @@ typedef struct
  * 所有会操作就绪队列、超时链表、等待队列等共享调度状态的内核路径都必须调用。
  * 支持嵌套：内层返回的 flags 必须原样传回 ek_os_kernel_spin_unlock()。
  *
- * @return 进入前的中断状态标志，必须与 ek_os_kernel_spin_unlock() 配对使用
+ * @return 进入前的中断状态：Cortex-M 上即 PRIMASK 寄存器的值——0 表示此前中断是开启的，
+ *         非 0 表示此前已经处于关中断状态；该值必须原样传回 ek_os_kernel_spin_unlock()，
+ *         不能自行构造，否则嵌套临界区会提前打开中断。
  */
 __EK_STATIC_INLINE uint32_t ek_os_kernel_spin_lock(void)
 {
@@ -46,7 +48,8 @@ __EK_STATIC_INLINE uint32_t ek_os_kernel_spin_lock(void)
 /**
  * @brief 退出内核临界区（恢复进入前的中断状态）
  *
- * @param flags ek_os_kernel_spin_lock() 返回的状态标志
+ * @param flags ek_os_kernel_spin_lock() 返回的进入前中断状态（PRIMASK）；
+ *              原样写回即可把中断开关恢复到进入该层临界区之前的样子
  *
  * @note 若这是最外层临界区且期间已置位 PendSV，本调用会直接触发上下文切换。
  */
@@ -74,9 +77,33 @@ void ek_os_kernel_announce_isr(void);
 
 /**
  * @brief 返回当前工作线程的 tid
- * @return > 0 表示当前工作线程的 tid，< 0 表示内核没就绪
+ * @return 当前工作线程的 tid（正整数）；内核尚未启动时返回 -ESRCH
  */
 int ek_os_kernel_current_tid(void);
+
+/**
+ * @brief 锁定当前线程的调度器（禁止被抢占，但不关闭中断）
+ * @return 加锁后的嵌套层数（1..255）；失败返回负 errno
+ * @retval -EPERM 在中断上下文调用
+ * @retval -ESRCH 内核尚未启动
+ *
+ * @note 可嵌套，必须与 ek_os_kernel_sched_unlock() 成对调用。
+ * @note 只阻止「更高优先级线程就绪」引发的抢占；当前线程主动阻塞（如等待信号量）仍会切走。
+ * @note 中断照常响应，只是不会因就绪队列变化而在返回时切换线程。
+ * @note 层数饱和于 UINT8_MAX，不会回绕。
+ */
+int ek_os_kernel_sched_lock(void);
+
+/**
+ * @brief 解除当前线程的调度器锁
+ * @return 解锁后的剩余嵌套层数（0 表示已完全解锁）；失败返回负 errno
+ * @retval -EPERM 在中断上下文调用
+ * @retval -ESRCH 内核尚未启动
+ *
+ * @note 层数归零时会立即补一次调度判决，使锁期间就绪的更高优先级线程得以运行。
+ * @note 对未加锁的线程调用不会报错，返回 0，但仍会触发那一次调度判决。
+ */
+int ek_os_kernel_sched_unlock(void);
 
 #    ifdef __cplusplus
 }

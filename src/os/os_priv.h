@@ -22,24 +22,31 @@ extern "C"
 
 typedef struct os_thread os_thread_t;
 
+/**
+ * @brief 内核线程控制块（TCB）
+ *
+ * @note sp 必须是首成员：上下文切换汇编依赖它位于偏移 0，
+ *       kernel.c 中用 static_assert 固定该布局。
+ */
 struct os_thread
 {
-    uintptr_t sp;
-    void *stack_base;
-    size_t stack_size;
+    uintptr_t sp; /**< 保存的栈指针，线程切换时由 PendSV 汇编读写 */
+    void *stack_base; /**< 栈内存起始地址；动态栈为 ek_malloc 返回值，供 GC 释放 */
+    size_t stack_size; /**< 可用栈字节数（不含 TCB） */
 
-    ek_os_thread_fn_t fn;
-    void *arg;
-    ek_list_node_t state_node;
-    ek_list_node_t wait_node;
+    ek_os_thread_fn_t fn; /**< 线程入口函数 */
+    void *arg; /**< 传给入口函数的参数 */
+    ek_list_node_t state_node; /**< 挂在就绪/阻塞/挂起/回收队列上的侵入式节点 */
+    ek_list_node_t wait_node; /**< 挂在同步对象（信号量/互斥量/消息队列）等待队列上的侵入式节点 */
 
-    int tid;
-    int wait_err;
-    uint8_t state;
-    uint8_t prio;
-    bool stack_owned;
-    int64_t deadline;
-    char name[EKCFG_OS_THREAD_NAME_LEN];
+    int tid; /**< 线程 ID；销毁后槽位被回收，旧 tid 不再有效 */
+    int wait_err; /**< 阻塞唤醒结果：0 成功、-ETIMEDOUT 超时、-EINTR 被打断、-ECANCELED 对象销毁 */
+    uint8_t state; /**< 当前状态，取值见 enum ek_thread_state */
+    uint8_t prio; /**< 优先级，数值越小优先级越高 */
+    uint8_t sched_lock; /**< 调度器锁嵌套层数；> 0 时禁止被更高优先级线程抢占 */
+    bool stack_owned; /**< true 表示栈由内核堆分配，销毁时需 ek_free；false 表示外部静态栈 */
+    int64_t deadline; /**< 阻塞到期时刻（绝对时间）；EK_OS_FOREVER 表示无限等待 */
+    char name[EKCFG_OS_THREAD_NAME_LEN]; /**< 线程名，以 '\0' 结尾 */
 };
 
 extern os_thread_t *g_next_thrd;

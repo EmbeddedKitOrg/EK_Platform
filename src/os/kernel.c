@@ -412,6 +412,12 @@ void kernel_schedule(void)
     {
         if (s_ready_bitmap != 0)
         {
+            if (cur->sched_lock > 0U)
+            {
+                ek_os_kernel_spin_unlock(flags);
+                return;
+            }
+
             int highest_prio = __builtin_ctz(s_ready_bitmap);
             if ((uint8_t)highest_prio < cur->prio)
             {
@@ -541,6 +547,55 @@ void ek_os_kernel_announce_isr(void)
 int ek_os_kernel_current_tid(void)
 {
     return g_cur_thrd ? g_cur_thrd->tid : -ESRCH;
+}
+
+int ek_os_kernel_sched_lock(void)
+{
+    if (ek_arch_in_isr()) return -EPERM;
+
+    uint32_t flags = ek_os_kernel_spin_lock();
+
+    os_thread_t *cur = g_cur_thrd;
+    if (!cur)
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return -ESRCH;
+    }
+
+    if (cur->sched_lock < UINT8_MAX) cur->sched_lock++;
+    int depth = cur->sched_lock;
+
+    ek_os_kernel_spin_unlock(flags);
+
+    return depth;
+}
+
+int ek_os_kernel_sched_unlock(void)
+{
+    if (ek_arch_in_isr()) return -EPERM;
+
+    uint32_t flags = ek_os_kernel_spin_lock();
+
+    os_thread_t *cur = g_cur_thrd;
+    if (!cur)
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return -ESRCH;
+    }
+
+    if (!cur->sched_lock)
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return 0;
+    }
+
+    cur->sched_lock--;
+    int depth = cur->sched_lock;
+
+    ek_os_kernel_spin_unlock(flags);
+
+    if (!depth) kernel_schedule();
+    return depth;
 }
 
 #endif /* EKCFG_RTOS == 1 */

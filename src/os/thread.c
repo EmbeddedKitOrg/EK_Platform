@@ -45,6 +45,7 @@ static int _thread_setup(os_thread_t *thrd,
     thrd->prio = EK_MIN(prio, (uint8_t)EKCFG_OS_THREAD_MIN_PRIO);
     thrd->sp = (uintptr_t)ek_arch_stack_init(stack_top, fn, arg, kernel_thread_exit);
     thrd->state = EK_OS_THREAD_READY;
+    thrd->sched_lock = 0;
     thrd->deadline = 0;
     ek_list_init(&thrd->state_node);
     ek_list_init(&thrd->wait_node);
