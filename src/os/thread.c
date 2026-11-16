@@ -64,6 +64,8 @@ static int _thread_setup(os_thread_t *thrd,
 
 int ek_os_thread_create(const char *name, ek_os_thread_fn_t fn, void *arg, uint8_t prio, size_t size)
 {
+    if (ek_arch_in_isr()) return -EPERM;
+
     if (!name || !fn || size < EKCFG_OS_THREAD_MIN_STACK) return -EINVAL;
 
     size_t tcb_align = _Alignof(os_thread_t);
@@ -90,6 +92,8 @@ int ek_os_thread_create(const char *name, ek_os_thread_fn_t fn, void *arg, uint8
 int ek_os_thread_create_static(
     const char *name, ek_os_thread_fn_t fn, void *arg, uint8_t prio, void *stack, size_t size)
 {
+    if (ek_arch_in_isr()) return -EPERM;
+
     if (!name || !fn || !stack || size < sizeof(os_thread_t) + EKCFG_OS_THREAD_MIN_STACK)
     {
         return -EINVAL;
@@ -133,6 +137,8 @@ static int _thread_get(int tid, bool allow_idle, os_thread_t **out_thrd)
 
 int ek_os_thread_suspend(int tid)
 {
+    if (ek_arch_in_isr()) return -EPERM;
+
     os_thread_t *thrd = NULL;
     uint32_t flags = ek_arch_irq_lock();
     int err = _thread_get(tid, false, &thrd);
@@ -150,6 +156,8 @@ int ek_os_thread_suspend(int tid)
 
 int ek_os_thread_resume(int tid)
 {
+    if (ek_arch_in_isr()) return -EPERM;
+
     os_thread_t *thrd = NULL;
     uint32_t flags = ek_arch_irq_lock();
     int err = _thread_get(tid, true, &thrd);
@@ -164,6 +172,8 @@ int ek_os_thread_resume(int tid)
 
 int ek_os_thread_set_prio(int tid, uint8_t prio)
 {
+    if (ek_arch_in_isr()) return -EPERM;
+
     os_thread_t *thrd = NULL;
     uint32_t flags = ek_arch_irq_lock();
     int err = _thread_get(tid, false, &thrd);
@@ -178,6 +188,8 @@ int ek_os_thread_set_prio(int tid, uint8_t prio)
 
 int ek_os_thread_abort(int tid)
 {
+    if (ek_arch_in_isr()) return -EPERM;
+
     os_thread_t *thrd = NULL;
     uint32_t flags = ek_arch_irq_lock();
     int err = _thread_get(tid, false, &thrd);
