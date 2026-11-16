@@ -114,7 +114,7 @@ int ek_os_sem_take(ek_os_sem_t *sem, int64_t timeout)
         return -EAGAIN;
     }
 
-    return kernel_wait_on(&sem->wait_list, timeout, flags);
+    return kernel_wait_on_locked(&sem->wait_list, timeout, flags);
 }
 
 int ek_os_sem_count(ek_os_sem_t *sem)
