@@ -16,7 +16,7 @@
 static_assert(EK_OS_THREAD_TCB_SIZE >= sizeof(os_thread_t), "EK_OS_THREAD_TCB_SIZE is smaller than os_thread_t");
 #    endif
 
-void ek_os_thread_entry_wrapper(ek_os_thread_fn_t entry, void *arg)
+void thread_entry_wrapper(ek_os_thread_fn_t entry, void *arg)
 {
     entry(arg);
 

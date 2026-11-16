@@ -146,7 +146,7 @@ __EK_NO_RETURN void ek_arch_sched_start(void)
 
 extern void ek_arch_start_first_thread(void);
 extern void ek_arch_switch_thread(void);
-extern void ek_os_thread_entry_wrapper(ek_os_thread_fn_t entry, void *arg);
+extern void thread_entry_wrapper(ek_os_thread_fn_t entry, void *arg);
 
 EK_DEFINE_ARCH_IRQ(SVCall_IRQn, ek_arch_start_first_thread);
 EK_DEFINE_ARCH_IRQ(PendSV_IRQn, ek_arch_switch_thread);
@@ -165,7 +165,7 @@ void *ek_arch_stack_init(void *stack_top, ek_os_thread_fn_t entry, void *arg, vo
     frame->hw_save.r0 = (uint32_t)(uintptr_t)entry;
     frame->hw_save.r1 = (uint32_t)(uintptr_t)arg;
     frame->hw_save.lr = (uint32_t)(uintptr_t)exit;
-    frame->hw_save.pc = (uint32_t)(uintptr_t)ek_os_thread_entry_wrapper;
+    frame->hw_save.pc = (uint32_t)(uintptr_t)thread_entry_wrapper;
     frame->hw_save.xpsr = 0x01000000U; // bit24 (Thumb 位) 必须为 1
 
     return (void *)frame;
