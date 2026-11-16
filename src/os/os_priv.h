@@ -39,6 +39,7 @@ struct os_thread
     ek_list_node_t state_node; /**< 挂在就绪/阻塞/挂起队列上的侵入式节点 */
     ek_list_node_t wait_node; /**< 挂在同步对象（信号量/互斥量/消息队列/join）等待队列上的侵入式节点 */
     ek_list_node_t join_wait; /**< 等待本线程结束的 joiner 队列头 */
+    void *retval; /**< 线程退出返回值，供 join 取回 */
 
     uint8_t state; /**< 当前状态，取值见 enum ek_thread_state */
     uint8_t prio; /**< 优先级，数值越小优先级越高 */
@@ -109,11 +110,11 @@ void kernel_thread_suspend(os_thread_t *thrd);
 void kernel_thread_resume(os_thread_t *thrd);
 
 /**
- * @brief 终止线程（置为 DEAD、保存退出码、摘出队列并唤醒所有 joiner）
- * @param thrd 线程控制块指针
- * @param err  线程退出码
+ * @brief 终止线程（置为 DEAD、保存返回值、摘出队列并唤醒所有 joiner）
+ * @param thrd   线程控制块指针
+ * @param retval 线程退出返回值指针
  */
-void kernel_thread_dead(os_thread_t *thrd, int err);
+void kernel_thread_dead(os_thread_t *thrd, void *retval);
 
 /**
  * @brief 修改线程优先级并同步调整所在就绪链表

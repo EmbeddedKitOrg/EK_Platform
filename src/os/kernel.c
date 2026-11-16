@@ -40,7 +40,7 @@ os_thread_t *g_cur_thrd;
 
 void kernel_thread_exit(void)
 {
-    ek_os_thread_exit(0);
+    ek_os_thread_exit(NULL);
 }
 
 
@@ -117,7 +117,7 @@ static inline void _kernel_clear_ready_bit(uint8_t prio)
     }
 }
 
-void kernel_thread_dead(os_thread_t *thrd, int err)
+void kernel_thread_dead(os_thread_t *thrd, void *retval)
 {
     uint32_t flags = ek_os_kernel_spin_lock();
     if (thrd->state == EK_OS_THREAD_DEAD || thrd->state == EK_OS_THREAD_UNUSED)
@@ -126,7 +126,7 @@ void kernel_thread_dead(os_thread_t *thrd, int err)
         return;
     }
 
-    thrd->wait_err = (err < 0) ? 0 : err;
+    thrd->retval = retval;
     thrd->state = EK_OS_THREAD_DEAD;
     ek_list_remove(&thrd->state_node);
     ek_list_remove(&thrd->wait_node);
@@ -420,7 +420,7 @@ void kernel_schedule(void)
     ek_os_kernel_spin_unlock(flags);
 }
 
-static int _kernel_idle_thread(void *arg)
+static void *_kernel_idle_thread(void *arg)
 {
     __EK_UNUSED(arg);
     for (;;)

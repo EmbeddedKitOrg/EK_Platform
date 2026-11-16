@@ -21,9 +21,9 @@ extern "C"
 /**
  * @brief 线程入口函数类型
  * @param arg 创建线程时传入的用户参数
- * @return 线程退出码（约定返回 >= 0，负值将被钳位为 0）
+ * @return 线程返回值指针（通过 ek_os_thread_join 的 retval 出参获取）
  */
-typedef int (*ek_os_thread_fn_t)(void *arg);
+typedef void *(*ek_os_thread_fn_t)(void *arg);
 
 /**
  * @brief 线程状态枚举
@@ -87,15 +87,16 @@ int ek_os_thread_set_prio(int tid, uint8_t prio);
  * @brief 等待目标线程结束并回收其栈与 TCB 资源
  * @param tid     目标线程 ID
  * @param timeout 超时时间（< 0 永久等待；0 立即试探；> 0 相对微秒）
- * @return >= 0 为子线程退出码（非负），负数 errno 为失败（-EDEADLK/-ESRCH/-EAGAIN/-ETIMEDOUT/-EBUSY/-EPERM）
+ * @param retval  用于接收子线程返回值的出参指针，不关心可传 NULL
+ * @return 0 成功，负数 errno 为失败（-EDEADLK/-ESRCH/-EAGAIN/-ETIMEDOUT/-EBUSY/-EPERM）
  */
-int ek_os_thread_join(int tid, int64_t timeout);
+int ek_os_thread_join(int tid, int64_t timeout, void **retval);
 
 /**
  * @brief 主动结束当前线程并唤醒正在 join 它的线程
- * @param err 线程退出码（约定 >= 0，负值将被钳位为 0）
+ * @param retval 传递给 joiner 的返回值指针
  */
-__EK_NO_RETURN void ek_os_thread_exit(int err);
+__EK_NO_RETURN void ek_os_thread_exit(void *retval);
 
 /**
  * @brief 阻塞当前线程
