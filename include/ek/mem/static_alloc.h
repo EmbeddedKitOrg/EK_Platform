@@ -71,6 +71,7 @@ typedef struct
 #    define EK_STATIC_ALLOC_ORDER_ARCH_IRQ    (40)
 #    define EK_STATIC_ALLOC_ORDER_OS_THREAD   (50)
 #    define EK_STATIC_ALLOC_ORDER_OS_SEM      (51)
+#    define EK_STATIC_ALLOC_ORDER_OS_MUTEX    (52)
 
 #    define _EK_STATIC_ALLOC_JOIN2(a, b)      a##b
 #    define _EK_STATIC_ALLOC_JOIN(a, b)       _EK_STATIC_ALLOC_JOIN2(a, b)

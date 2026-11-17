@@ -48,7 +48,7 @@
  * @param expr 断言表达式
  * @note 会输出文件名、行号和表达式内容
  */
-#    define ek_assert_full(expr) (expr) ? (void)0 : ek_assert_fault(__FILE__, __LINE__, #expr)
+#    define ek_assert_full(expr) (expr) ? (void)0 : ek_assert_fault(__FILE_NAME__, __LINE__, #expr)
 
 /**
  * @brief 参数断言（根据配置选择实现方式）

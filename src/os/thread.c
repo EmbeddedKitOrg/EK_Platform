@@ -11,6 +11,7 @@
 #    include "os_priv.h"
 #    include "ek/mem/heap.h"
 #    include "ek/os/kernel.h"
+#    include "ek/core/assert.h"
 
 #    if EKCFG_STATIC_ALLOC == 1
 static_assert(EK_OS_THREAD_TCB_SIZE >= sizeof(os_thread_t), "EK_OS_THREAD_TCB_SIZE is smaller than os_thread_t");
@@ -48,14 +49,18 @@ static int _thread_setup(os_thread_t *thrd,
     thrd->fn = fn;
     thrd->arg = arg;
     // 数值越低 优先级越高
-    thrd->prio = EK_MIN(prio, (uint8_t)EKCFG_OS_THREAD_MIN_PRIO);
+    thrd->base_prio = EK_MIN(prio, (uint8_t)EKCFG_OS_THREAD_MIN_PRIO);
     thrd->sp = (uintptr_t)ek_arch_stack_init(stack_top, (void (*)(void *))fn, arg, kernel_thread_exit);
     thrd->state = EK_OS_THREAD_READY;
     thrd->sched_lock = 0;
     thrd->deadline = 0;
+    thrd->prio = thrd->base_prio;
+    thrd->waiting_lock = NULL;
+
     ek_list_init(&thrd->state_node);
     ek_list_init(&thrd->wait_node);
     ek_list_init(&thrd->join_wait);
+    ek_list_init(&thrd->owned_locks);
 
     uint32_t flags = ek_os_kernel_spin_lock();
     int tid = kernel_alloc_thread(thrd);
@@ -153,6 +158,8 @@ int ek_os_thread_suspend(int tid)
     int err = _thread_get(tid, false, &thrd);
     if (err == 0)
     {
+        ek_assert(ek_list_is_empty(&thrd->owned_locks));
+
         kernel_thread_suspend(thrd);
         if (thrd == g_cur_thrd || thrd == g_next_thrd)
         {
@@ -188,9 +195,22 @@ int ek_os_thread_set_prio(int tid, uint8_t prio)
     int err = _thread_get(tid, false, &thrd);
     if (err == 0)
     {
-        kernel_thread_set_prio(thrd, prio);
+        thrd->base_prio = EK_MIN(prio, (uint8_t)EKCFG_OS_THREAD_MIN_PRIO);
+        kernel_thread_recalc_prio(thrd);
         kernel_schedule();
     }
+    ek_os_kernel_spin_unlock(flags);
+    return err;
+}
+
+int ek_os_thread_get_prio(int tid, uint8_t *prio)
+{
+    if (!prio) return -EINVAL;
+
+    os_thread_t *thrd = NULL;
+    uint32_t flags = ek_os_kernel_spin_lock();
+    int err = _thread_get(tid, true, &thrd);
+    if (!err) *prio = thrd->prio;
     ek_os_kernel_spin_unlock(flags);
     return err;
 }
@@ -266,6 +286,7 @@ __EK_NO_RETURN void ek_os_thread_exit(void *retval)
 {
     uint32_t flags = ek_os_kernel_spin_lock();
     os_thread_t *cur = g_cur_thrd;
+
     if (cur && !kernel_is_idle_thread(cur))
     {
         kernel_thread_dead(cur, retval);

@@ -12,6 +12,7 @@
 #if EKCFG_RTOS == 1
 
 #    include "ek/os/thread.h"
+#    include "ek/os/mutex.h"
 #    include "ek/container/list.h"
 #    include "ek/core/arch.h"
 
@@ -34,6 +35,10 @@ struct os_thread
     void *stack_base; /**< 栈内存起始地址；动态栈为 ek_malloc 返回值，供 GC 释放 */
     size_t stack_size; /**< 可用栈字节数（不含 TCB） */
 
+    int tid; /**< 线程 ID；销毁后槽位被回收，旧 tid 不再有效 */
+    int wait_err; /**< 阻塞唤醒结果：0 成功、-ETIMEDOUT 超时、-EINTR 被打断、-ECANCELED 对象销毁 */
+    int64_t deadline; /**< 阻塞到期时刻（绝对时间）；EK_OS_FOREVER 表示无限等待 */
+
     ek_os_thread_fn_t fn; /**< 线程入口函数 */
     void *arg; /**< 传给入口函数的参数 */
     ek_list_node_t state_node; /**< 挂在就绪/阻塞/挂起队列上的侵入式节点 */
@@ -41,13 +46,14 @@ struct os_thread
     ek_list_node_t join_wait; /**< 等待本线程结束的 joiner 队列头 */
     void *retval; /**< 线程退出返回值，供 join 取回 */
 
+    uint8_t base_prio; /**< 线程固有基础优先级（prio 保留为当前有效调度优先级） */
+    void *waiting_lock; /**< 若阻塞在某把 mutex 上，指向该 mutex（用于链式传播） */
+    ek_list_node_t owned_locks; /**< 当前持有的所有 mutex 链表 */
+
     uint8_t state; /**< 当前状态，取值见 enum ek_thread_state */
     uint8_t prio; /**< 优先级，数值越小优先级越高 */
     uint8_t sched_lock; /**< 调度器锁嵌套层数；> 0 时禁止被更高优先级线程抢占 */
     bool stack_owned; /**< true 表示栈由内核堆分配，销毁时需 ek_free；false 表示外部静态栈 */
-    int64_t deadline; /**< 阻塞到期时刻（绝对时间）；EK_OS_FOREVER 表示无限等待 */
-    int tid; /**< 线程 ID；销毁后槽位被回收，旧 tid 不再有效 */
-    int wait_err; /**< 阻塞唤醒结果：0 成功、-ETIMEDOUT 超时、-EINTR 被打断、-ECANCELED 对象销毁 */
     char name[EKCFG_OS_THREAD_NAME_LEN]; /**< 线程名，以 '\0' 结尾 */
 };
 
@@ -117,11 +123,17 @@ void kernel_thread_resume(os_thread_t *thrd);
 void kernel_thread_dead(os_thread_t *thrd, void *retval);
 
 /**
- * @brief 修改线程优先级并同步调整所在就绪链表
+ * @brief 修改线程有效调度优先级并同步调整所在就绪链表（供调度与优先级继承使用）
  * @param thrd 线程控制块指针
- * @param prio 新优先级（数值越低优先级越高）
+ * @param prio 新有效优先级（数值越低优先级越高）
  */
 void kernel_thread_set_prio(os_thread_t *thrd, uint8_t prio);
+
+/**
+ * @brief 按 base_prio 与当前持有的 mutex 队头重算线程有效优先级，并向 waiting_lock 链式传播
+ * @param thrd 线程控制块指针
+ */
+void kernel_thread_recalc_prio(os_thread_t *thrd);
 
 /**
  * @brief 将线程置为 BLOCK，若 timeout >= 0 则按到期时间升序加入超时链表
@@ -148,6 +160,13 @@ bool kernel_is_idle_thread(const os_thread_t *thrd);
  * @brief 触发一次调度判决并在需要时置位上下文切换
  */
 void kernel_schedule(void);
+
+/**
+ * @brief 将当前线程按当前有效优先级升序插入指定等待队列
+ * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区
+ * @param wait_list 同步对象的等待链表头
+ */
+void kernel_wait_enqueue_locked(ek_list_node_t *wait_list);
 
 /**
  * @brief 将当前线程挂入等待队列并阻塞，唤醒后返回结果

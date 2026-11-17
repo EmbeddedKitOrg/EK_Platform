@@ -84,6 +84,17 @@ int ek_os_thread_resume(int tid);
 int ek_os_thread_set_prio(int tid, uint8_t prio);
 
 /**
+ * @brief 查询线程当前的有效优先级
+ * @param tid  目标线程 ID，可传 ek_os_kernel_current_tid() 查询自身
+ * @param prio 输出当前有效优先级（数值越低优先级越高）
+ * @return 0 成功，负数错误码失败（-ESRCH 线程不存在，-EINVAL 出参为空）
+ *
+ * @note 有效优先级受优先级继承影响：持有互斥量期间可能高于基础优先级，
+ *       释锁或锁被销毁后回落到基础优先级。
+ */
+int ek_os_thread_get_prio(int tid, uint8_t *prio);
+
+/**
  * @brief 等待目标线程结束并回收其栈与 TCB 资源
  * @param tid     目标线程 ID
  * @param timeout 超时时间（< 0 永久等待；0 立即试探；> 0 相对微秒）
@@ -109,7 +120,7 @@ int ek_os_thread_sleep(int64_t timeout);
 #        include "ek/mem/static_alloc.h"
 
 /** @brief 静态线程缓冲区中为内核 TCB 预留的字节数 */
-#        define EK_OS_THREAD_TCB_SIZE EK_ALIGN_UP(sizeof(void *) * 12U + 24U + (EKCFG_OS_THREAD_NAME_LEN), 8)
+#        define EK_OS_THREAD_TCB_SIZE EK_ALIGN_UP(sizeof(void *) * 15U + 24U + (EKCFG_OS_THREAD_NAME_LEN), 8)
 
 /**
  * @brief 静态声明一个线程并自动注册初始化
