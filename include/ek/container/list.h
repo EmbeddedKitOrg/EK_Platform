@@ -53,6 +53,7 @@ struct ek_list_node
  * @param name 链表头变量名
  */
 #    define EK_LIST_HEAD_INIT(name) { .prev = &(name), .next = &(name) }
+
 /**
  * @brief 初始化链表头
  * @param head 链表头节点指针
@@ -66,12 +67,22 @@ __EK_STATIC_INLINE void ek_list_init(ek_list_node_t *head)
 }
 
 /**
+ * @brief 反初始化链表头
+ * @param head 链表头节点指针
+ */
+__EK_STATIC_INLINE void ek_list_deinit(ek_list_node_t *head)
+{
+    head->next = head;
+    head->prev = head;
+}
+
+/**
  * @brief 内部函数：在两个节点之间插入新节点
  * @param new_node 要插入的新节点
  * @param prev 前一个节点（插入位置之前）
  * @param next 后一个节点（插入位置之后）
  */
-__EK_STATIC_INLINE void _ek_list_insert(ek_list_node_t *new_node, ek_list_node_t *prev, ek_list_node_t *next)
+__EK_STATIC_INLINE void _list_insert(ek_list_node_t *new_node, ek_list_node_t *prev, ek_list_node_t *next)
 {
     prev->next = new_node;
     new_node->next = next;
@@ -86,7 +97,7 @@ __EK_STATIC_INLINE void _ek_list_insert(ek_list_node_t *new_node, ek_list_node_t
  */
 __EK_STATIC_INLINE void ek_list_insert_head(ek_list_node_t *head, ek_list_node_t *new_node)
 {
-    _ek_list_insert(new_node, head, head->next);
+    _list_insert(new_node, head, head->next);
 }
 
 /**
@@ -96,7 +107,7 @@ __EK_STATIC_INLINE void ek_list_insert_head(ek_list_node_t *head, ek_list_node_t
  */
 __EK_STATIC_INLINE void ek_list_insert_tail(ek_list_node_t *head, ek_list_node_t *new_node)
 {
-    _ek_list_insert(new_node, head->prev, head);
+    _list_insert(new_node, head->prev, head);
 }
 
 /**
@@ -106,7 +117,7 @@ __EK_STATIC_INLINE void ek_list_insert_tail(ek_list_node_t *head, ek_list_node_t
  */
 __EK_STATIC_INLINE void ek_list_insert_before(ek_list_node_t *next, ek_list_node_t *new_node)
 {
-    _ek_list_insert(new_node, next->prev, next);
+    _list_insert(new_node, next->prev, next);
 }
 
 /**
@@ -116,7 +127,7 @@ __EK_STATIC_INLINE void ek_list_insert_before(ek_list_node_t *next, ek_list_node
  */
 __EK_STATIC_INLINE void ek_list_insert_after(ek_list_node_t *prev, ek_list_node_t *new_node)
 {
-    _ek_list_insert(new_node, prev, prev->next);
+    _list_insert(new_node, prev, prev->next);
 }
 
 /**
@@ -124,7 +135,7 @@ __EK_STATIC_INLINE void ek_list_insert_after(ek_list_node_t *prev, ek_list_node_
  * @param prev 前一个节点
  * @param next 后一个节点
  */
-__EK_STATIC_INLINE void _ek_list_remove(ek_list_node_t *prev, ek_list_node_t *next)
+__EK_STATIC_INLINE void _list_remove(ek_list_node_t *prev, ek_list_node_t *next)
 {
     next->prev = prev;
     prev->next = next;
@@ -133,15 +144,11 @@ __EK_STATIC_INLINE void _ek_list_remove(ek_list_node_t *prev, ek_list_node_t *ne
 /**
  * @brief 从链表中移除节点
  * @param remove 要移除的节点指针
- *
- * @note 移除后节点的 prev 和 next 被置为 NULL，可用于检测节点是否在链表中
  */
 __EK_STATIC_INLINE void ek_list_remove(ek_list_node_t *remove)
 {
-    if (!remove || !remove->prev || !remove->next) return;
-    _ek_list_remove(remove->prev, remove->next);
-    remove->prev = NULL;
-    remove->next = NULL;
+    _list_remove(remove->prev, remove->next);
+    ek_list_deinit(remove);
 }
 
 /**
@@ -150,21 +157,9 @@ __EK_STATIC_INLINE void ek_list_remove(ek_list_node_t *remove)
  * @return true 链表为空
  * @return false 链表非空
  */
-__EK_STATIC_INLINE bool ek_list_is_empty(ek_list_node_t *head)
+__EK_STATIC_INLINE bool ek_list_is_empty(const ek_list_node_t *head)
 {
     return head->next == head;
-}
-
-/**
- * @brief 判断节点是否是链表的最后一个节点
- * @param node 要检查的节点
- * @param head 链表头节点指针
- * @return true 是最后一个节点
- * @return false 不是最后一个节点
- */
-__EK_STATIC_INLINE bool ek_list_is_last(ek_list_node_t *node, ek_list_node_t *head)
-{
-    return node->next == head;
 }
 
 /**
@@ -172,8 +167,9 @@ __EK_STATIC_INLINE bool ek_list_is_last(ek_list_node_t *node, ek_list_node_t *he
  * @param head 链表头节点指针
  * @return 第一个节点指针，如果链表为空则返回 head
  */
-__EK_STATIC_INLINE ek_list_node_t *ek_list_get_first(ek_list_node_t *head)
+__EK_STATIC_INLINE ek_list_node_t *ek_list_get_first(const ek_list_node_t *head)
 {
+    if (ek_list_is_empty(head)) return NULL;
     return head->next;
 }
 
@@ -182,9 +178,34 @@ __EK_STATIC_INLINE ek_list_node_t *ek_list_get_first(ek_list_node_t *head)
  * @param head 链表头节点指针
  * @return 最后一个节点指针，如果链表为空则返回 head
  */
-__EK_STATIC_INLINE ek_list_node_t *ek_list_get_last(ek_list_node_t *head)
+__EK_STATIC_INLINE ek_list_node_t *ek_list_get_last(const ek_list_node_t *head)
 {
+    if (ek_list_is_empty(head)) return NULL;
     return head->prev;
+}
+
+/**
+ * @brief 获取链表的第一个节点，并且将该节点从链表移除
+ * @param head 链表头节点指针
+ * @return 第一个节点指针，如果链表为空则返回 head
+ */
+__EK_STATIC_INLINE ek_list_node_t *ek_list_pop_first(const ek_list_node_t *head)
+{
+    if (ek_list_is_empty(head)) return NULL;
+    ek_list_node_t *first = head->next;
+    ek_list_remove(first);
+    return first;
+}
+
+/**
+ * @brief 将当前节点移动到链表的尾部
+ * @param head 链表头节点指针
+ * @param node 要移动的节点指针
+ */
+__EK_STATIC_INLINE void ek_list_move_tail(ek_list_node_t *head, ek_list_node_t *node)
+{
+    _list_remove(node->prev, node->next);
+    ek_list_insert_tail(head, node);
 }
 
 #endif /* EKCFG_LIST */
