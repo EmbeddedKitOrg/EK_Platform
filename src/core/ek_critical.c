@@ -53,11 +53,19 @@ __EK_WEAK void ek_critical_exit(void)
 
 #elif (defined(__GNUC__) || defined(__clang__)) && defined(__riscv)
 
-/* RISC-V 机器模式：清除 mstatus.MIE（bit 3） */
+/*
+ * RISC-V 机器模式：清除 mstatus.MIE（bit 3）
+ *
+ * GCC 12 / binutils 2.38 起 CSR 指令属于独立的 Zicsr 扩展，-march=rv32imac 等不再包含它，
+ * 直接写 csrrci/csrsi 会报 "extension `zicsr' required"。这里用 .insn 按编码生成指令，
+ * 与 -march 是否带 _zicsr 无关，新旧工具链都能汇编：
+ *   csrrci rd, mstatus, 8  = I 型，opcode SYSTEM(0x73)，funct3=7，rs1 字段=立即数 8，imm=0x300
+ *   csrsi  mstatus, 8      = I 型，opcode SYSTEM(0x73)，funct3=6，rd=x0，rs1 字段=立即数 8，imm=0x300
+ */
 __EK_WEAK void ek_critical_enter(void)
 {
     unsigned long mstatus;
-    __asm volatile("csrrci %0, mstatus, 8" : "=r"(mstatus)::"memory");
+    __asm volatile(".insn i 0x73, 7, %0, x8, 0x300" : "=r"(mstatus)::"memory");
     if (s_critical_nest++ == 0U) s_critical_saved = (uint32_t)(mstatus & 8UL);
 }
 
@@ -66,7 +74,7 @@ __EK_WEAK void ek_critical_exit(void)
     if (s_critical_nest == 0U) return;
     if (--s_critical_nest == 0U && s_critical_saved != 0U)
     {
-        __asm volatile("csrsi mstatus, 8" ::: "memory");
+        __asm volatile(".insn i 0x73, 6, x0, x8, 0x300" ::: "memory");
     }
 }
 
