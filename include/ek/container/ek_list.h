@@ -130,13 +130,25 @@ __EK_STATIC_INLINE void _ek_list_remove(ek_list_node_t *prev, ek_list_node_t *ne
  * @brief 从链表中移除节点
  * @param remove 要移除的节点指针
  *
- * @note 移除后节点的 prev 和 next 被置为 NULL，可用于检测节点是否在链表中
+ * @note 移除后节点的 prev/next 指回自身（与 ek_list_init 后的状态相同），
+ *       因此对同一节点重复调用是安全的空操作；可用 ek_list_node_is_linked()
+ *       判断节点当前是否挂在某个链表上。节点必须先 ek_list_init 或插入过链表。
  */
 __EK_STATIC_INLINE void ek_list_remove(ek_list_node_t *remove)
 {
     _ek_list_remove(remove->prev, remove->next);
-    remove->prev = NULL;
-    remove->next = NULL;
+    remove->prev = remove;
+    remove->next = remove;
+}
+
+/**
+ * @brief 判断节点是否挂在某个链表上
+ * @param node 节点指针（必须先 ek_list_init 或插入过链表）
+ * @return true 已挂在链表上
+ */
+__EK_STATIC_INLINE bool ek_list_node_is_linked(const ek_list_node_t *node)
+{
+    return node->next != node;
 }
 
 /**

@@ -14,7 +14,7 @@
  *
  * 指定用户 ek_conf.h 的两种方式：
  *   A. CMake 参数：cmake -DEK_CONF_PATH="path/to/ek_conf.h"
- *   B. include 优先级：确保你的 ek_conf.h 所在路径先于 ek_utils/inc/ 被搜索到
+ *   B. include 优先级：把存放 ek_conf.h 的目录 PUBLIC 加给 ek_platform 目标
  */
 
 #ifndef EK_CONF_INTERNAL_H
@@ -41,10 +41,10 @@
 #    define EKCFG_RTOS (0) /**< 是否使用 RTOS (0=裸机) */
 #endif
 #ifndef EKCFG_PICOLIBC
-#    define EKCFG_PICOLIBC (1) /**< 是否使用 picolibc 替代标准 libc */
+#    define EKCFG_PICOLIBC (0) /**< 是否使用 picolibc 替代标准 libc（与 ek_conf_template.h 保持一致） */
 #endif
 #ifndef EKCFG_IO_LWPRTF
-#    define EKCFG_IO_LWPRTF (0) /**< IO 是否使用 lwprintf (1=使用, 0=不使用) */
+#    define EKCFG_IO_LWPRTF (1) /**< IO 是否使用 lwprintf (1=使用, 0=不使用) */
 #endif
 #ifndef EKCFG_NEWLIB
 #    define EKCFG_NEWLIB (0) /**< 是否启用 newlib/nanolibc syscall port */
@@ -61,10 +61,10 @@
  *   #define EK_LOCK_TYPE         SemaphoreHandle_t
  *   #define EK_LOCK_INIT(lock)   ((lock) = xSemaphoreCreateMutex())
  *   #define EK_LOCK_DEINIT(lock) vSemaphoreDelete(lock)
- *   #define EK_LOCK_TRY(obj)     (xSemaphoreTake((obj)->lock, 0) == pdTRUE)
  *   #define EK_LOCK_ACQUIRE(obj) (xSemaphoreTake((obj)->lock, portMAX_DELAY) == pdTRUE)
  *   #define EK_LOCK_RELEASE(obj) xSemaphoreGive((obj)->lock)
  * 因 ek_conf.h 在本文件 #include 阶段已被引入，用户定义优先于以下默认值。
+ * EK_LOCK_TRY 已不再被库内使用，保留默认定义仅为兼容旧配置。
  */
 #if EKCFG_RTOS == 1
 #    ifndef EK_LOCK_TYPE
@@ -75,9 +75,6 @@
 #    endif
 #    ifndef EK_LOCK_DEINIT
 #        error "EKCFG_RTOS == 1: EK_LOCK_DEINIT must be defined in ek_conf.h"
-#    endif
-#    ifndef EK_LOCK_TRY
-#        error "EKCFG_RTOS == 1: EK_LOCK_TRY must be defined in ek_conf.h"
 #    endif
 #    ifndef EK_LOCK_ACQUIRE
 #        error "EKCFG_RTOS == 1: EK_LOCK_ACQUIRE must be defined in ek_conf.h"
@@ -113,6 +110,14 @@
 #ifndef EKCFG_EXPORT
 #    define EKCFG_EXPORT (0) /**< 自动初始化机制 */
 #endif
+#ifndef EKCFG_EXPORT_AUTO_INIT
+/**
+ * ek_export_init() 是否作为 constructor 在 main() 之前自动执行。
+ * 1：由启动代码的 __libc_init_array() 调用，早于 HAL_Init()/时钟配置；
+ * 0：不自动执行，需要在 main() 中完成时钟等初始化后手动调用 ek_export_init()。
+ */
+#    define EKCFG_EXPORT_AUTO_INIT (1)
+#endif
 #ifndef EKCFG_ASSERT
 #    define EKCFG_ASSERT (1) /**< 断言模块 */
 #endif
@@ -147,6 +152,9 @@
 #endif
 #ifndef EKCFG_SNAPSHOT
 #    define EKCFG_SNAPSHOT (0) /**< 快照 */
+#endif
+#ifndef EKCFG_KFIFO
+#    define EKCFG_KFIFO (0) /**< 侵入式零拷贝 FIFO */
 #endif
 #ifndef EKCFG_EVOKE
 #    define EKCFG_EVOKE (0) /**< 事件驱动调度器 */
@@ -221,6 +229,25 @@
 #endif
 #if EKCFG_PT_PRIO_LOWEST > 31
 #    error "EKCFG_PT_PRIO_LOWEST must be <= 31 (ready mask is 32-bit)"
+#endif
+
+/* ========================================================================
+ * 依赖模块自动开启
+ * ========================================================================
+ * 调度器内部依赖链表/环形缓冲区；用户只开调度器时自动打开所需容器，
+ * 避免出现"打开 A 却因为没开 B 而编译失败"的配置组合。
+ */
+#if EKCFG_PICOTHREAD == 1 || EKCFG_EVOKE == 1
+#    undef EKCFG_LIST
+#    define EKCFG_LIST (1)
+#endif
+#if EKCFG_PICOTHREAD_MSG == 1
+#    undef EKCFG_RINGBUF
+#    define EKCFG_RINGBUF (1)
+#endif
+#if EKCFG_EVOKE == 1
+#    undef EKCFG_RINGBUF_SPSC
+#    define EKCFG_RINGBUF_SPSC (1)
 #endif
 
 #endif /* EK_CONF_INTERNAL_H */

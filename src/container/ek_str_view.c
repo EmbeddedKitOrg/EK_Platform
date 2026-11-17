@@ -41,11 +41,12 @@ int ek_str_view_trim(ek_str_view_t *sv)
 {
     if (sv == NULL) return -EINVAL;
 
-    while (sv->str_len > 0 && isspace(sv->str[0]))
+    /* isspace() 的参数必须是 unsigned char 范围内的值，直接传 char 遇到 0x80 以上字节（如 UTF-8）是未定义行为 */
+    while (sv->str_len > 0 && isspace((unsigned char)sv->str[0]))
     {
         ek_str_view_chop_left(sv, 1);
     }
-    while (sv->str_len > 0 && isspace(sv->str[sv->str_len - 1]))
+    while (sv->str_len > 0 && isspace((unsigned char)sv->str[sv->str_len - 1]))
     {
         ek_str_view_chop_right(sv, 1);
     }

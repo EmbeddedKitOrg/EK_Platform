@@ -6,9 +6,9 @@
  *   2. 按需修改各宏的值（不修改的宏自动取默认值）
  *   3. 确保 ek_conf.h 能被编译器找到（两种方式，详见 README）：
  *      - CMake 传参：cmake -DEK_CONF_PATH="Core/Inc/ek_conf.h"
- *      - include 路径：把存放本文件的目录加给 ek_utils 对象库
- *        （target_include_directories(ek_utils PUBLIC Core/Inc)）；
- *        注意仅给主 target 设 PRIVATE 不会传播给子项目 ek_utils。
+ *      - include 路径：把存放本文件的目录加给 ek_platform 对象库
+ *        （target_include_directories(ek_platform PUBLIC Core/Inc)）；
+ *        注意仅给主 target 设 PRIVATE 不会传播给子项目 ek_platform。
  */
 
 #ifndef EK_CONF_H
@@ -26,7 +26,6 @@
  *   #define EK_LOCK_TYPE         SemaphoreHandle_t
  *   #define EK_LOCK_INIT(lock)   ((lock) = xSemaphoreCreateMutex())
  *   #define EK_LOCK_DEINIT(lock) vSemaphoreDelete(lock)
- *   #define EK_LOCK_TRY(obj)     (xSemaphoreTake((obj)->lock, 0) == pdTRUE)
  *   #define EK_LOCK_ACQUIRE(obj) (xSemaphoreTake((obj)->lock, portMAX_DELAY) == pdTRUE)
  *   #define EK_LOCK_RELEASE(obj) xSemaphoreGive((obj)->lock)
  */
@@ -39,9 +38,10 @@
  * 核心服务
  * ======================================================================== */
 
-#define EKCFG_EXPORT (0) /**< 自动初始化机制 */
-#define EKCFG_ASSERT (1) /**< 断言模块 */
-#define EKCFG_LOG    (1) /**< 日志模块 */
+#define EKCFG_EXPORT           (0) /**< 自动初始化机制 */
+#define EKCFG_EXPORT_AUTO_INIT (1) /**< ek_export_init() 在 main() 之前自动执行；需要先配时钟时设为 0 并手动调用 */
+#define EKCFG_ASSERT           (1) /**< 断言模块 */
+#define EKCFG_LOG              (1) /**< 日志模块 */
 
 /* ========================================================================
  * 数据结构
@@ -55,6 +55,7 @@
 #define EKCFG_RINGBUF_SPSC   (1) /**< SPSC 无锁环形缓冲区 */
 #define EKCFG_STACK          (1) /**< 通用栈 */
 #define EKCFG_SNAPSHOT       (1) /**< 快照 */
+#define EKCFG_KFIFO          (1) /**< 侵入式零拷贝 FIFO */
 #define EKCFG_EVOKE          (1) /**< 事件驱动调度器 */
 #define EKCFG_PICOTHREAD     (1) /**< 微线程 */
 #define EKCFG_PICOTHREAD_SEM (1) /**< 微线程信号量 (依赖 PICOTHREAD) */

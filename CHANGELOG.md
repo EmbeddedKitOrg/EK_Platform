@@ -1,8 +1,61 @@
 # 更新日志
 
-本文件记录 [ek_utils](https://github.com/EmbeddedKitOrg/EK_UTILS) 的版本变更。
+本文件记录 [ek_platform](https://github.com/EmbeddedKitOrg/EK_Platform) 的版本变更（v5 及更早版本以 ek_utils / EK_UTILS 名义发布）。
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+
+## [Unreleased]
+
+### 新增
+
+- 新增 `ek_kfifo` 侵入式零拷贝 FIFO（`EKCFG_KFIFO`）：用户结构体内嵌 `ek_kfifo_node_t`，入队/出队只链接指针，O(1)，可在 ISR 中使用；提供 `put` / `put_front` / `put_list` / `get` / `get_all` / `peek_*` / `remove` / `count`，以及 `ek_kfifo_get_entry()`、`EK_DEFINE_KFIFO()`、`EK_KFIFO_FILL()`（初始化对象池）。
+- 新增 `ek_critical_enter()` / `ek_critical_exit()`（`ek/core/ek_critical.h`）：弱符号，默认在 Cortex-M 上保存/恢复 PRIMASK、在 RISC-V 上保存/恢复 mstatus.MIE，支持嵌套；`ek_kfifo` 与 `ek_evoke` 的默认临界区都基于它。
+- 新增 `EKCFG_EXPORT_AUTO_INIT`（默认 1）：设为 0 时 `ek_export_init()` 不再作为 constructor 在 `main()` 之前执行，可在时钟配置完成后手动调用。
+- `ek_evoke` 新增 `ek_evoke_run_once()`、`ek_evoke_get_tick()` 与弱函数 `ek_evoke_get_timer_elapsed()`。
+- 新增 `ek_heap_destroy()`、`ek_heap_is_ready()`、`ek_list_node_is_linked()`，`ek_def.h` 新增 `EK_TICK_AFTER()` / `EK_TICK_AFTER_EQ()`（回绕安全的 tick 比较）、`EK_COMPILER_BARRIER()` / `EK_MEMORY_BARRIER()`、`ek_ctz32()`。
+- 新增 `tests/`：主机单元测试（CMake + CTest，可选 ASan/UBSan）与 `tests/compile_check.sh` 多配置交叉编译检查；新增 `.github/workflows/ci.yml`，在 push / PR 时运行。
+
+### 修复
+
+- picothread：`EK_PT_SEM_GIVE` 唤醒等待者后，等待者会重新 `take` 而拿不到信号量，导致这次释放丢失、等待者一直等到超时。现在 give 直接把信号量移交给等待者。
+- picothread：`EK_PT_SEM_TAKE` / `EK_PT_MSG_*` 立即成功时 `err` 会沿用上一次等待的结果（如 `-ETIMEDOUT`），调用方误以为失败而泄漏信号量。现在每次等待前清零。
+- picothread：挂起或阻塞一个正在等待信号量/消息的任务后，再 give/send 会对已摘下的节点重复移除导致空指针访问。挂起现在会取消等待（结果为 `-EINTR`），销毁为 `-ECANCELED`。
+- picothread：消息队列改为直接移交（发送方直接拷入等待中的接收缓冲区，接收后把等待发送者的数据补入缓冲区），不会再被其他任务"抢走"。
+- picothread / evoke：tick 比较未处理 32 位回绕，1 kHz 节拍下约 49.7 天后延时任务会被提前唤醒。现在所有比较都是回绕安全的；`EK_PT_WAIT_FOREVER` 不再借用 tick 值。
+- picothread：`ek_pt_schedule()` 在 `now == 0` 时返回值会与"可无限睡眠"的 0 混淆；调度结束后清空当前任务，主循环中可以销毁刚运行过的任务。
+- evoke：定时器运行途中插入更早的延时请求时，重新装载丢掉了已走过的时间，已排队的请求被整体推迟。现在通过虚拟时钟累计已走过的时间（需要实现 `ek_evoke_get_timer_elapsed()`）。
+- evoke：任务回调执行期间到来的 publish 只增加计数，回调返回后任务被直接挂回等待队列，积压的事件要等下一次 publish 才被处理。现在回调返回后重新订阅时会消费积压计数。
+- evoke：检查"无事可做"与进入睡眠之间没有临界区，中断落在两者之间会导致请求一直等到下一个中断。现在睡眠函数在临界区内调用。
+- evoke：在回调中销毁自己会访问已释放的任务；销毁事件后，仍指向它的延时请求和就绪任务会访问已释放内存。均已修复。
+- evoke：ISR 请求队列实际只能存 `EK_EVOKE_MAX_ISR_REQ - 1` 个请求。
+- `ek_list_remove()` 移除后把指针置 NULL，重复移除即空指针访问；现在节点指回自身，重复移除是空操作。
+- `EK_LOG_*` 宏是裸 `if`，在 `if/else` 中使用时 `else` 会被宏截走；现在用 `do { } while (0)` 包裹。
+- `EKCFG_ASSERT=0` 时 `ek_assert_param` 未定义、`EKCFG_LOG=0` 时 `EK_LOG_*` 未定义，导致 picothread、evoke 等模块编译失败；现在提供空实现。
+- 只开 `EKCFG_PICOTHREAD` / `EKCFG_EVOKE` 而未开链表/环形缓冲区时编译失败；现在自动打开依赖模块。
+- `EK_PT_YEILD` 展开为 `case __LINE__: }`（标签后直接是 `}`），C23 之前不合法，旧版 GCC 与严格编译器会报错；新宏 `EK_PT_YIELD` 补上空语句。
+- 部分 C 库（ARM Compiler 的 armlib/microlib、MinGW）缺少 `ENODATA` / `ETIMEDOUT` / `ECANCELED` 等错误码，现在由 `ek_def.h` 补齐。
+- `CRLF` 被定义为 `" \r\n"`（多一个空格）。
+- SPSC 环形缓冲区的索引没有 `volatile` 与内存屏障，ISR 与主循环之间可能读到未写完的数据。
+- 环形缓冲区每次读写用 `%` 取模，Cortex-M0 等没有硬件除法的内核上需要调用软件除法；改为比较回绕。
+- `ek_snapshot_get()` 在无数据时返回而未释放锁；`ek_snapshot_set()` 未按文档拒绝 `unique == 0`。
+- `ek_str_view_trim()` 把 `char` 直接传给 `isspace()`，遇到 0x80 以上字节（如 UTF-8）是未定义行为。
+- `ek_heap_init()` 失败时静默死循环；现在断言失败，断言关闭时 `ek_malloc()` 返回 NULL。RTOS 模式下 TLSF 堆操作现在加锁。
+- `ek_export_init()` / `ek_static_alloc_init()` 不再在栈上开 VLA、不再依赖 `qsort`，改为原地按 (level, order, 段内顺序) 选择；`ek_export_init()` 重复调用只执行一次。
+- 工具链文件只识别 CMake ≥ 3.24 的 `CMakeScratch` 临时工程，CMake 3.20～3.23 下编译器检测因缺少 `PLATFORM` 而失败；现在同时识别 `CMakeTmp` 并通过 `CMAKE_TRY_COMPILE_PLATFORM_VARIABLES` 传递 `PLATFORM`。
+- 库不再强制 `-Os -g`：只在未指定 `CMAKE_BUILD_TYPE` 时作为默认值，Debug/Release 等沿用主工程选项。
+
+### 变更
+
+- `EKCFG_PICOLIBC` / `EKCFG_IO_LWPRTF` 的内部默认值改为与模板一致（`0` / `1`）。依赖旧默认值（未在 `ek_conf.h` 中定义、实际使用 picolibc）的工程需显式设置 `EKCFG_PICOLIBC=1`。
+- RTOS 模式下 ringbuf / stack / snapshot 在锁被占用时改为阻塞等待（`EK_LOCK_ACQUIRE`），不再返回 `-EBUSY`；`EK_LOCK_TRY` 不再是必填宏。
+- `ek_evoke_light_sleep()` / `ek_evoke_deep_sleep()` 改为在临界区内调用（Cortex-M 上 PRIMASK=1 时挂起的中断仍能唤醒 WFI），实现中不要自行开中断；`ek_evoke_set_timer()` 也在临界区内调用。
+- `ek_evoke_enter_critical()` / `ek_evoke_exit_critical()` 的默认实现从空函数改为调用 `ek_critical_*()`（关中断）。
+- `ek_static_alloc_init()` 失败日志不再调用 `strerror()`，直接输出错误码。
+- README 修正编译器支持说明：armcc 下 `EKCFG_EXPORT` / `EKCFG_STATIC_ALLOC` 依赖 GNU ld 链接脚本，暂不支持 scatter 文件；补全源文件直接集成时需要的 include 路径。
+
+### 弃用
+
+- `EK_PT_YEILD` → `EK_PT_YIELD`，`ek_heap_destory()` → `ek_heap_destroy()`，`EK_EVOKE_STATE_WAITTING` → `EK_EVOKE_STATE_WAITING`；旧名保留为兼容别名。
 
 ## [6.2.0] - 2026-10-27
 

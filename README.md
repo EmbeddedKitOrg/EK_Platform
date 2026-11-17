@@ -9,8 +9,9 @@
 ## 特性
 
 - 零 RTOS 依赖，可直接集成到裸机工程
-- 配置驱动：所有模块通过 `ek_conf.h` 开关裁剪，关闭的模块不参与编译
-- 支持 GCC、ARM Compiler 5 (armcc)、ARM Compiler 6 (armclang)
+- 配置驱动：所有模块通过 `ek_conf.h` 开关裁剪，关闭的模块不参与编译；调度器依赖的链表/环形缓冲区会自动打开
+- 编译器：GCC、ARM Compiler 6 (armclang) 完整支持；ARM Compiler 5 (armcc) 可编译容器、调度器等模块，但 `EKCFG_EXPORT` / `EKCFG_STATIC_ALLOC` 依赖 GNU ld 链接脚本中的段符号，Keil scatter 文件暂不支持
+- 以 C99 为基线，CI 在 Cortex-M0/M4/M7/M33 与 RV32/RV64 上按多套配置 `-Werror` 编译，并在主机上运行单元测试（ASan/UBSan）
 - 平台相关接口以 `__EK_WEAK` 声明，用户提供同名强函数即可覆盖
 
 ## 目录结构
@@ -30,9 +31,9 @@ ek_platform/
 │   └── gcc-riscv-none-elf.cmake   # RISC-V 交叉编译工具链
 ├── include/ek/
 │   ├── ek_conf_internal.h         # 配置入口：引入 ek_conf.h、填充默认值、依赖校验
-│   ├── core/                      # ek_def / ek_assert / ek_io / ek_log / ek_export
+│   ├── core/                      # ek_def / ek_assert / ek_critical / ek_io / ek_log / ek_export
 │   ├── mem/                       # ek_heap / ek_static_alloc
-│   ├── container/                 # ek_list / ek_vec / ek_ringbuf / ek_stack / ek_snapshot / ek_str / ek_str_view
+│   ├── container/                 # ek_list / ek_vec / ek_ringbuf / ek_kfifo / ek_stack / ek_snapshot / ek_str / ek_str_view
 │   └── sched/                     # ek_evoke / ek_picothread
 ├── src/                           # 与 include/ek 相同的模块划分
 │   ├── core/
@@ -44,6 +45,7 @@ ek_platform/
 ├── third_party/
 │   ├── tlsf/                      # O(1) 内存分配器
 │   └── lwprintf/                  # 轻量 printf
+├── tests/                         # 主机单元测试与多配置交叉编译检查
 ├── README.md
 └── README.en.md
 ```
@@ -176,12 +178,24 @@ ek_linker_attach(app BOARD_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/ek_board_a
 
 ### 5. 初始化
 
-启用 `EKCFG_EXPORT=1` 时，`ek_export_init()` 标记为 `__attribute__((constructor))`，由启动代码的 `__libc_init_array()` 在 `main()` 之前自动调用，堆、IO、调度器等模块会按 `level → order` 自动初始化。不要重复调用：
+启用 `EKCFG_EXPORT=1` 时，`ek_export_init()` 默认标记为 `__attribute__((constructor))`，由启动代码的 `__libc_init_array()` 在 `main()` 之前自动调用，堆、IO、调度器等模块会按 `level → order` 自动初始化。`ek_export_init()` 只会执行一次，重复调用会直接返回：
 
 ```c
 int main(void)
 {
     // ek_export_init() 已由 __libc_init_array() 自动调用
+    // ...
+}
+```
+
+注意：constructor 早于 `HAL_Init()` 和时钟配置执行，导出到 `EK_EXPORT_HARDWARE` 等层级的函数不能依赖时钟已配置好的外设。需要先配置时钟时，在 `ek_conf.h` 中设 `EKCFG_EXPORT_AUTO_INIT=0`，再手动调用：
+
+```c
+int main(void)
+{
+    HAL_Init();
+    SystemClock_Config();
+    ek_export_init(); // EKCFG_EXPORT_AUTO_INIT=0 时手动调用
     // ...
 }
 ```
@@ -195,12 +209,14 @@ int main(void)
 ```
 Include Paths:
   - include/
+  - include/ek/                          （third_party 头文件直接 include "ek_conf_internal.h"）
+  - include/ek/core/                     （tlsf.c 直接 include "ek_io.h"）
   - third_party/tlsf/
   - third_party/lwprintf/inc/
   - <picolibc 安装目录>/include/          （使用 picolibc 时，由你自己提供）
 
 源文件（按需选择）:
-  - src/core/*.c
+  - src/core/*.c                         （ek_critical.c 被 ek_kfifo / ek_evoke 使用）
   - src/mem/*.c
   - src/container/*.c
   - src/sched/*.c
@@ -274,10 +290,12 @@ target_include_directories(ek_platform PUBLIC Core/Inc)
 
 | 后端 | ek_conf.h 配置 | `ek_printf` 等宏 | 需要实现 |
 |------|---------------|------------------|----------|
-| picolibc（内部默认） | `EKCFG_PICOLIBC=1` | 自动映射到 `printf` / `vsnprintf` | `int ek_port_io_fputc(int ch)` |
-| lwprintf（模板默认） | `EKCFG_IO_LWPRTF=1`、`EKCFG_PICOLIBC=0` | 自动映射到 `lwprintf` / `lwvsnprintf` | `int ek_port_io_fputc(int ch)` |
+| lwprintf（默认） | `EKCFG_IO_LWPRTF=1`、`EKCFG_PICOLIBC=0` | 自动映射到 `lwprintf` / `lwvsnprintf` | `int ek_port_io_fputc(int ch)` |
+| picolibc | `EKCFG_PICOLIBC=1` | 自动映射到 `printf` / `vsnprintf` | `int ek_port_io_fputc(int ch)` |
 | 裸机 newlib/nanolibc | `EKCFG_NEWLIB=1`、`EKCFG_PICOLIBC=0`、`EKCFG_IO_LWPRTF=0` | 自动映射到系统 `printf` | `_write` 等由 `port/clib/newlib/newlib_port.c` 提供，可覆盖 `ek_port_io_fputc` |
 | 系统 libc（host） | `EKCFG_PICOLIBC=0`、`EKCFG_IO_LWPRTF=0`、`EKCFG_NEWLIB=0` | 自动映射到系统 `printf` | 无 |
+
+`ek_conf.h` 未定义这两个宏时，内部默认值与模板一致：`EKCFG_PICOLIBC=0`、`EKCFG_IO_LWPRTF=1`。
 
 `EKCFG_PICOLIBC` 与 `EKCFG_NEWLIB` 互斥。裸机 newlib 的 syscall port 提供弱符号 `_write` / `_read` / `_close` / `_fstat` / `_isatty` / `_lseek` / `_sbrk`，BSP 可按需覆盖；`_sbrk` 使用链接脚本的 `__heap_start` / `__heap_end`。
 
@@ -285,7 +303,41 @@ target_include_directories(ek_platform PUBLIC Core/Inc)
 
 ### 所有配置宏
 
-完整列表和默认值见 `ek_conf_template.h`。未在 `ek_conf.h` 中定义的宏会自动取默认值，未满足的依赖关系会在编译期报错（例如开启 `EKCFG_PICOTHREAD_SEM` 但没有开启 `EKCFG_PICOTHREAD`，或在 RTOS 模式下开启 `EKCFG_EVOKE`）。
+完整列表和默认值见 `ek_conf_template.h`。未在 `ek_conf.h` 中定义的宏会自动取默认值，未满足的依赖关系会在编译期报错（例如开启 `EKCFG_PICOTHREAD_SEM` 但没有开启 `EKCFG_PICOTHREAD`，或在 RTOS 模式下开启 `EKCFG_EVOKE`）。调度器内部用到的容器会被自动打开：`EKCFG_PICOTHREAD` / `EKCFG_EVOKE` → `EKCFG_LIST`，`EKCFG_PICOTHREAD_MSG` → `EKCFG_RINGBUF`，`EKCFG_EVOKE` → `EKCFG_RINGBUF_SPSC`。
+
+`EKCFG_ASSERT=0` / `EKCFG_LOG=0` 时，`ek_assert_param()` 与 `EK_LOG_*()` 展开为空语句（参数不求值），库内和用户代码都无需额外的 `#if` 保护。
+
+RTOS 模式（`EKCFG_RTOS=1`）下需要定义 `EK_LOCK_TYPE` / `EK_LOCK_INIT` / `EK_LOCK_DEINIT` / `EK_LOCK_ACQUIRE` / `EK_LOCK_RELEASE`。容器和 TLSF 堆在锁被占用时阻塞等待，不再返回 `-EBUSY`；`EK_LOCK_TRY` 已不再使用。
+
+## 侵入式零拷贝 FIFO（ek_kfifo）
+
+`EKCFG_KFIFO=1` 启用。元素由用户结构体承载，结构体内嵌一个 `ek_kfifo_node_t`；入队/出队只链接指针，不拷贝数据、不分配内存，所有操作 O(1)，在很短的临界区内完成，ISR 与主循环之间可任意组合读写。
+
+```c
+typedef struct {
+    ek_kfifo_node_t node;   // 内嵌节点
+    uint16_t len;
+    uint8_t  buf[256];
+} frame_t;
+
+static frame_t frames[8];
+EK_DEFINE_KFIFO(free_q);    // 空闲池
+EK_DEFINE_KFIFO(rx_q);      // 就绪队列
+
+EK_KFIFO_FILL(&free_q, frames, node);          // 初始化：8 个空帧进空闲池
+
+// ISR：取空帧 → 填数据 → 投递（只挂指针）
+frame_t *f = ek_kfifo_get_entry(&free_q, frame_t, node);
+if (f) { f->len = read_dma(f->buf); ek_kfifo_put(&rx_q, &f->node); }
+
+// 主循环：取出处理 → 归还空闲池
+while ((f = ek_kfifo_get_entry(&rx_q, frame_t, node)) != NULL) {
+    handle(f->buf, f->len);
+    ek_kfifo_put(&free_q, &f->node);
+}
+```
+
+此外还有 `ek_kfifo_put_front()`（插队）、`ek_kfifo_get_all()`（一次取走整条链，只关一次中断）、`ek_kfifo_put_list()`（整链入队）、`ek_kfifo_remove()`（撤回未处理的节点）。临界区默认使用 `ek_critical_enter()/exit()`；所有 FIFO 只在单一上下文使用时，可在 `ek_conf.h` 中把 `EK_KFIFO_CRITICAL_ENTER()` / `EK_KFIFO_CRITICAL_EXIT()` 定义为空。
 
 ## 平台适配：需要实现的弱函数
 
@@ -298,12 +350,19 @@ int ek_port_io_fputc(int ch);
 // ek_log：系统时间戳
 uint32_t ek_port_log_get_tick(void);
 
+// ek_critical：关中断临界区（ek_kfifo / ek_evoke 默认使用）
+// 默认实现：Cortex-M 保存/恢复 PRIMASK，RISC-V 保存/恢复 mstatus.MIE，可嵌套；
+// 多核或需要只屏蔽部分优先级时自行实现
+void ek_critical_enter(void);
+void ek_critical_exit(void);
+
 // ek_evoke：临界区、定时器和睡眠
-void ek_evoke_enter_critical(void);
-void ek_evoke_exit_critical(void);
-void ek_evoke_set_timer(uint32_t xtick);
-void ek_evoke_light_sleep(void);
-void ek_evoke_deep_sleep(void);
+void ek_evoke_enter_critical(void);          // 默认调用 ek_critical_enter()
+void ek_evoke_exit_critical(void);           // 默认调用 ek_critical_exit()
+void ek_evoke_set_timer(uint32_t xtick);     // 装载一次性定时器，需清除旧的到期标志
+uint32_t ek_evoke_get_timer_elapsed(void);   // 自上次 set_timer 起走过的 tick（读 LPTIM 计数）
+void ek_evoke_light_sleep(void);             // 在临界区内调用：直接 WFI，不要自行开中断
+void ek_evoke_deep_sleep(void);              // 同上，醒来后可在此恢复时钟
 
 // ek_assert：断言失败钩子（full 模式）
 void ek_assert_hook(const char *file, uint32_t line, const char *expr);
@@ -313,6 +372,10 @@ void *ek_malloc(size_t size);
 void *ek_realloc(void *ptr, size_t size);
 void ek_free(void *ptr);
 ```
+
+`ek_evoke` 的睡眠函数在临界区内被调用：检查"无事可做"与进入睡眠之间不会被中断插入，避免请求已入队却一直睡到下一个中断。Cortex-M 上 PRIMASK=1 时挂起的中断仍会唤醒 WFI，返回后调度器退出临界区、中断随即执行。因此自定义 `ek_evoke_enter_critical()` 不能用 BASEPRI 屏蔽唤醒源。
+
+`ek_evoke_get_timer_elapsed()` 默认返回 0，此时调度器时间只在定时器到期时推进，定时器运行途中新增的延时请求会以上一次装载时刻为起点计算。需要精确延时请实现它。
 
 以 STM32 为例：
 
@@ -332,6 +395,21 @@ uint32_t ek_port_log_get_tick(void)
     return HAL_GetTick();
 }
 ```
+
+## 测试
+
+```bash
+# 主机单元测试（Linux/macOS；可加 -DEK_TEST_SANITIZE=ON 打开 ASan/UBSan）
+cmake -S tests -B build/host-tests -G Ninja
+cmake --build build/host-tests
+ctest --test-dir build/host-tests --output-on-failure
+
+# 多配置交叉编译检查（tests/configs/*.h × 多个 CPU，库源码 -Werror）
+bash tests/compile_check.sh
+CC=riscv64-unknown-elf-gcc TARGETS="--specs=picolibc.specs -march=rv32imac -mabi=ilp32" bash tests/compile_check.sh
+```
+
+Windows 上的 MinGW 链接器无法跨目标文件解析弱符号的默认实现，主机测试请在 Linux、WSL 或容器中运行；`compile_check.sh` 在 Git Bash 下可以直接使用。CI（`.github/workflows/ci.yml`）在每次 push / PR 时运行上述两类检查。
 
 ## 第三方依赖
 

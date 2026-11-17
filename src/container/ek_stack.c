@@ -84,7 +84,7 @@ int ek_stack_push(ek_stack_t *sk, const void *item)
 {
     if (sk == NULL || item == NULL) return -EINVAL;
 
-    if (!EK_LOCK_TRY(sk)) return -EBUSY;
+    (void)EK_LOCK_ACQUIRE(sk);
 
     if (ek_stack_full(sk) == true)
     {
@@ -105,7 +105,7 @@ int ek_stack_pop(ek_stack_t *sk, void *item)
 {
     if (sk == NULL || item == NULL) return -EINVAL;
 
-    if (!EK_LOCK_TRY(sk)) return -EBUSY;
+    (void)EK_LOCK_ACQUIRE(sk);
 
     if (ek_stack_empty(sk) == true)
     {

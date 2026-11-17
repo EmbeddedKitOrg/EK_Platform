@@ -136,7 +136,7 @@ void ek_stack_deinit_static(ek_stack_t *sk);
  * @param item 指向要压入的元素的指针
  * @return 0 成功压入
  * @return -ENOSPC 栈已满
- * @return -EBUSY 资源忙（RTOS 模式）
+ * @note RTOS 模式下会阻塞等待对象锁（EK_LOCK_ACQUIRE），不会因锁竞争返回失败
  *
  * @warning sk 和 item 为 NULL 时返回 -EINVAL
  * @note 复杂度：O(1)
@@ -153,7 +153,7 @@ int ek_stack_push(ek_stack_t *sk, const void *item);
  * @param item 指向接收弹出元素的缓冲区的指针
  * @return 0 成功弹出
  * @return -ENODATA 栈为空
- * @return -EBUSY 资源忙（RTOS 模式）
+ * @note RTOS 模式下会阻塞等待对象锁（EK_LOCK_ACQUIRE），不会因锁竞争返回失败
  *
  * @warning sk 和 item 为 NULL 时返回 -EINVAL
  * @note 复杂度：O(1)

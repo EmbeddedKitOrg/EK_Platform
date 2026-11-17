@@ -59,6 +59,7 @@ endif()
 # ---------- 源文件 ----------
 set(EK_CORES_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_assert.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_critical.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_export.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_io.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/ek_log.c
@@ -73,6 +74,7 @@ set(EK_CONTAINER_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_str.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_str_view.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_ringbuf.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_kfifo.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_snapshot.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/container/ek_stack.c
 )
@@ -126,11 +128,13 @@ endif()
 add_library(ek_platform OBJECT ${EK_SRCS} ${PORT_SRCS} ${TP_SRCS})
 
 target_include_directories(ek_platform PUBLIC ${EK_INCLUDE_DIRS})
-target_compile_options(ek_platform PRIVATE
-    -Os
-    -g
-    -fdiagnostics-color=always
-)
+target_compile_options(ek_platform PRIVATE -fdiagnostics-color=always)
+
+# 未指定构建类型时库默认按 -Os -g 编译；指定了 Debug/Release 等则完全沿用主工程的优化选项
+get_property(_ek_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(NOT _ek_multi_config AND NOT CMAKE_BUILD_TYPE)
+    target_compile_options(ek_platform PRIVATE -Os -g)
+endif()
 
 if(EK_CONF_PATH)
     target_compile_definitions(ek_platform PUBLIC EK_CONF_PATH="${EK_CONF_PATH}")

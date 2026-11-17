@@ -36,10 +36,15 @@ struct ek_ringbuf
 #    endif /* EKCFG_RINGBUF */
 
 #    if EKCFG_RINGBUF_SPSC == 1
+/**
+ * @note 单生产者/单消费者无锁：写端只修改 write_idx，读端只修改 read_idx，
+ *       索引为 volatile 并配合内存屏障发布数据，可用于 ISR 与主循环之间。
+ *       多个生产者（如多个不同优先级的中断）必须在外部加临界区。
+ */
 struct ek_ringbuf_spsc
 {
-    uint32_t write_idx; /**< 写入位置索引 */
-    uint32_t read_idx; /**< 读取位置索引 */
+    volatile uint32_t write_idx; /**< 写入位置索引（仅生产者修改） */
+    volatile uint32_t read_idx; /**< 读取位置索引（仅消费者修改） */
     size_t cap; /**< 底层槽位数量，实际最大可存元素数为 cap - 1 */
     size_t item_size; /**< 单个元素大小（字节） */
     uint8_t data[]; /**< 唯一数据位置：动态=malloc 尾部，静态=union 尾部 */
@@ -123,7 +128,7 @@ void ek_ringbuf_deinit_static(ek_ringbuf_t *rb);
  * @param item 要写入的元素指针
  * @return 0 写入成功
  * @return -ENOSPC 缓冲区已满
- * @return -EBUSY 资源忙（RTOS 模式）
+ * @note RTOS 模式下会阻塞等待对象锁（EK_LOCK_ACQUIRE），不会因锁竞争返回失败
  */
 int ek_ringbuf_write(ek_ringbuf_t *rb, const void *item);
 
@@ -133,7 +138,7 @@ int ek_ringbuf_write(ek_ringbuf_t *rb, const void *item);
  * @param item 存储读取结果的缓冲区指针，传入 NULL 则直接丢弃数据
  * @return 0 读取成功
  * @return -ENODATA 缓冲区为空
- * @return -EBUSY 资源忙（RTOS 模式）
+ * @note RTOS 模式下会阻塞等待对象锁（EK_LOCK_ACQUIRE），不会因锁竞争返回失败
  */
 int ek_ringbuf_read(ek_ringbuf_t *rb, void *item);
 
@@ -143,7 +148,7 @@ int ek_ringbuf_read(ek_ringbuf_t *rb, void *item);
  * @param item 存储查看结果的缓冲区指针
  * @return 0 查看成功
  * @return -ENODATA 缓冲区为空
- * @return -EBUSY 资源忙（RTOS 模式）
+ * @note RTOS 模式下会阻塞等待对象锁（EK_LOCK_ACQUIRE），不会因锁竞争返回失败
  */
 int ek_ringbuf_peek(ek_ringbuf_t *rb, void *item);
 #    endif /* EKCFG_RINGBUF */

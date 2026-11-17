@@ -57,8 +57,27 @@ void ek_free(void *ptr);
 
 /* ========== 默认堆操作 ========== */
 
+/**
+ * @brief 初始化默认堆（EKCFG_EXPORT=1 时自动调用，重复调用会被忽略）
+ * @note 创建失败时断言；断言关闭时 ek_malloc() 返回 NULL，可用 ek_heap_is_ready() 检查
+ */
 void ek_heap_init(void);
+
+/**
+ * @brief 默认堆是否已成功初始化
+ */
+bool ek_heap_is_ready(void);
+
+/**
+ * @brief 销毁默认堆，之后 ek_malloc() 返回 NULL，直到再次 ek_heap_init()
+ */
+void ek_heap_destroy(void);
+
+/**
+ * @deprecated 拼写错误的旧名，请改用 ek_heap_destroy()
+ */
 void ek_heap_destory(void);
+
 size_t ek_heap_total_size(void);
 pool_t ek_heap_add_pool(void *ptr, size_t size);
 void ek_heap_remove_pool(pool_t pool);

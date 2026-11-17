@@ -5,7 +5,13 @@
 
 #if EKCFG_PICOTHREAD == 1
 
+#    include "ek/core/ek_def.h"
 #    include "ek/container/ek_list.h"
+
+/**
+ * @brief 永久等待（用于 EK_PT_DELAY / EK_PT_SEM_TAKE / EK_PT_MSG_* 的 tick 参数）
+ */
+#    define EK_PT_WAIT_FOREVER ((uint32_t)0xFFFFFFFFUL)
 
 #    if EKCFG_PICOTHREAD_SEM == 1
 /**
@@ -19,7 +25,7 @@ typedef struct ek_pt_sem ek_pt_sem_t;
 struct ek_pt_sem
 {
     uint8_t count; // 可用计数
-    ek_list_node_t wait_list; // 等待队列
+    ek_list_node_t wait_list; // 等待队列（按优先级排序）
 };
 #    endif /* EKCFG_PICOTHREAD_SEM */
 
@@ -52,7 +58,11 @@ typedef struct ek_pt ek_pt_t;
 /**
  * @brief 微线程回调函数类型
  *
- * 每次调度时调用此回调，回调内通过 EK_PT_BEGIN/YEILD/END 宏实现协程式逻辑。
+ * 每次调度时调用此回调，回调内通过 EK_PT_BEGIN/YIELD/END 宏实现协程式逻辑。
+ *
+ * @warning protothread 在让出后不会保留局部变量，需要跨让出点保存的数据请放在
+ *          static 变量或 arg 指向的结构体中；传给 EK_PT_MSG_* 的数据缓冲区同理。
+ * @warning 回调内不能使用 switch 语句包住 EK_PT_* 宏，同一行也不能出现两个让出宏。
  *
  * @param pt  当前微线程句柄
  * @param arg 创建时传入的用户参数
@@ -66,7 +76,7 @@ typedef enum
 {
     EK_PT_STATE_READY = 0, // 就绪，等待调度
     EK_PT_STATE_SUSPEND, // 挂起，不参与调度，需手动 resume
-    EK_PT_STATE_BLOCK, // 阻塞，等待定时唤醒
+    EK_PT_STATE_BLOCK, // 阻塞，等待定时唤醒或事件
     EK_PT_STATE_RUNNING, // 正在执行回调
 
     EK_PT_STATE_MAX
@@ -78,21 +88,23 @@ typedef enum
 struct ek_pt
 {
     uint8_t prio; // 优先级（数值越小优先级越高）
+    uint8_t forever; // 1=当前阻塞没有超时（不在阻塞链表中）
     ek_pt_state_t state; // 当前状态
     uint32_t tick; // 阻塞唤醒的绝对 tick
-    uint32_t line; // protothread 行号，用于 YEIELD 恢复执行位置
+    uint32_t line; // protothread 行号，用于 YIELD 恢复执行位置
     ek_list_node_t state_node; // 就绪/阻塞链表的侵入式节点
     ek_list_node_t event_node; // 事件链表的侵入式节点（信号量/消息队列等待）
     void *arg; // 用户参数
     ek_pt_cb_t cb; // 回调函数
 #    if EKCFG_PICOTHREAD_SEM || EKCFG_PICOTHREAD_MSG
-    int wait_result; // 事件等待结果：0=成功，-ETIMEDOUT=超时
+    int wait_result; // 事件等待结果：0=成功，-ETIMEDOUT=超时，-EINTR=被挂起打断，-ECANCELED=对象被销毁，-EINVAL=参数错误
 #    endif
 #    if EKCFG_PICOTHREAD_SEM
     ek_pt_sem_t *wait_sem;
 #    endif /* EKCFG_PICOTHREAD_SEM */
 #    if EKCFG_PICOTHREAD_MSG
     ek_pt_msg_t *wait_msg;
+    void *wait_buf; // 等待发送时指向待发数据，等待接收时指向接收缓冲区
 #    endif /* EKCFG_PICOTHREAD_MSG */
 };
 
@@ -127,13 +139,18 @@ struct ek_pt
  *
  * @param pt  微线程句柄
  */
-#    define EK_PT_YEILD(pt)        \
+#    define EK_PT_YIELD(pt)        \
         do                         \
         {                          \
             (pt)->line = __LINE__; \
             return;                \
-            case __LINE__:         \
+            case __LINE__:;        \
         } while (0)
+
+/**
+ * @deprecated 拼写错误的旧名，请改用 EK_PT_YIELD
+ */
+#    define EK_PT_YEILD(pt) EK_PT_YIELD(pt)
 
 /**
  * @brief protothread 结束宏，标记协程终止位置
@@ -173,7 +190,10 @@ ek_pt_t *ek_pt_create(ek_pt_cb_t cb, uint8_t prio, void *arg);
 /**
  * @brief 销毁微线程
  *
+ * 会把任务从就绪/阻塞链表以及信号量、消息队列的等待队列中摘除。
+ *
  * @param pt 微线程句柄
+ * @warning 不能在任务自己的回调中销毁自己（调用会被忽略），请改为挂起后由其他任务销毁。
  */
 void ek_pt_destroy(ek_pt_t *pt);
 
@@ -234,10 +254,15 @@ void ek_pt_msg_deinit_static(ek_pt_msg_t *msg);
  * 将到期阻塞任务移回就绪链表，取出最高优先级就绪任务执行回调，
  * 回调返回后根据状态重新分流。
  *
+ * tick 比较全部按回绕安全的方式进行（任意两个 tick 的间隔需小于 2^31）。
+ *
  * @param now 当前绝对 tick
  * @return == now → 就绪任务存在，不应睡眠；
- *         &gt;  now → 最近阻塞任务的唤醒 tick；
- *         == 0   → 无任务，可无限睡眠
+ *         其他非 0 值 → 最近阻塞任务的唤醒 tick，可睡眠 (uint32_t)(ret - now) 个 tick；
+ *         == 0   → 无定时任务，可无限睡眠
+ *
+ * @note 为避免与"无限睡眠"的 0 混淆：now 为 0 且有就绪任务时返回 1（调用方最多多睡 1 tick）；
+ *       最近唤醒 tick 恰为 0 时返回 0xFFFFFFFF（提前 1 tick 醒来再调度一次）。
  */
 uint32_t ek_pt_schedule(uint32_t now);
 
@@ -245,7 +270,7 @@ uint32_t ek_pt_schedule(uint32_t now);
  * @brief 阻塞当前或指定任务
  *
  * @param pt    微线程句柄（传入 ek_pt_active() 阻塞当前任务）
- * @param xtick 阻塞时长（相对 tick），0=不等待，~0=永远等待
+ * @param xtick 阻塞时长（相对 tick），0=不等待，EK_PT_WAIT_FOREVER=永远等待
  *
  * @warning 不应直接调用，请使用 EK_PT_DELAY 宏。
  */
@@ -253,6 +278,8 @@ void ek_pt_block(ek_pt_t *pt, uint32_t xtick);
 
 /**
  * @brief 挂起当前或指定任务
+ *
+ * 挂起一个正在等待信号量/消息的任务会取消这次等待，恢复后等待宏返回 -EINTR。
  *
  * @param pt 微线程句柄（NULL 表示挂起自己）
  * @return 传入 NULL 时返回被挂起的任务句柄，否则返回 NULL
@@ -278,7 +305,7 @@ ek_pt_t *ek_pt_active(void);
 /**
  * @brief 延迟指定 tick 数后恢复执行
  *
- * 内部组合 ek_pt_block + EK_PT_YEILD，使当前任务阻塞 xtick 后自动唤醒。
+ * 内部组合 ek_pt_block + EK_PT_YIELD，使当前任务阻塞 xtick 后自动唤醒。
  *
  * @param xtick 延迟 tick 数
  */
@@ -286,7 +313,7 @@ ek_pt_t *ek_pt_active(void);
         do                                          \
         {                                           \
             ek_pt_block((ek_pt_active()), (xtick)); \
-            EK_PT_YEILD((ek_pt_active()));          \
+            EK_PT_YIELD((ek_pt_active()));          \
         } while (0)
 
 /**
@@ -303,7 +330,7 @@ ek_pt_t *ek_pt_active(void);
             _spt = ek_pt_suspend(pt); \
             if (_spt != NULL)         \
             {                         \
-                EK_PT_YEILD(_spt);    \
+                EK_PT_YIELD(_spt);    \
             }                         \
         } while (0)
 
@@ -326,6 +353,8 @@ ek_pt_sem_t *ek_pt_sem_create(uint8_t count);
 /**
  * @brief 销毁信号量
  *
+ * 所有等待者被唤醒，等待结果为 -ECANCELED。
+ *
  * @param sem 信号量句柄
  */
 void ek_pt_sem_destroy(ek_pt_sem_t *sem);
@@ -334,9 +363,10 @@ void ek_pt_sem_destroy(ek_pt_sem_t *sem);
  * @brief 获取信号量（底层函数）
  *
  * 若计数 > 0 则立即返回 true；否则将当前任务加入等待队列并返回 false。
+ * sem 为 NULL 时返回 false 并把当前任务的 wait_result 置为 -EINVAL。
  *
  * @param sem 信号量句柄
- * @return true=成功获取，false=需等待
+ * @return true=成功获取，false=需等待或参数错误
  *
  * @warning 不应直接调用，请使用 EK_PT_SEM_TAKE 宏。
  */
@@ -345,7 +375,8 @@ bool ek_pt_sem_take(ek_pt_sem_t *sem);
 /**
  * @brief 释放信号量
  *
- * 若有等待任务则唤醒优先级最高的，否则增加计数。
+ * 若有等待任务，则直接把这次释放移交给优先级最高的等待者（计数不增加），
+ * 否则增加计数。
  *
  * @param sem 信号量句柄
  */
@@ -355,23 +386,24 @@ void ek_pt_sem_give(ek_pt_sem_t *sem);
  * @brief 获取信号量，带超时支持
  *
  * 若信号量可用则立即返回；否则阻塞当前任务并让出执行权，
- * 由 EK_PT_SEM_GIVE 唤醒或超时自动唤醒。
- * 恢复后通过 err 判断结果：0=成功，-ETIMEDOUT=超时。
+ * 由 EK_PT_SEM_GIVE 直接移交或超时唤醒。
+ * 返回后通过 err 判断结果：0=已获取，-ETIMEDOUT=超时，-EINTR=被挂起打断，
+ * -ECANCELED=信号量被销毁，-EINVAL=参数错误。只有 err == 0 时才持有信号量。
  *
  * @param sem  信号量句柄
- * @param tick 超时 tick 数
+ * @param tick 超时 tick 数（EK_PT_WAIT_FOREVER=永久等待）
  * @param err  输出参数，接收等待结果
  */
-#        define EK_PT_SEM_TAKE(sem, tick, err)                   \
-            do                                                   \
-            {                                                    \
-                while (!ek_pt_sem_take((sem)))                   \
-                {                                                \
-                    ek_pt_block(ek_pt_active(), (tick));         \
-                    EK_PT_YEILD(ek_pt_active());                 \
-                    if (ek_pt_active()->wait_result != 0) break; \
-                }                                                \
-                (err) = ek_pt_active()->wait_result;             \
+#        define EK_PT_SEM_TAKE(sem, tick, err)                                       \
+            do                                                                       \
+            {                                                                        \
+                ek_pt_active()->wait_result = 0;                                     \
+                if (!ek_pt_sem_take((sem)) && ek_pt_active()->wait_result == 0)      \
+                {                                                                    \
+                    ek_pt_block(ek_pt_active(), (tick));                             \
+                    EK_PT_YIELD(ek_pt_active());                                     \
+                }                                                                    \
+                (err) = ek_pt_active()->wait_result;                                 \
             } while (0)
 
 /**
@@ -396,6 +428,8 @@ ek_pt_msg_t *ek_pt_msg_create(size_t item_size, uint32_t item_amount);
 /**
  * @brief 销毁消息队列
  *
+ * 所有等待者被唤醒，等待结果为 -ECANCELED。
+ *
  * @param msg 消息队列句柄
  */
 void ek_pt_msg_destroy(ek_pt_msg_t *msg);
@@ -403,11 +437,12 @@ void ek_pt_msg_destroy(ek_pt_msg_t *msg);
 /**
  * @brief 发送消息到队列（底层函数）
  *
- * 写入成功则返回 true；缓冲区满则将当前任务加入发送等待队列并返回 false。
+ * 有任务在等待接收时，消息直接拷贝到该任务的接收缓冲区并唤醒它；
+ * 否则写入缓冲区；缓冲区满则将当前任务加入发送等待队列并返回 false。
  *
  * @param msg  消息队列句柄
- * @param data 指向消息数据的指针
- * @return true=发送成功，false=需等待
+ * @param data 指向消息数据的指针（等待期间必须保持有效）
+ * @return true=发送成功，false=需等待或参数错误
  *
  * @warning 不应直接调用，请使用 EK_PT_MSG_SEND 宏。
  */
@@ -416,11 +451,12 @@ bool ek_pt_msg_send(ek_pt_msg_t *msg, const void *data);
 /**
  * @brief 从队列接收消息（底层函数）
  *
- * 读取成功则返回 true；缓冲区空则将当前任务加入接收等待队列并返回 false。
+ * 读取成功则返回 true，并把一个等待发送者的数据补进缓冲区；
+ * 缓冲区空则将当前任务加入接收等待队列并返回 false。
  *
  * @param msg  消息队列句柄
- * @param data 接收消息数据的缓冲区指针
- * @return true=接收成功，false=需等待
+ * @param data 接收消息数据的缓冲区指针（等待期间必须保持有效，可为 NULL 表示丢弃）
+ * @return true=接收成功，false=需等待或参数错误
  *
  * @warning 不应直接调用，请使用 EK_PT_MSG_RECV 宏。
  */
@@ -430,48 +466,50 @@ bool ek_pt_msg_recv(ek_pt_msg_t *msg, void *data);
  * @brief 发送消息，带超时支持
  *
  * 若队列有空位则立即返回；否则阻塞当前任务并让出执行权，
- * 由 EK_PT_MSG_RECV 消费后唤醒或超时自动唤醒。
- * 恢复后通过 err 判断结果：0=成功，-ETIMEDOUT=超时。
+ * 由接收方取走数据后直接完成发送，或超时唤醒。
+ * 返回后通过 err 判断结果：0=已发送，-ETIMEDOUT=超时，-EINTR=被挂起打断，
+ * -ECANCELED=队列被销毁，-EINVAL=参数错误。
  *
  * @param msg  消息队列句柄
- * @param data 指向消息数据的指针
- * @param tick 超时 tick 数
+ * @param data 指向消息数据的指针（不能指向回调内的局部变量）
+ * @param tick 超时 tick 数（EK_PT_WAIT_FOREVER=永久等待）
  * @param err  输出参数，接收等待结果
  */
-#        define EK_PT_MSG_SEND(msg, data, tick, err)             \
-            do                                                   \
-            {                                                    \
-                while (!ek_pt_msg_send((msg), (data)))           \
-                {                                                \
-                    ek_pt_block(ek_pt_active(), (tick));         \
-                    EK_PT_YEILD(ek_pt_active());                 \
-                    if (ek_pt_active()->wait_result != 0) break; \
-                }                                                \
-                (err) = ek_pt_active()->wait_result;             \
+#        define EK_PT_MSG_SEND(msg, data, tick, err)                                    \
+            do                                                                          \
+            {                                                                           \
+                ek_pt_active()->wait_result = 0;                                        \
+                if (!ek_pt_msg_send((msg), (data)) && ek_pt_active()->wait_result == 0) \
+                {                                                                       \
+                    ek_pt_block(ek_pt_active(), (tick));                                \
+                    EK_PT_YIELD(ek_pt_active());                                        \
+                }                                                                       \
+                (err) = ek_pt_active()->wait_result;                                    \
             } while (0)
 
 /**
  * @brief 接收消息，带超时支持
  *
  * 若队列有数据则立即返回；否则阻塞当前任务并让出执行权，
- * 由 EK_PT_MSG_SEND 写入后唤醒或超时自动唤醒。
- * 恢复后通过 err 判断结果：0=成功，-ETIMEDOUT=超时。
+ * 由发送方直接把消息拷入 data 后唤醒，或超时唤醒。
+ * 返回后通过 err 判断结果：0=已收到，-ETIMEDOUT=超时，-EINTR=被挂起打断，
+ * -ECANCELED=队列被销毁，-EINVAL=参数错误。
  *
  * @param msg  消息队列句柄
- * @param data 接收消息数据的缓冲区指针
- * @param tick 超时 tick 数
+ * @param data 接收消息数据的缓冲区指针（不能指向回调内的局部变量）
+ * @param tick 超时 tick 数（EK_PT_WAIT_FOREVER=永久等待）
  * @param err  输出参数，接收等待结果
  */
-#        define EK_PT_MSG_RECV(msg, data, tick, err)             \
-            do                                                   \
-            {                                                    \
-                while (!ek_pt_msg_recv((msg), (data)))           \
-                {                                                \
-                    ek_pt_block(ek_pt_active(), (tick));         \
-                    EK_PT_YEILD(ek_pt_active());                 \
-                    if (ek_pt_active()->wait_result != 0) break; \
-                }                                                \
-                (err) = ek_pt_active()->wait_result;             \
+#        define EK_PT_MSG_RECV(msg, data, tick, err)                                    \
+            do                                                                          \
+            {                                                                           \
+                ek_pt_active()->wait_result = 0;                                        \
+                if (!ek_pt_msg_recv((msg), (data)) && ek_pt_active()->wait_result == 0) \
+                {                                                                       \
+                    ek_pt_block(ek_pt_active(), (tick));                                \
+                    EK_PT_YIELD(ek_pt_active());                                        \
+                }                                                                       \
+                (err) = ek_pt_active()->wait_result;                                    \
             } while (0)
 
 #    endif /* EKCFG_PICOTHREAD_MSG */

@@ -20,7 +20,11 @@ set(CMAKE_EXECUTABLE_SUFFIX_C       ".elf")
 set(CMAKE_EXECUTABLE_SUFFIX_CXX     ".elf")
 set(CMAKE_TRY_COMPILE_TARGET_TYPE   STATIC_LIBRARY)
 
-if(NOT CMAKE_SOURCE_DIR MATCHES "CMakeScratch")
+# 让 try_compile（编译器检测）的临时工程也拿到 PLATFORM 与工具链前缀
+list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES PLATFORM RISCV_TOOLCHAIN_PREFIX)
+
+# try_compile 临时工程：CMake >= 3.24 在 CMakeScratch 下，更早版本在 CMakeTmp 下
+if(NOT CMAKE_SOURCE_DIR MATCHES "CMakeScratch|CMakeTmp")
     # 平台必填，不设默认值
     if(NOT PLATFORM)
         message(FATAL_ERROR "PLATFORM is required. Valid values: rv32imac, rv32imafc, rv64imac, rv64gc")

@@ -58,12 +58,15 @@ typedef enum
 {
     EK_EVOKE_STATE_IDLE = 0, /**< 空闲状态 */
     EK_EVOKE_STATE_DELAY, /**< 延迟状态 */
-    EK_EVOKE_STATE_WAITTING, /**< 等待状态 */
+    EK_EVOKE_STATE_WAITING, /**< 等待状态 */
     EK_EVOKE_STATE_READY, /**< 就绪状态 */
     EK_EVOKE_STATE_RUNNING, /**< 运行状态 */
 
     EK_EVOKE_STATE_MAX, /**< 状态最大值 */
 } ek_evoke_state_t;
+
+/** @deprecated 拼写错误的旧名，请改用 EK_EVOKE_STATE_WAITING */
+#    define EK_EVOKE_STATE_WAITTING EK_EVOKE_STATE_WAITING
 
 /**
  * @brief 任务结构体
@@ -109,6 +112,7 @@ ek_evoke_task_t *ek_evoke_task_create(ek_evoke_cb_t cb, void *arg);
 /**
  * @brief 销毁任务
  * @param tsk 任务句柄
+ * @note 可以在任务自己的回调中调用，释放会推迟到回调返回之后
  */
 void ek_evoke_task_destroy(ek_evoke_task_t *tsk);
 
@@ -123,7 +127,9 @@ ek_evoke_event_t *ek_evoke_event_create(uint32_t init);
  * @brief 销毁事件
  * @param evt 事件句柄
  *
- * @warning 销毁事件时会将所有等待该事件的任务状态设为 IDLE
+ * @warning 销毁事件时会将所有等待/就绪于该事件的任务状态设为 IDLE，
+ *          并丢弃尚未到期的、指向该事件的延时请求。
+ *          已进入 ISR 请求队列但尚未处理的请求无法撤回，销毁前请确保中断不会再投递该事件。
  */
 void ek_evoke_event_destroy(ek_evoke_event_t *evt);
 
@@ -240,16 +246,31 @@ void ek_evoke_sleep_unlock(void);
 /**
  * @brief 事件主循环
  *
- * @note 此函数永远不会返回，应在 ek_main() 中调用
+ * @note 此函数永远不会返回，等价于 for (;;) ek_evoke_run_once();
  */
 void ek_evoke_event_loop(void);
+
+/**
+ * @brief 执行一轮调度
+ *
+ * 依次处理 ISR 请求、到期的延时事件、就绪任务；无事可做时装载延时定时器并睡眠。
+ * 需要把 evoke 嵌入自有主循环（或在主机上做单元测试）时使用。
+ */
+void ek_evoke_run_once(void);
+
+/**
+ * @brief 获取调度器当前时刻（tick）
+ *
+ * 时间只由延时定时器推进（见 ek_evoke_get_timer_elapsed）。
+ */
+uint32_t ek_evoke_get_tick(void);
 
 /* ========== 回调函数 ========== */
 
 /**
  * @brief 延迟定时器回调函数
  *
- * @note 在定时器中断中调用，用于唤醒延迟事件
+ * @note 在 ek_evoke_set_timer() 装载的定时器到期中断中调用，用于唤醒延迟事件
  */
 void ek_evoke_delay_timer_callback(void);
 
@@ -258,36 +279,52 @@ void ek_evoke_delay_timer_callback(void);
 /**
  * @brief 进入临界区（弱函数）
  *
- * @note 用户需要实现此函数，通常使用关中断或互斥锁
+ * @note 默认实现调用 ek_critical_enter()（Cortex-M 上为保存并置位 PRIMASK，可嵌套）。
+ *       自行实现时必须屏蔽所有会调用 *_from_isr / ek_evoke_delay_timer_callback 的中断，
+ *       并且不能用 BASEPRI 屏蔽唤醒中断——睡眠函数会在临界区内调用（见下）。
  */
 void ek_evoke_enter_critical(void);
 
 /**
  * @brief 退出临界区（弱函数）
  *
- * @note 用户需要实现此函数，通常使用开中断或释放互斥锁
+ * @note 默认实现调用 ek_critical_exit()
  */
 void ek_evoke_exit_critical(void);
 
 /**
- * @brief 设置定时器（弱函数）
- * @param xtick 定时器触发时间（tick）
+ * @brief 装载一次性延时定时器（弱函数）
+ * @param xtick 从现在起多少 tick 后触发（总是大于 0）
  *
- * @note 用户需要实现此函数，用于延迟事件的定时唤醒
+ * @note 在临界区内调用。重新装载时需同时清除上一次尚未处理的到期中断标志，
+ *       否则旧的到期中断会被当成新定时的到期。
  */
 void ek_evoke_set_timer(uint32_t xtick);
 
 /**
+ * @brief 读取延时定时器自最近一次 ek_evoke_set_timer() 以来走过的 tick（弱函数）
+ *
+ * @note 在临界区内调用。通常直接读低功耗定时器（如 LPTIM）的计数值。
+ *       默认实现返回 0：此时调度器只在定时器到期时推进时间，
+ *       在定时器运行途中新增的延时请求会以上一次装载时刻为起点计算，可能提前触发。
+ *       需要精确延时时请实现本函数。
+ */
+uint32_t ek_evoke_get_timer_elapsed(void);
+
+/**
  * @brief 浅睡眠（弱函数）
  *
- * @note 用户需要实现此函数，通常使用 WFI 指令
+ * @note 在临界区内调用（中断已被屏蔽）。通常直接执行 WFI：
+ *       Cortex-M 上 PRIMASK=1 时挂起的中断仍能唤醒 WFI，返回后由调度器退出临界区，
+ *       中断服务函数随即执行。函数内不要自行打开中断。
  */
 void ek_evoke_light_sleep(void);
 
 /**
  * @brief 深度睡眠（弱函数）
  *
- * @note 用户需要实现此函数，通常进入低功耗模式
+ * @note 与 ek_evoke_light_sleep 相同，在临界区内调用；
+ *       醒来后可以在这里恢复时钟，再返回给调度器开中断。
  */
 void ek_evoke_deep_sleep(void);
 

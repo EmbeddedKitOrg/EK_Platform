@@ -10,6 +10,13 @@
 
 #    include "ek/mem/ek_heap.h"
 
+/* 索引加一并回绕；用比较代替取模，Cortex-M0 等没有硬件除法的内核上更快 */
+__EK_STATIC_INLINE uint32_t _ek_rb_next(uint32_t idx, size_t cap)
+{
+    idx++;
+    return (idx >= cap) ? 0U : idx;
+}
+
 #    if EKCFG_RINGBUF == 1
 
 bool ek_ringbuf_full(const ek_ringbuf_t *rb)
@@ -92,7 +99,7 @@ int ek_ringbuf_write(ek_ringbuf_t *rb, const void *item)
 {
     if (rb == NULL || item == NULL) return -EINVAL;
 
-    if (!EK_LOCK_TRY(rb)) return -EBUSY;
+    (void)EK_LOCK_ACQUIRE(rb);
 
     if (ek_ringbuf_full(rb) == true)
     {
@@ -103,7 +110,7 @@ int ek_ringbuf_write(ek_ringbuf_t *rb, const void *item)
     uint8_t *target = rb->data + (rb->write_idx * rb->item_size);
     memcpy(target, item, rb->item_size);
 
-    rb->write_idx = (rb->write_idx + 1) % rb->cap;
+    rb->write_idx = _ek_rb_next(rb->write_idx, rb->cap);
     rb->item_amount++;
 
     EK_LOCK_RELEASE(rb);
@@ -115,7 +122,7 @@ int ek_ringbuf_read(ek_ringbuf_t *rb, void *item)
 {
     if (rb == NULL) return -EINVAL;
 
-    if (!EK_LOCK_TRY(rb)) return -EBUSY;
+    (void)EK_LOCK_ACQUIRE(rb);
 
     if (ek_ringbuf_empty(rb) == true)
     {
@@ -129,7 +136,7 @@ int ek_ringbuf_read(ek_ringbuf_t *rb, void *item)
         memcpy(item, source, rb->item_size);
     }
 
-    rb->read_idx = (rb->read_idx + 1) % rb->cap;
+    rb->read_idx = _ek_rb_next(rb->read_idx, rb->cap);
     rb->item_amount--;
 
     EK_LOCK_RELEASE(rb);
@@ -141,7 +148,7 @@ int ek_ringbuf_peek(ek_ringbuf_t *rb, void *item)
 {
     if (rb == NULL || item == NULL) return -EINVAL;
 
-    if (!EK_LOCK_TRY(rb)) return -EBUSY;
+    (void)EK_LOCK_ACQUIRE(rb);
 
     if (ek_ringbuf_empty(rb) == true)
     {
@@ -161,7 +168,7 @@ int ek_ringbuf_peek(ek_ringbuf_t *rb, void *item)
 #    if EKCFG_RINGBUF_SPSC == 1
 __EK_STATIC_INLINE uint32_t _ek_ringbuf_spsc_next_idx(const ek_ringbuf_spsc_t *rb, uint32_t idx)
 {
-    return (idx + 1U) % rb->cap;
+    return _ek_rb_next(idx, rb->cap);
 }
 
 bool ek_ringbuf_full_spsc(const ek_ringbuf_spsc_t *rb)
@@ -229,14 +236,17 @@ int ek_ringbuf_write_spsc(ek_ringbuf_spsc_t *rb, const void *item)
 {
     if (rb == NULL || item == NULL) return -EINVAL;
 
-    uint32_t next_idx = _ek_ringbuf_spsc_next_idx(rb, rb->write_idx);
+    const uint32_t write_idx = rb->write_idx;
+    const uint32_t next_idx = _ek_ringbuf_spsc_next_idx(rb, write_idx);
     if (next_idx == rb->read_idx)
     {
         return -ENOSPC;
     }
 
-    uint8_t *target = rb->data + (rb->write_idx * rb->item_size);
+    uint8_t *target = rb->data + (write_idx * rb->item_size);
     memcpy(target, item, rb->item_size);
+    /* 数据写完后再发布写索引，防止消费者读到未写完的元素 */
+    EK_MEMORY_BARRIER();
     rb->write_idx = next_idx;
 
     return 0;
@@ -246,18 +256,23 @@ int ek_ringbuf_read_spsc(ek_ringbuf_spsc_t *rb, void *item)
 {
     if (rb == NULL) return -EINVAL;
 
-    if (rb->read_idx == rb->write_idx)
+    const uint32_t read_idx = rb->read_idx;
+    if (read_idx == rb->write_idx)
     {
         return -ENODATA;
     }
+    /* 先观察到写索引，再读数据 */
+    EK_MEMORY_BARRIER();
 
     if (item != NULL)
     {
-        const uint8_t *source = rb->data + (rb->read_idx * rb->item_size);
+        const uint8_t *source = rb->data + (read_idx * rb->item_size);
         memcpy(item, source, rb->item_size);
     }
 
-    rb->read_idx = _ek_ringbuf_spsc_next_idx(rb, rb->read_idx);
+    /* 数据拷出后再释放槽位 */
+    EK_MEMORY_BARRIER();
+    rb->read_idx = _ek_ringbuf_spsc_next_idx(rb, read_idx);
 
     return 0;
 }
@@ -266,12 +281,14 @@ int ek_ringbuf_peek_spsc(ek_ringbuf_spsc_t *rb, void *item)
 {
     if (rb == NULL || item == NULL) return -EINVAL;
 
-    if (rb->read_idx == rb->write_idx)
+    const uint32_t read_idx = rb->read_idx;
+    if (read_idx == rb->write_idx)
     {
         return -ENODATA;
     }
+    EK_MEMORY_BARRIER();
 
-    const uint8_t *source = rb->data + (rb->read_idx * rb->item_size);
+    const uint8_t *source = rb->data + (read_idx * rb->item_size);
     memcpy(item, source, rb->item_size);
 
     return 0;

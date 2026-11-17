@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  host-tests:
+    name: Host unit tests (${{ matrix.cc }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          timeout 300 sudo apt-get -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          for i in 1 2 3; do
+            if timeout 300 sudo apt-get -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends cmake ninja-build clang; then break; fi
+            sleep 5
+          done
+
+      # 较旧的 ASan 运行时在 vm.mmap_rnd_bits=32 的内核上会随机段错误（与被测代码无关）
+      - name: Make ASan compatible with high-entropy ASLR
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+
+      - name: Configure
+        run: cmake -S tests -B build/host-tests -G Ninja -DCMAKE_C_COMPILER=${{ matrix.cc }} -DEK_TEST_SANITIZE=ON
+
+      - name: Build
+        run: cmake --build build/host-tests
+
+      - name: Test
+        run: ctest --test-dir build/host-tests --output-on-failure
+
+  compile-check:
+    name: Cross compile (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm
+            packages: gcc-arm-none-eabi libnewlib-arm-none-eabi
+            cc: arm-none-eabi-gcc
+            targets: "-mcpu=cortex-m0 -mthumb;-mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard;-mcpu=cortex-m33 -mthumb;-mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard"
+          - arch: riscv
+            packages: gcc-riscv64-unknown-elf picolibc-riscv64-unknown-elf
+            cc: riscv64-unknown-elf-gcc
+            targets: "--specs=picolibc.specs -march=rv32imac -mabi=ilp32;--specs=picolibc.specs -march=rv64imac -mabi=lp64"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          timeout 300 sudo apt-get -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          for i in 1 2 3; do
+            if timeout 600 sudo apt-get -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends ${{ matrix.packages }}; then break; fi
+            sleep 5
+          done
+          ${{ matrix.cc }} --version | head -1
+
+      - name: Compile every configuration
+        env:
+          CC: ${{ matrix.cc }}
+          TARGETS: ${{ matrix.targets }}
+        run: bash tests/compile_check.sh

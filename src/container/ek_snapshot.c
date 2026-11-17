@@ -68,9 +68,9 @@ void ek_snapshot_destroy(ek_snapshot_t *snapshot)
 int ek_snapshot_set(ek_snapshot_t *snapshot, void *data, uint32_t unique)
 {
     if (snapshot == NULL || data == NULL) return -EINVAL;
-    if (unique == snapshot->unique) return -EINVAL;
+    if (unique == 0U || unique == snapshot->unique) return -EINVAL;
 
-    if (!EK_LOCK_TRY(snapshot)) return -EBUSY;
+    (void)EK_LOCK_ACQUIRE(snapshot);
 
     memcpy(snapshot->data, data, snapshot->data_size);
 
@@ -85,10 +85,11 @@ int ek_snapshot_get(ek_snapshot_t *snapshot, void *data)
 {
     if (snapshot == NULL || data == NULL) return -EINVAL;
 
-    if (!EK_LOCK_TRY(snapshot)) return -EBUSY;
+    (void)EK_LOCK_ACQUIRE(snapshot);
 
     if (!snapshot->unique)
     {
+        EK_LOCK_RELEASE(snapshot);
         return -ENODATA;
     }
 

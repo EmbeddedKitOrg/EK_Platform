@@ -106,63 +106,93 @@ void ek_log_printf(const char *tag, uint32_t line, ek_log_level_t type, uint32_t
 uint32_t ek_port_log_get_tick(void);
 
 /**
+ * @brief 日志输出（内部使用）
+ *
+ * 用 do { } while (0) 包裹，保证宏在 if/else 中表现得和普通语句一样：
+ * `if (x) EK_LOG_INFO("a"); else foo();` 中的 else 不会被宏内部的 if 截走。
+ */
+#    define _EK_LOG_EMIT(level, ...)                                                                    \
+        do                                                                                              \
+        {                                                                                               \
+            if (_EK_LOG_MIN_LEVEL_ <= (level))                                                          \
+            {                                                                                           \
+                ek_log_printf(_EK_LOG_TAG_, __LINE__, (level), ek_port_log_get_tick(), __VA_ARGS__);    \
+            }                                                                                           \
+        } while (0)
+
+/**
  * @brief DEBUG 级别日志
  * @param ... 格式化字符串和参数
  * @note 仅在 EKCFG_LOG_DEBUG == 1 时有效
  */
 #    if (EKCFG_LOG_DEBUG == 1)
-#        define EK_LOG_DEBUG(...)                         \
-            if (_EK_LOG_MIN_LEVEL_ <= EK_LOG_LEVEL_DEBUG) \
-            ek_log_printf(_EK_LOG_TAG_, __LINE__, EK_LOG_LEVEL_DEBUG, ek_port_log_get_tick(), __VA_ARGS__)
+#        define EK_LOG_DEBUG(...) _EK_LOG_EMIT(EK_LOG_LEVEL_DEBUG, __VA_ARGS__)
 #    else
-#        define EK_LOG_DEBUG(...)
+#        define EK_LOG_DEBUG(...) ((void)0)
 #    endif
 
 /**
  * @brief 普通日志（无级别标识）
  * @param ... 格式化字符串和参数
  */
-#    define EK_LOG(...)                              \
-        if (_EK_LOG_MIN_LEVEL_ <= EK_LOG_LEVEL_NONE) \
-        ek_log_printf(_EK_LOG_TAG_, __LINE__, EK_LOG_LEVEL_NONE, ek_port_log_get_tick(), __VA_ARGS__)
+#    define EK_LOG(...) _EK_LOG_EMIT(EK_LOG_LEVEL_NONE, __VA_ARGS__)
 
 /**
  * @brief INFO 级别日志
  * @param ... 格式化字符串和参数
  */
-#    define EK_LOG_INFO(...)                         \
-        if (_EK_LOG_MIN_LEVEL_ <= EK_LOG_LEVEL_INFO) \
-        ek_log_printf(_EK_LOG_TAG_, __LINE__, EK_LOG_LEVEL_INFO, ek_port_log_get_tick(), __VA_ARGS__)
+#    define EK_LOG_INFO(...) _EK_LOG_EMIT(EK_LOG_LEVEL_INFO, __VA_ARGS__)
 
 /**
  * @brief WARN 级别日志
  * @param ... 格式化字符串和参数
  */
-#    define EK_LOG_WARN(...)                         \
-        if (_EK_LOG_MIN_LEVEL_ <= EK_LOG_LEVEL_WARN) \
-        ek_log_printf(_EK_LOG_TAG_, __LINE__, EK_LOG_LEVEL_WARN, ek_port_log_get_tick(), __VA_ARGS__)
+#    define EK_LOG_WARN(...) _EK_LOG_EMIT(EK_LOG_LEVEL_WARN, __VA_ARGS__)
 
 /**
  * @brief ERROR 级别日志
  * @param ... 格式化字符串和参数
  */
-#    define EK_LOG_ERROR(...)                         \
-        if (_EK_LOG_MIN_LEVEL_ <= EK_LOG_LEVEL_ERROR) \
-        ek_log_printf(_EK_LOG_TAG_, __LINE__, EK_LOG_LEVEL_ERROR, ek_port_log_get_tick(), __VA_ARGS__)
+#    define EK_LOG_ERROR(...) _EK_LOG_EMIT(EK_LOG_LEVEL_ERROR, __VA_ARGS__)
+
 /**
- * @brief FATAL 级别日志
+ * @brief FATAL 级别日志：输出后停机
  * @param ... 格式化字符串和参数
  */
-#    define EK_LOG_FATAL(...)                                                                               \
-        if (_EK_LOG_MIN_LEVEL_ <= EK_LOG_LEVEL_FATAL)                                                       \
-        {                                                                                                   \
-            ek_log_printf(_EK_LOG_TAG_, __LINE__, EK_LOG_LEVEL_FATAL, ek_port_log_get_tick(), __VA_ARGS__); \
-            while (1);                                                                                      \
-        }
+#    define EK_LOG_FATAL(...)                                \
+        do                                                   \
+        {                                                    \
+            _EK_LOG_EMIT(EK_LOG_LEVEL_FATAL, __VA_ARGS__);   \
+            for (;;)                                         \
+            {                                                \
+            }                                                \
+        } while (0)
+
 #    ifdef __cplusplus
 }
 #    endif
 
+#else /* EKCFG_LOG == 0 */
+
+/*
+ * 日志关闭时提供空实现，库内模块（如 ek_evoke）和用户代码中的日志调用
+ * 无需再各自加 #if EKCFG_LOG 保护。参数不会被求值。
+ */
+#    define EK_LOG_MODULE(tag, level) extern int _ek_log_disabled_
+#    define EK_LOG_FILE_TAG(tag)      extern int _ek_log_disabled_
+#    define EK_LOG_DEBUG(...)         ((void)0)
+#    define EK_LOG(...)               ((void)0)
+#    define EK_LOG_INFO(...)          ((void)0)
+#    define EK_LOG_WARN(...)          ((void)0)
+#    define EK_LOG_ERROR(...)         ((void)0)
+#    define EK_LOG_FATAL(...) \
+        do                    \
+        {                     \
+            for (;;)          \
+            {                 \
+            }                 \
+        } while (0)
+
 #endif /* EKCFG_LOG */
 
-#endif // __SER_LOG_H
+#endif /* EK_LOG_H */

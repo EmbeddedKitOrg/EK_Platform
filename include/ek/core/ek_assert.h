@@ -48,7 +48,7 @@
  * @param expr 断言表达式
  * @note 会输出文件名、行号和表达式内容
  */
-#    define ek_assert_full(expr) (expr) ? (void)0 : ek_assert_fault(__FILE__, __LINE__, #expr)
+#    define ek_assert_full(expr) ((expr) ? (void)0 : ek_assert_fault(__FILE__, __LINE__, #expr))
 
 /**
  * @brief 参数断言（根据配置选择实现方式）
@@ -89,6 +89,16 @@ void ek_assert_hook(const char *file, uint32_t line, const char *expr);
 #    ifdef __cplusplus
 }
 #    endif
+
+#else /* EKCFG_ASSERT == 0 */
+
+/*
+ * 断言关闭时提供空实现：库内与用户代码中的 ek_assert_* 调用都展开为空语句，
+ * 不对表达式求值，因此不要在断言表达式中放有副作用的代码。
+ */
+#    define ek_assert_tiny(expr)  ((void)0)
+#    define ek_assert_full(expr)  ((void)0)
+#    define ek_assert_param(expr) ((void)0)
 
 #endif // EKCFG_ASSERT
 

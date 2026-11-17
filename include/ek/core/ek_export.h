@@ -87,7 +87,15 @@ extern "C"
 
 /**
  * @brief 执行所有导出的初始化函数
- * @note 运行时先按层级和层内优先级排序，再逐个调用
+ *
+ * 按 level → order → 段内顺序依次调用，不分配内存、不依赖 qsort。
+ * 只会执行一次，重复调用直接返回。
+ *
+ * @note EKCFG_EXPORT_AUTO_INIT == 1（默认）时本函数是 constructor，
+ *       由启动代码在 main() 之前自动调用——此时 HAL_Init()、时钟配置都还没执行，
+ *       EK_EXPORT_HARDWARE 等层级里不要访问依赖时钟的外设。
+ *       需要在硬件初始化之后再执行时，把 EKCFG_EXPORT_AUTO_INIT 设为 0，
+ *       并在 main() 中完成时钟配置后手动调用本函数。
  */
 void ek_export_init(void);
 
