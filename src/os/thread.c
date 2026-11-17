@@ -299,6 +299,25 @@ __EK_NO_RETURN void ek_os_thread_exit(void *retval)
     }
 }
 
+int ek_os_thread_yield(void)
+{
+    if (ek_arch_in_isr()) return -EPERM;
+
+    uint32_t flags = ek_os_kernel_spin_lock();
+    os_thread_t *cur = g_cur_thrd;
+    if (!cur || cur->state != EK_OS_THREAD_RUNNING || kernel_is_idle_thread(cur) || cur->sched_lock)
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return -EPERM;
+    }
+
+    kernel_thread_yield();
+    ek_os_kernel_spin_unlock(flags);
+    ek_arch_isb();
+
+    return 0;
+}
+
 int ek_os_thread_sleep(int64_t timeout)
 {
     if (ek_arch_in_isr()) return -EPERM;

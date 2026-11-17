@@ -486,6 +486,30 @@ void kernel_schedule(void)
     ek_os_kernel_spin_unlock(flags);
 }
 
+void kernel_thread_yield(void)
+{
+    uint32_t flags = ek_os_kernel_spin_lock();
+    os_thread_t *cur = g_next_thrd ? g_next_thrd : g_cur_thrd;
+    if (!cur || cur->state != EK_OS_THREAD_RUNNING || cur->sched_lock)
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return;
+    }
+
+    /* 同优先级无人竞争时无需轮转，避免无谓的 PendSV 往返 */
+    ek_list_node_t *head = &s_ready_thrds[cur->prio];
+    if (!head->next || ek_list_is_empty(head))
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return;
+    }
+
+    kernel_thread_ready(cur);
+    g_next_thrd = _get_next_thread();
+    ek_arch_switch_yield();
+    ek_os_kernel_spin_unlock(flags);
+}
+
 static void *_idle_thread(void *arg)
 {
     __EK_UNUSED(arg);

@@ -20,8 +20,8 @@ extern "C"
 #    endif
 
 #    define EK_OS_FOREVER  ((int64_t)(-1)) /**< 永久阻塞超时值 */
-#    define EK_OS_MSEC(ms) ((int64_t)(ms) * (int64_t)(EKCFG_OS_TIMEBASE_HZ) / 1000LL)
-#    define EK_OS_SEC(s)   ((int64_t)(s) * (int64_t)(EKCFG_OS_TIMEBASE_HZ))
+#    define EK_OS_MSEC(ms) ((int64_t)(ms) * (int64_t)(EKCFG_OS_KERNEL_TIMEBASE_HZ) / 1000LL)
+#    define EK_OS_SEC(s)   ((int64_t)(s) * (int64_t)(EKCFG_OS_KERNEL_TIMEBASE_HZ))
 
 /**
  * @brief 内核时间源与定时唤醒操作表（由 BSP/Port 实现）

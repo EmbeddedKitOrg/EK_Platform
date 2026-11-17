@@ -162,6 +162,12 @@ bool kernel_is_idle_thread(const os_thread_t *thrd);
 void kernel_schedule(void);
 
 /**
+ * @brief 当前线程让出 CPU（仅当同优先级就绪队列存在其它线程时才真正轮转）
+ * @note 要求调用时当前线程处于 RUNNING 状态；调用前须已持 ek_os_kernel_spin_lock() 临界区
+ */
+void kernel_thread_yield(void);
+
+/**
  * @brief 将当前线程按当前有效优先级升序插入指定等待队列
  * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区
  * @param wait_list 同步对象的等待链表头

@@ -110,6 +110,16 @@ int ek_os_thread_join(int tid, int64_t timeout, void **retval);
 __EK_NO_RETURN void ek_os_thread_exit(void *retval);
 
 /**
+ * @brief 主动让出 CPU 给同优先级的其它就绪线程
+ * @return 0 成功（含无同级竞争者、直接继续运行的情况），负数错误码失败
+ * @retval -EPERM 在中断上下文、idle 线程或持有调度器锁时调用
+ *
+ * @note 只有同优先级就绪队列中还有其它线程时才真正切换，否则立即返回。
+ * @note 更高优先级线程的就绪抢占由调度器自动完成，不依赖本接口。
+ */
+int ek_os_thread_yield(void);
+
+/**
  * @brief 阻塞当前线程
  * @param timeout 阻塞时间
  * @return 0 成功，负数错误码失败
