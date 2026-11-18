@@ -60,11 +60,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
   int ek_port_io_fputc(int ch);                                          // printf 字符输出
   uint32_t ek_port_log_get_tick(void);                                   // 日志时间戳
   void ek_assert_hook(const char *file, uint32_t line, const char *expr); // 断言钩子
-  void ek_evoke_enter_critical(void);                                    // evoke 临界区与休眠钩子
-  void ek_evoke_exit_critical(void);
-  void ek_evoke_set_timer(uint32_t xtick);
-  void ek_evoke_light_sleep(void);
-  void ek_evoke_deep_sleep(void);
   void *ek_malloc(size_t size);                                          // EKCFG_HEAP_TLSF=0 时自定义堆
   void *ek_realloc(void *ptr, size_t size);
   void *ek_free(void *ptr);
@@ -129,7 +124,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
 | `EKCFG_SNAPSHOT` | `0` | 状态快照组件 |
 | `EKCFG_BITSTREAM` | `0` | 比特流读写 |
 | `EKCFG_SHARED_PTR` | `0` | 引用计数共享指针 |
-| `EKCFG_EVOKE` | `0` | 事件驱动协作式调度器（仅裸机） |
+| `EKCFG_EVOKE` | `0` | 事件驱动协作式调度器（仅裸机，平台回调通过 `ek_evoke_ops_t` 传入） |
 | `EKCFG_PICOTHREAD` | `0` | 协作式微线程 |
 | `EKCFG_PICOTHREAD_SEM` / `MSG` | `0` | 微线程信号量 / 消息队列（依赖 `EKCFG_PICOTHREAD`） |
 | `EKCFG_VFS` | `0` | 虚拟文件系统 |

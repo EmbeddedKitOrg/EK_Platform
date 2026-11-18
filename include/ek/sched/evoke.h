@@ -7,7 +7,7 @@
  * 支持任务等待事件、延迟发布、ISR 请求队列等功能
  *
  * @note 仅在 EKCFG_RTOS == 0 时可用
- * @note 需要用户实现睡眠和定时器回调的弱函数
+ * @note 睡眠与定时器回调通过 ek_evoke_ops_t 函数表传入，不再使用弱函数覆盖
  */
 
 #ifndef EK_EVOKE_H
@@ -40,6 +40,11 @@ extern "C"
 #    endif /* EK_EVOKE_MAX_DEFER_REQ */
 
 /**
+ * @brief 处理函数表（前置声明）
+ */
+typedef struct ek_evoke_ops ek_evoke_ops_t;
+
+/**
  * @brief 任务结构体（前置声明）
  */
 typedef struct ek_evoke_task ek_evoke_task_t;
@@ -69,6 +74,31 @@ typedef enum
 
     EK_EVOKE_STATE_MAX, /**< 状态最大值 */
 } ek_evoke_state_e;
+
+struct ek_evoke_ops
+{
+    /**
+     * @brief 设置定时器
+     * @param xtick 距离唤醒的 tick 数（相对当前 tick 基准）
+     *
+     * @note 到期后需在中断中调用 ek_evoke_delay_timer_callback()
+     */
+    void (*set_timer)(uint32_t xtick);
+
+    /**
+     * @brief 浅睡眠
+     *
+     * @note 由事件主循环调用，通常使用 WFI 指令
+     */
+    void (*light_sleep)(void);
+
+    /**
+     * @brief 深度睡眠
+     *
+     * @note 由事件主循环调用，通常进入低功耗模式
+     */
+    void (*deep_sleep)(void);
+};
 
 /**
  * @brief 任务结构体
@@ -132,9 +162,41 @@ ek_evoke_event_t *ek_evoke_event_create(uint32_t init);
  */
 void ek_evoke_event_destroy(ek_evoke_event_t *evt);
 
+/**
+ * @brief 初始化静态任务对象
+ * @param tsk 任务对象指针（由用户分配）
+ * @param cb 任务回调函数，不可为 NULL
+ * @param arg 用户参数
+ * @return 0 成功；-EINVAL 参数无效
+ *
+ * @note EK_DEFINE_EVOKE_TASK 会自动调用，无需手动调用
+ */
 int ek_evoke_task_init_static(ek_evoke_task_t *tsk, ek_evoke_cb_t cb, void *arg);
+
+/**
+ * @brief 反初始化静态任务对象
+ * @param tsk 任务对象指针，NULL 时无操作
+ *
+ * @note 若任务不在 IDLE 状态，会先从所在链表移除
+ */
 void ek_evoke_task_deinit_static(ek_evoke_task_t *tsk);
+
+/**
+ * @brief 初始化静态事件对象
+ * @param evt 事件对象指针（由用户分配）
+ * @param init 初始计数值
+ * @return 0 成功；-EINVAL 参数无效
+ *
+ * @note EK_DEFINE_EVOKE_EVENT 会自动调用，无需手动调用
+ */
 int ek_evoke_event_init_static(ek_evoke_event_t *evt, uint32_t init);
+
+/**
+ * @brief 反初始化静态事件对象
+ * @param evt 事件对象指针，NULL 时无操作
+ *
+ * @warning 所有等待任务会被移出等待链表并置为 IDLE（不会被唤醒）
+ */
 void ek_evoke_event_deinit_static(ek_evoke_event_t *evt);
 
 #    if EKCFG_STATIC_ALLOC == 1
@@ -244,57 +306,20 @@ void ek_evoke_sleep_unlock(void);
 
 /**
  * @brief 事件主循环
- *
- * @note 此函数永远不会返回，应在 ek_main() 中调用
+ * @param ops 平台回调表，三个函数指针都必须非空
+ * @return 参数无效返回 -EINVAL；正常情况下不会返回
+ * @note 应在 main() 中调用
  */
-void ek_evoke_event_loop(void);
+int ek_evoke_event_loop(ek_evoke_ops_t *ops);
 
 /* ========== 回调函数 ========== */
 
 /**
- * @brief 延迟定时器回调函数
+ * @brief 延迟定时器到期回调
  *
- * @note 在定时器中断中调用，用于唤醒延迟事件
+ * @note 在 set_timer() 设定的定时器到期中断中调用，用于唤醒延迟事件
  */
 void ek_evoke_delay_timer_callback(void);
-
-/* ========== 弱函数（用户实现） ========== */
-
-/**
- * @brief 进入临界区（弱函数）
- *
- * @note 用户需要实现此函数，通常使用关中断或互斥锁
- */
-void ek_evoke_enter_critical(void);
-
-/**
- * @brief 退出临界区（弱函数）
- *
- * @note 用户需要实现此函数，通常使用开中断或释放互斥锁
- */
-void ek_evoke_exit_critical(void);
-
-/**
- * @brief 设置定时器（弱函数）
- * @param xtick 定时器触发时间（tick）
- *
- * @note 用户需要实现此函数，用于延迟事件的定时唤醒
- */
-void ek_evoke_set_timer(uint32_t xtick);
-
-/**
- * @brief 浅睡眠（弱函数）
- *
- * @note 用户需要实现此函数，通常使用 WFI 指令
- */
-void ek_evoke_light_sleep(void);
-
-/**
- * @brief 深度睡眠（弱函数）
- *
- * @note 用户需要实现此函数，通常进入低功耗模式
- */
-void ek_evoke_deep_sleep(void);
 
 #    ifdef __cplusplus
 }

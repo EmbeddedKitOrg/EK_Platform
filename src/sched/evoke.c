@@ -12,6 +12,7 @@
 #    include "ek/mem/heap.h"
 #    include "ek/core/export.h"
 #    include "ek/core/log.h"
+#    include "ek/core/arch.h"
 
 EK_LOG_FILE_TAG("evoke.c");
 
@@ -56,12 +57,7 @@ static ek_ringbuf_spsc_t *const s_isr_fifo = &s_isr_fifo_mem.rb;
 
 static ek_list_node_t s_ready_task_list;
 static ek_list_node_t s_defer_evt_list;
-
-__EK_STATIC_INLINE void _ek_evoke_set_timer(uint32_t xtick)
-{
-    ek_evoke_set_timer(xtick);
-    s_event_tick_diff = xtick;
-}
+static ek_evoke_ops_t s_ops;
 
 void ek_evoke_sleep_lock(void)
 {
@@ -335,7 +331,7 @@ int ek_evoke_event_broadcast_from_isr(ek_evoke_event_t *evt, void *payload)
 {
     if (evt == NULL) return -EINVAL;
 
-    ek_evoke_enter_critical();
+    uint32_t flags = ek_arch_irq_lock();
 
     isr_req_t req = {
         .type = ISR_REQ_BROADCAST,
@@ -346,7 +342,7 @@ int ek_evoke_event_broadcast_from_isr(ek_evoke_event_t *evt, void *payload)
     EK_ERR_GOTO(err, defer);
 
 defer:
-    ek_evoke_exit_critical();
+    ek_arch_irq_unlock(flags);
     return err;
 }
 
@@ -354,7 +350,7 @@ int ek_evoke_event_publish_from_isr(ek_evoke_event_t *evt, void *payload)
 {
     if (evt == NULL) return -EINVAL;
 
-    ek_evoke_enter_critical();
+    uint32_t flags = ek_arch_irq_lock();
 
     isr_req_t req = {
         .type = ISR_REQ_PUBLISH,
@@ -365,7 +361,7 @@ int ek_evoke_event_publish_from_isr(ek_evoke_event_t *evt, void *payload)
     EK_ERR_GOTO(err, defer);
 
 defer:
-    ek_evoke_exit_critical();
+    ek_arch_irq_unlock(flags);
     return err;
 }
 
@@ -373,7 +369,7 @@ int ek_evoke_event_defer_from_isr(ek_evoke_event_t *evt, void *payload, uint32_t
 {
     if (evt == NULL) return -EINVAL;
 
-    ek_evoke_enter_critical();
+    uint32_t flags = ek_arch_irq_lock();
 
     isr_req_t req = {
         .type = (broadcast == true) ? (ISR_REQ_PUBLISH_DEALY | ISR_REQ_BROADCAST)
@@ -386,12 +382,21 @@ int ek_evoke_event_defer_from_isr(ek_evoke_event_t *evt, void *payload, uint32_t
     EK_ERR_GOTO(err, defer);
 
 defer:
-    ek_evoke_exit_critical();
+    ek_arch_irq_unlock(flags);
     return err;
 }
 
-void ek_evoke_event_loop(void)
+__EK_STATIC_INLINE void _ek_evoke_set_timer(uint32_t xtick)
 {
+    s_ops.set_timer(xtick);
+    s_event_tick_diff = xtick;
+}
+
+int ek_evoke_event_loop(ek_evoke_ops_t *ops)
+{
+    if (!ops || !ops->deep_sleep || !ops->light_sleep || !ops->set_timer) return -EINVAL;
+    s_ops = *ops;
+
     while (1)
     {
         // 先处理是否有来自中断的请求
@@ -442,8 +447,8 @@ void ek_evoke_event_loop(void)
         }
 
         // 检查睡眠锁和最近的延时唤醒时间，决定进入哪种睡眠状态
-        if (_ek_evoke_can_deep_sleep()) ek_evoke_deep_sleep();
-        else ek_evoke_light_sleep();
+        if (_ek_evoke_can_deep_sleep()) s_ops.deep_sleep();
+        else s_ops.light_sleep();
 
         // 中断唤醒，要去检查是否有延时事件被唤醒
         // 如果有，则依次唤醒
@@ -468,26 +473,6 @@ void ek_evoke_event_loop(void)
             s_defer_earliest_tick = UINT32_MAX;
         }
     }
-}
-__EK_WEAK void ek_evoke_enter_critical(void)
-{
-}
-
-__EK_WEAK void ek_evoke_exit_critical(void)
-{
-}
-
-__EK_WEAK void ek_evoke_light_sleep(void)
-{
-}
-
-__EK_WEAK void ek_evoke_deep_sleep(void)
-{
-}
-
-__EK_WEAK void ek_evoke_set_timer(uint32_t xtick)
-{
-    __EK_UNUSED(xtick);
 }
 
 #endif // EKCFG_RTOS == 0 && EKCFG_EVOKE == 1

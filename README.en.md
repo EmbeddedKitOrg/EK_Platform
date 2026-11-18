@@ -60,11 +60,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
   int ek_port_io_fputc(int ch);                                          // printf character output
   uint32_t ek_port_log_get_tick(void);                                   // Log timestamp
   void ek_assert_hook(const char *file, uint32_t line, const char *expr); // Assertion hook
-  void ek_evoke_enter_critical(void);                                    // evoke critical section & sleep hooks
-  void ek_evoke_exit_critical(void);
-  void ek_evoke_set_timer(uint32_t xtick);
-  void ek_evoke_light_sleep(void);
-  void ek_evoke_deep_sleep(void);
   void *ek_malloc(size_t size);                                          // Custom heap when EKCFG_HEAP_TLSF=0
   void *ek_realloc(void *ptr, size_t size);
   void *ek_free(void *ptr);
@@ -129,7 +124,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
 | `EKCFG_SNAPSHOT` | `0` | State snapshot component |
 | `EKCFG_BITSTREAM` | `0` | Bitstream reader/writer |
 | `EKCFG_SHARED_PTR` | `0` | Reference-counted shared pointer |
-| `EKCFG_EVOKE` | `0` | Event-driven cooperative scheduler (bare-metal only) |
+| `EKCFG_EVOKE` | `0` | Event-driven cooperative scheduler (bare-metal only; platform hooks supplied via `ek_evoke_ops_t`) |
 | `EKCFG_PICOTHREAD` | `0` | Cooperative microthreads |
 | `EKCFG_PICOTHREAD_SEM` / `MSG` | `0` | Microthread semaphore / message queue (requires `EKCFG_PICOTHREAD`) |
 | `EKCFG_VFS` | `0` | Virtual File System |
