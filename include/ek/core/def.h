@@ -89,6 +89,8 @@ static inline const char *ek_build_mode_str(void)
 #define EK_CONTAINER_OF(ptr, type, member) ((type *)((char *)(ptr) - offsetof(type, member)))
 #define EK_ALIGN_UP(n, align)              (((uintptr_t)(n) + ((uintptr_t)(align) - 1U)) & ~((uintptr_t)(align) - 1U))
 #define EK_ALIGN_DOWN(n, align)            ((uintptr_t)(n) & ~((uintptr_t)(align) - 1U))
+#define EK_INC_MOD(x, max)                 (((x) + 1 >= (max)) ? 0 : ((x) + 1))
+#define EK_MOD(x, max)                     ((x) >= (max) ? (x) - (max) : (x))
 
 #define EK_DIV_CEIL(x, div)             \
     ({                                  \

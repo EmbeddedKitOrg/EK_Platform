@@ -88,7 +88,7 @@ int ek_ringbuf_write(ek_ringbuf_t *rb, const void *item)
     uint8_t *target = rb->data + (rb->write_idx * rb->item_size);
     memcpy(target, item, rb->item_size);
 
-    rb->write_idx = (rb->write_idx + 1) % rb->cap;
+    rb->write_idx = EK_INC_MOD(rb->write_idx, rb->cap);
     rb->item_amount++;
 
     return 0;
@@ -109,7 +109,7 @@ int ek_ringbuf_read(ek_ringbuf_t *rb, void *item)
         memcpy(item, source, rb->item_size);
     }
 
-    rb->read_idx = (rb->read_idx + 1) % rb->cap;
+    rb->read_idx = EK_INC_MOD(rb->read_idx, rb->cap);
     rb->item_amount--;
 
     return 0;
@@ -134,7 +134,7 @@ int ek_ringbuf_peek(ek_ringbuf_t *rb, void *item)
 #    if EKCFG_RINGBUF_SPSC == 1
 __EK_STATIC_INLINE uint32_t _ek_ringbuf_spsc_next_idx(const ek_ringbuf_spsc_t *rb, uint32_t idx)
 {
-    return (idx + 1U) % rb->cap;
+    return EK_INC_MOD(idx, rb->cap);
 }
 
 bool ek_ringbuf_full_spsc(const ek_ringbuf_spsc_t *rb)
