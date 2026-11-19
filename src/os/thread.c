@@ -215,7 +215,7 @@ int ek_os_thread_get_prio(int tid, uint8_t *prio)
     return err;
 }
 
-static inline void _thread_reap_locked(os_thread_t *thrd, uint32_t flags, void **retval)
+static inline void _reap_locked(os_thread_t *thrd, uint32_t flags, void **retval)
 {
     void *ret = thrd->retval;
     bool owned = thrd->stack_owned;
@@ -252,7 +252,7 @@ int ek_os_thread_join(int tid, int64_t timeout, void **retval)
 
     if (thrd->state == EK_OS_THREAD_DEAD)
     {
-        _thread_reap_locked(thrd, flags, retval);
+        _reap_locked(thrd, flags, retval);
         return 0;
     }
 
@@ -278,7 +278,7 @@ int ek_os_thread_join(int tid, int64_t timeout, void **retval)
         ek_os_kernel_spin_unlock(flags);
         return -ESRCH;
     }
-    _thread_reap_locked(thrd, flags, retval);
+    _reap_locked(thrd, flags, retval);
     return 0;
 }
 
