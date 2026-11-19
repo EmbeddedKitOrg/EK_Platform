@@ -166,7 +166,7 @@ __EK_NO_RETURN void ek_arch_sched_start(void);
  *
  * @note 内部伪造中断返回现场，供首次上下文切换直接恢复并跳转至 entry。
  */
-void *ek_arch_stack_init(void *stack_top, void (*entry)(void *), void *arg, void (*exit)(void));
+void *ek_arch_stack_init(void *stack_top, void *(*entry)(void *), void *arg, void (*exit)(void));
 
 /**
  * @brief 触发一次线程上下文切换请求

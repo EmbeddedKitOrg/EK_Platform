@@ -13,7 +13,7 @@
 #    include "ek/mem/heap.h"
 #    include "ek/core/arch.h"
 
-#    define MAGIC                0xAAAA5555UL
+#    define MAGIC                 0x4D534751UL
 #    define MSGQ_GET_MAGIC(mq)    (*(const uint32_t *)(uintptr_t)((uintptr_t)(mq) - EK_OS_MSGQ_HDR_SIZE))
 #    define MSGQ_SET_MAGIC(mq, v) (*(uint32_t *)(uintptr_t)((uintptr_t)(mq) - EK_OS_MSGQ_HDR_SIZE) = (uint32_t)(v))
 
@@ -50,8 +50,7 @@ ek_os_msgq_t *ek_os_msgq_create(const size_t item_size, const size_t depth)
     return mq;
 }
 
-ek_os_msgq_t *ek_os_msgq_create_static(
-    const size_t item_size, const size_t depth, void *buf, size_t size)
+ek_os_msgq_t *ek_os_msgq_create_static(const size_t item_size, const size_t depth, void *buf, size_t size)
 {
     if (ek_arch_in_isr()) return NULL;
     if (!item_size || !depth || !buf) return NULL;
@@ -96,10 +95,7 @@ int ek_os_msgq_send(ek_os_msgq_t *msgq, const void *item, int64_t timeout)
     if (!_msgq_valid(msgq)) return -ENOENT;
     if (!item) return -EINVAL;
 
-    if (ek_arch_in_isr())
-    {
-        timeout = 0;
-    }
+    if (ek_arch_in_isr()) timeout = 0;
     else
     {
         os_thread_t *cur = g_cur_thrd;

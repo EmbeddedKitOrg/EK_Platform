@@ -13,7 +13,7 @@
 #    include "ek/mem/heap.h"
 #    include "ek/core/arch.h"
 
-#    define MAGIC                 0xA5A55A5AUL
+#    define MAGIC                 0x53454D50UL
 #    define SEM_HDR               ((size_t)(EK_OS_SEM_STATIC_BUF_SIZE - sizeof(ek_os_sem_t)))
 #    define SEM_FROM_BUF(buf)     ((ek_os_sem_t *)(uintptr_t)((uintptr_t)(buf) + SEM_HDR))
 #    define SEM_TO_BUF(sem)       ((void *)(uintptr_t)((uintptr_t)(sem) - SEM_HDR))

@@ -12,7 +12,7 @@
 #    include "ek/mem/heap.h"
 #    include "ek/os/kernel.h"
 
-#    define MAGIC                     0x5A5A5A5AUL
+#    define MAGIC                     0x4D555458UL
 #    define MUTEX_HDR                 ((size_t)(EK_OS_MUTEX_STATIC_BUF_SIZE - sizeof(ek_os_mutex_t)))
 #    define MUTEX_FROM_BUF(buf)       ((ek_os_mutex_t *)(uintptr_t)((uintptr_t)(buf) + MUTEX_HDR))
 #    define MUTEX_TO_BUF(mutex)       ((void *)(uintptr_t)((uintptr_t)(mutex) - MUTEX_HDR))
