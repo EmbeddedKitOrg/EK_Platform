@@ -111,7 +111,7 @@ int ek_os_msgq_send(ek_os_msgq_t *msgq, const void *item, int64_t timeout)
         if (msgq->count < msgq->cap)
         {
             memcpy(msgq->buf + msgq->head * msgq->item_size, item, msgq->item_size);
-            msgq->head = (msgq->head + 1U) % msgq->cap;
+            EK_INC_MOD(msgq->head, msgq->cap);
             msgq->count++;
 
             bool woke = kernel_wake_one(&msgq->recv_list, 0);
@@ -139,7 +139,6 @@ int ek_os_msgq_send(ek_os_msgq_t *msgq, const void *item, int64_t timeout)
 
         int err = kernel_wait_on_locked(&msgq->send_list, wait, flags);
         if (err < 0) return err;
-        // 醒来后重试：空位可能已被其它发送者或中断上下文抢先占用
     }
 }
 
@@ -161,7 +160,7 @@ int ek_os_msgq_recv(ek_os_msgq_t *msgq, void *item, int64_t timeout)
         if (msgq->count)
         {
             memcpy(item, msgq->buf + msgq->tail * msgq->item_size, msgq->item_size);
-            msgq->tail = (msgq->tail + 1U) % msgq->cap;
+            EK_INC_MOD(msgq->tail, msgq->cap);
             msgq->count--;
 
             bool woke = kernel_wake_one(&msgq->send_list, 0);
