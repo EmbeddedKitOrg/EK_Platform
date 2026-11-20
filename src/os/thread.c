@@ -50,7 +50,7 @@ static int _thread_setup(os_thread_t *thrd,
     thrd->arg = arg;
     // 数值越低 优先级越高
     thrd->base_prio = EK_MIN(prio, (uint8_t)EKCFG_OS_THREAD_MIN_PRIO);
-    thrd->sp = (uintptr_t)ek_arch_stack_init(stack_top, (void (*)(void *))fn, arg, kernel_thread_exit);
+    thrd->sp = (uintptr_t)ek_arch_stack_init(stack_top, fn, arg, kernel_thread_exit);
     thrd->state = EK_OS_THREAD_READY;
     thrd->sched_lock = 0;
     thrd->deadline = 0;
