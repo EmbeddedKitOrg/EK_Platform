@@ -51,7 +51,7 @@ struct ek_os_msgq
 /**
  * @brief 静态创建所需缓冲区中，生命周期标记头占用的字节数
  */
-#    define EK_OS_MSGQ_HDR_SIZE       (EK_ALIGN_UP(sizeof(uint32_t), _Alignof(ek_os_msgq_t)))
+#    define EK_OS_MSGQ_HDR_SIZE (EK_ALIGN_UP(sizeof(uint32_t), _Alignof(ek_os_msgq_t)))
 
 /**
  * @brief 计算静态创建消息队列所需的最小缓冲区字节数
@@ -155,19 +155,19 @@ int ek_os_msgq_count(ek_os_msgq_t *msgq);
  * @note 必须在 .c 文件作用域使用，且同一翻译单元内重复使用 handle 会重定义。
  * @note 句柄在 ek_static_alloc_init() 执行前为 NULL，不可提前使用。
  */
-#        define EK_DEFINE_OS_MSGQ(handle, item_size, depth)                                                     \
-            static union                                                                                       \
-            {                                                                                                  \
-                ek_os_msgq_t msgq; /* 抬高 union 的对齐到 _Alignof(ek_os_msgq_t) */                            \
-                uint8_t storage[EK_OS_MSGQ_STATIC_BUF_SIZE(item_size, depth)];                                  \
-            } handle##_mem;                                                                                    \
-            static ek_os_msgq_t *handle;                                                                       \
-            static int _static_alloc_init_##handle(void)                                                       \
-            {                                                                                                  \
-                handle = ek_os_msgq_create_static(                                                             \
-                    (item_size), (depth), handle##_mem.storage, sizeof(handle##_mem.storage));                  \
-                return handle ? 0 : -ENOMEM;                                                                   \
-            }                                                                                                  \
+#        define EK_DEFINE_OS_MSGQ(handle, item_size, depth)                                    \
+            static union                                                                       \
+            {                                                                                  \
+                ek_os_msgq_t msgq; /* 抬高 union 的对齐到 _Alignof(ek_os_msgq_t) */            \
+                uint8_t storage[EK_OS_MSGQ_STATIC_BUF_SIZE(item_size, depth)];                 \
+            } handle##_mem;                                                                    \
+            static ek_os_msgq_t *handle;                                                       \
+            static int _static_alloc_init_##handle(void)                                       \
+            {                                                                                  \
+                handle = ek_os_msgq_create_static(                                             \
+                    (item_size), (depth), handle##_mem.storage, sizeof(handle##_mem.storage)); \
+                return handle ? 0 : -ENOMEM;                                                   \
+            }                                                                                  \
             EK_STATIC_ALLOC_REGISTER(handle, EK_STATIC_ALLOC_ORDER_OS_MSGQ, _static_alloc_init_##handle)
 #    endif /* EKCFG_STATIC_ALLOC == 1 */
 

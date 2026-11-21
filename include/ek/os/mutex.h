@@ -93,18 +93,18 @@ int ek_os_mutex_unlock(ek_os_mutex_t *mutex);
  * @brief 静态声明一个互斥量并自动注册初始化
  * @param handle 互斥量句柄变量名（static ek_os_mutex_t *）
  */
-#        define EK_DEFINE_OS_MUTEX(handle)                                                                    \
-            static union                                                                                      \
-            {                                                                                                 \
-                ek_os_mutex_t mutex;                                                                          \
-                uint8_t storage[EK_OS_MUTEX_STATIC_BUF_SIZE];                                                 \
-            } handle##_mem;                                                                                   \
-            static ek_os_mutex_t *handle;                                                                     \
-            static int _static_alloc_init_##handle(void)                                                      \
-            {                                                                                                 \
-                handle = ek_os_mutex_create_static(handle##_mem.storage, sizeof(handle##_mem.storage));       \
-                return handle ? 0 : -ENOMEM;                                                                  \
-            }                                                                                                 \
+#        define EK_DEFINE_OS_MUTEX(handle)                                                              \
+            static union                                                                                \
+            {                                                                                           \
+                ek_os_mutex_t mutex;                                                                    \
+                uint8_t storage[EK_OS_MUTEX_STATIC_BUF_SIZE];                                           \
+            } handle##_mem;                                                                             \
+            static ek_os_mutex_t *handle;                                                               \
+            static int _static_alloc_init_##handle(void)                                                \
+            {                                                                                           \
+                handle = ek_os_mutex_create_static(handle##_mem.storage, sizeof(handle##_mem.storage)); \
+                return handle ? 0 : -ENOMEM;                                                            \
+            }                                                                                           \
             EK_STATIC_ALLOC_REGISTER(handle, EK_STATIC_ALLOC_ORDER_OS_MUTEX, _static_alloc_init_##handle)
 #    endif /* EKCFG_STATIC_ALLOC == 1 */
 
