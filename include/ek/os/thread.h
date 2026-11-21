@@ -72,6 +72,8 @@ int ek_os_thread_suspend(int tid);
  * @brief 恢复已挂起的线程
  * @param tid 目标线程 ID
  * @return 0 成功，负数错误码失败
+ *
+ * @note 允许在中断上下文调用。
  */
 int ek_os_thread_resume(int tid);
 
