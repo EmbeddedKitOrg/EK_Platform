@@ -172,8 +172,6 @@ int ek_os_thread_suspend(int tid)
 
 int ek_os_thread_resume(int tid)
 {
-    if (ek_arch_in_isr()) return -EPERM;
-
     os_thread_t *thrd = NULL;
     uint32_t flags = ek_os_kernel_spin_lock();
     int err = _thread_get(tid, true, &thrd);
