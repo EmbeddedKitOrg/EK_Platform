@@ -154,11 +154,54 @@
 #    ifndef EKCFG_HEAP_SIZE
 #        define EKCFG_HEAP_SIZE (30 * 1024) /**< 内存堆大小（字节） */
 #    endif
+#    ifndef EKCFG_HEAP_MAX_POOL_SIZE
+#        define EKCFG_HEAP_MAX_POOL_SIZE EKCFG_HEAP_SIZE /**< 单个内存池的最大容量（字节），多池时可显式覆盖 */
+#    endif
+
+#    define _EK_TLSF_FL_MAX_AUTO(sz) \
+        ((sz) <= (1UL << 10)   ? 10  \
+         : (sz) <= (1UL << 11) ? 11  \
+         : (sz) <= (1UL << 12) ? 12  \
+         : (sz) <= (1UL << 13) ? 13  \
+         : (sz) <= (1UL << 14) ? 14  \
+         : (sz) <= (1UL << 15) ? 15  \
+         : (sz) <= (1UL << 16) ? 16  \
+         : (sz) <= (1UL << 17) ? 17  \
+         : (sz) <= (1UL << 18) ? 18  \
+         : (sz) <= (1UL << 19) ? 19  \
+         : (sz) <= (1UL << 20) ? 20  \
+         : (sz) <= (1UL << 21) ? 21  \
+         : (sz) <= (1UL << 22) ? 22  \
+         : (sz) <= (1UL << 23) ? 23  \
+         : (sz) <= (1UL << 24) ? 24  \
+         : (sz) <= (1UL << 25) ? 25  \
+         : (sz) <= (1UL << 26) ? 26  \
+         : (sz) <= (1UL << 27) ? 27  \
+         : (sz) <= (1UL << 28) ? 28  \
+         : (sz) <= (1UL << 29) ? 29  \
+                               : 30)
+
+#    define _EK_TLSF_SL_LOG2_AUTO(sz) \
+        ((sz) < (16UL * 1024UL) ? 2 : (sz) < (64UL * 1024UL) ? 3 : (sz) < (256UL * 1024UL) ? 4 : 5)
+
 #    ifndef EKCFG_TLSF_FL_INDEX_MAX
-#        define EKCFG_TLSF_FL_INDEX_MAX (24) /**< TLSF 一级索引最大值，最大连续块为 2 的该值次方字节 */
+#        define EKCFG_TLSF_FL_INDEX_MAX _EK_TLSF_FL_MAX_AUTO(EKCFG_HEAP_MAX_POOL_SIZE) /**< TLSF 一级索引最大值 */
 #    endif
 #    ifndef EKCFG_TLSF_SL_INDEX_COUNT_LOG2
-#        define EKCFG_TLSF_SL_INDEX_COUNT_LOG2 (3) /**< TLSF 二级索引数量的 log2，二级链表数为 2 的该值次方 */
+#        define EKCFG_TLSF_SL_INDEX_COUNT_LOG2 _EK_TLSF_SL_LOG2_AUTO(EKCFG_HEAP_SIZE) /**< TLSF 二级索引数量的 log2 */
+#    endif
+
+#    if (EKCFG_TLSF_SL_INDEX_COUNT_LOG2) < 1 || (EKCFG_TLSF_SL_INDEX_COUNT_LOG2) > 5
+#        error "EKCFG_TLSF_SL_INDEX_COUNT_LOG2 must be in [1, 5]"
+#    endif
+#    if (EKCFG_TLSF_FL_INDEX_MAX) < 10 || (EKCFG_TLSF_FL_INDEX_MAX) > 30
+#        error "EKCFG_TLSF_FL_INDEX_MAX must be in [10, 30]"
+#    endif
+#    if (EKCFG_HEAP_MAX_POOL_SIZE) < (EKCFG_HEAP_SIZE)
+#        error "EKCFG_HEAP_MAX_POOL_SIZE must be >= EKCFG_HEAP_SIZE"
+#    endif
+#    if (1UL << (EKCFG_TLSF_FL_INDEX_MAX)) < (EKCFG_HEAP_MAX_POOL_SIZE)
+#        error "1UL << EKCFG_TLSF_FL_INDEX_MAX must cover EKCFG_HEAP_MAX_POOL_SIZE"
 #    endif
 #endif
 
