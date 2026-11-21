@@ -59,6 +59,7 @@ set(EK_OS_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/mutex.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/msgq.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/sem.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/condvar.c
 )
 
 set(PORT_SRCS)

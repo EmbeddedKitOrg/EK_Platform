@@ -200,6 +200,20 @@ bool kernel_wake_one(ek_list_node_t *wait_list, int err);
  */
 bool kernel_wake_all(ek_list_node_t *wait_list, int err);
 
+/**
+ * @brief 检查互斥量句柄是否有效
+ * @param mutex 互斥量句柄
+ * @return true 有效，false 无效或已销毁
+ */
+bool mutex_valid(const ek_os_mutex_t *mutex);
+
+/**
+ * @brief 在已持有内核自旋锁时彻底释放互斥量并移交所有权（不触发调度）
+ * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区，且确认 mutex->owner == g_cur_thrd
+ * @param mutex 互斥量句柄
+ */
+void kernel_mutex_release_locked(ek_os_mutex_t *mutex);
+
 #    ifdef __cplusplus
 }
 #    endif
