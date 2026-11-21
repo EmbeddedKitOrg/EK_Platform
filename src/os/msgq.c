@@ -14,8 +14,11 @@
 #    include "ek/core/arch.h"
 
 #    define MAGIC                 0x4D534751UL
-#    define MSGQ_GET_MAGIC(mq)    (*(const uint32_t *)(uintptr_t)((uintptr_t)(mq) - EK_OS_MSGQ_HDR_SIZE))
-#    define MSGQ_SET_MAGIC(mq, v) (*(uint32_t *)(uintptr_t)((uintptr_t)(mq) - EK_OS_MSGQ_HDR_SIZE) = (uint32_t)(v))
+#    define MSGQ_HDR              ((size_t)EK_OS_MSGQ_HDR_SIZE)
+#    define MSGQ_FROM_BUF(buf)    ((ek_os_msgq_t *)(uintptr_t)((uintptr_t)(buf) + MSGQ_HDR))
+#    define MSGQ_TO_BUF(mq)       ((void *)(uintptr_t)((uintptr_t)(mq) - MSGQ_HDR))
+#    define MSGQ_GET_MAGIC(mq)    (*(const uint32_t *)(uintptr_t)((uintptr_t)(mq) - MSGQ_HDR))
+#    define MSGQ_SET_MAGIC(mq, v) (*(uint32_t *)(uintptr_t)((uintptr_t)(mq) - MSGQ_HDR) = (uint32_t)(v))
 
 static bool _msgq_setup(ek_os_msgq_t *mq, size_t item_size, size_t depth, bool owned)
 {
@@ -58,7 +61,7 @@ ek_os_msgq_t *ek_os_msgq_create_static(const size_t item_size, const size_t dept
     if (depth > SIZE_MAX / item_size) return NULL;
     if (size < EK_OS_MSGQ_STATIC_BUF_SIZE(item_size, depth)) return NULL;
 
-    ek_os_msgq_t *mq = (ek_os_msgq_t *)(uintptr_t)((uintptr_t)buf + EK_OS_MSGQ_HDR_SIZE);
+    ek_os_msgq_t *mq = MSGQ_FROM_BUF(buf);
     MSGQ_SET_MAGIC(mq, MAGIC);
     _msgq_setup(mq, item_size, depth, false);
 
