@@ -85,7 +85,7 @@ void ek_os_condvar_destroy(ek_os_condvar_t *condvar);
  * @brief 等待条件变量成立（原子释放互斥量并阻塞，返回前重新加锁）
  * @param condvar 条件变量句柄
  * @param mutex   调用者当前持有的互斥量（不可重入嵌套超过 1 层）
- * @param timeout 相对超时时长；传 EK_OS_FOREVER 表示永久等待，传 0 立即超时返回 -ETIMEDOUT
+ * @param timeout 相对超时时长（单位为内核时间基计数，推荐通过 EK_OS_MSEC()/EK_OS_SEC() 构造）；传 EK_OS_FOREVER 表示永久等待，传 0 立即超时返回 -ETIMEDOUT
  * @return 0 被正常唤醒且已重新持有 mutex
  * @retval -ENOENT    condvar 或 mutex 句柄无效/已销毁
  * @retval -EPERM     在中断上下文调用、空闲线程调用，或当前线程未持有该 mutex

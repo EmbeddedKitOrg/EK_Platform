@@ -53,6 +53,7 @@ int ek_vfs_register(const char *path, uint8_t type, const void *ops, void *priv)
  * @brief 注销一个 VFS 节点
  * @param path 绝对路径
  * @return 0 成功；负数 errno 失败
+ * @retval -EINVAL VFS 未初始化或路径参数非法
  * @retval -EPERM 不能注销根节点
  * @retval -ENOENT 节点不存在
  * @retval -EBUSY 节点仍被打开
@@ -80,6 +81,7 @@ int ek_vfs_tree_dump(char *buf, size_t size);
  * @retval -EISDIR 以写模式打开目录
  * @retval -EEXIST O_CREAT | O_EXCL 且节点已存在
  * @retval -EACCES O_TRUNC 与只读模式冲突
+ * @retval -ENFILE 文件描述符表已满
  * @retval -ENOTSUP O_CREAT 或挂载点操作尚未实现
  * @note 当前 O_CREAT / O_TRUNC 尚未完整实现
  */
@@ -129,7 +131,6 @@ ek_off_t ek_vfs_lseek(int fd, ek_off_t offset, int whence);
  * @return 0 或驱动定义的非负值；负数 errno 失败
  * @retval -EBADF fd 无效
  * @retval -ENOTTY 节点没有 ioctl 回调
- * @note 当前实现检查的是 lseek 回调，后续应改为 ioctl 回调
  */
 int ek_vfs_ioctl(int fd, uint32_t request, void *arg);
 
@@ -141,7 +142,6 @@ int ek_vfs_ioctl(int fd, uint32_t request, void *arg);
  * @retval -EBADF fd 无效
  * @retval -EINVAL events 为 0
  * @retval -ENOTSUP 节点没有 poll 回调
- * @note 当前函数名为 poll()，与 libc poll() 同名
  */
 int ek_vfs_poll(int fd, uint32_t events);
 
@@ -155,14 +155,13 @@ int ek_vfs_close(int fd);
 
 /**
  * @brief 将指定路径的设备绑定到目标文件描述符槽位
- * @param target_fd 目标文件描述符（通常为 0=stdin, 1=stdout, 2=stderr）
- * @param path 设备绝对路径，必须以 '/' 开头
+ * @param target_fd 目标标准文件描述符，仅支持 0=EK_VFS_STDIN、1=EK_VFS_STDOUT、2=EK_VFS_STDERR
+ * @param path 设备绝对路径，必须以 '/' 开头且不可为 NULL
  * @param flags 打开标志，如 O_RDONLY, O_WRONLY, O_NONBLOCK 等
- * @return 0 成功；负数 errno 失败
- * @retval -EBADF target_fd 超出合法范围
- * @retval -EINVAL 参数非法（path 为空或非绝对路径）
- * @retval -ENOENT 设备节点不存在
- * @retval -ENODEV 节点不是设备类型或没有操作表
+ * @return 0 成功；负数 errno 失败（含驱动 open 回调返回的错误码）
+ * @retval -EINVAL target_fd 不在 0..2 范围内
+ * @retval -EBADF 目标 fd 槽位不可用（如 VFS 未初始化）
+ * @retval -ENODEV 设备节点不存在或节点类型不是 EK_VFS_DEV
  * @note 若目标槽位此前已绑定设备，会先安全调用旧设备的 close 并递减其引用计数
  */
 int ek_vfs_bind_fd(int target_fd, const char *path, int flags);

@@ -1,3 +1,9 @@
+/**
+ * @file osal.h
+ * @brief OS 抽象层（OSAL）公共类型定义
+ * @author N1netyNine99
+ */
+
 #ifndef EK_OSAL_H
 #define EK_OSAL_H
 

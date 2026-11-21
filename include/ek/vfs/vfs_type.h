@@ -91,8 +91,8 @@ enum ek_vfs_type
 
 /**
  * @brief VFS 节点操作表
- * @note 每个回调的第一个参数都是 open() 产生的 file_priv；
- *       没有 open 回调时，VFS 会直接使用 node->priv。
+ * @note 除 open() 与 destroy() 接收注册时的 node_priv 外，其余回调的第一个参数均为 open() 产生的 file_priv；
+ *       未提供 open 回调时，VFS 会直接将 node->priv 作为 file_priv 传入。
  */
 struct ek_vfs_ops
 {

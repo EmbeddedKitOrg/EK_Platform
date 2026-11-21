@@ -28,7 +28,7 @@ struct ek_ringbuf
     uint32_t item_amount; /**< 当前元素个数 */
     size_t cap; /**< 缓冲区容量（元素个数） */
     size_t item_size; /**< 单个元素大小（字节） */
-    uint8_t data[]; /**< 唯一数据位置：动态=malloc 尾部，静态=union 尾部 */
+    uint8_t data[]; /**< 柔性数据区（动态分配位于堆块尾部，静态分配位于 union 尾部） */
 };
 #    endif /* EKCFG_RINGBUF */
 
@@ -39,7 +39,7 @@ struct ek_ringbuf_spsc
     uint32_t read_idx; /**< 读取位置索引 */
     size_t cap; /**< 底层槽位数量，实际最大可存元素数为 cap - 1 */
     size_t item_size; /**< 单个元素大小（字节） */
-    uint8_t data[]; /**< 唯一数据位置：动态=malloc 尾部，静态=union 尾部 */
+    uint8_t data[]; /**< 柔性数据区（动态分配位于堆块尾部，静态分配位于 union 尾部） */
 };
 #    endif /* EKCFG_RINGBUF_SPSC */
 
@@ -81,12 +81,34 @@ ek_ringbuf_t *ek_ringbuf_create(size_t item_size, uint32_t item_amount);
  */
 void ek_ringbuf_destroy(ek_ringbuf_t *rb);
 
+/**
+ * @brief 在调用者提供的缓冲区上静态初始化环形缓冲区
+ * @param rb          环形缓冲区对象指针（后随紧邻的数据缓冲区）
+ * @param item_size   单个元素大小（字节，须大于 0）
+ * @param item_amount 缓冲区容量（元素个数，须大于 0）
+ * @return 0 成功
+ * @return -EINVAL rb 为 NULL，或 item_size / item_amount 为 0
+ */
 int ek_ringbuf_init_static(ek_ringbuf_t *rb, size_t item_size, uint32_t item_amount);
+
+/**
+ * @brief 反初始化静态环形缓冲区，清空索引与配置
+ * @param rb 环形缓冲区对象指针
+ */
 void ek_ringbuf_deinit_static(ek_ringbuf_t *rb);
 
 #        if EKCFG_STATIC_ALLOC == 1
 #            include "ek/mem/static_alloc.h"
 
+/**
+ * @brief 静态声明一个环形缓冲区并自动注册初始化
+ * @param handle 缓冲区句柄变量名（static ek_ringbuf_t *const）
+ * @param type   元素数据类型
+ * @param amount 缓冲区容量（元素个数）
+ *
+ * @note 必须在 .c 文件作用域使用，且同一翻译单元内重复使用 handle 会重定义
+ * @note 句柄在 ek_static_alloc_init() 执行前不可使用
+ */
 #            define EK_DEFINE_RINGBUF(handle, type, amount)                          \
                 static union                                                         \
                 {                                                                    \
@@ -103,9 +125,8 @@ void ek_ringbuf_deinit_static(ek_ringbuf_t *rb);
 #        endif
 
 /**
- * @brief 销毁环形缓冲区并把rb_ptr设置为NULL
- * @param rb_ptr 要销毁的环形缓冲区
- *
+ * @brief 销毁环形缓冲区并把 rb_ptr 设置为 NULL
+ * @param rb_ptr 要销毁的环形缓冲区指针
  */
 #        define ek_ringbuf_destroy_safely(rb_ptr) \
             do                                    \
@@ -119,6 +140,7 @@ void ek_ringbuf_deinit_static(ek_ringbuf_t *rb);
  * @param rb 环形缓冲区指针
  * @param item 要写入的元素指针
  * @return 0 写入成功
+ * @return -EINVAL rb 或 item 为 NULL
  * @return -ENOSPC 缓冲区已满
  */
 int ek_ringbuf_write(ek_ringbuf_t *rb, const void *item);
@@ -128,6 +150,7 @@ int ek_ringbuf_write(ek_ringbuf_t *rb, const void *item);
  * @param rb 环形缓冲区指针
  * @param item 存储读取结果的缓冲区指针，传入 NULL 则直接丢弃数据
  * @return 0 读取成功
+ * @return -EINVAL rb 为 NULL
  * @return -ENODATA 缓冲区为空
  */
 int ek_ringbuf_read(ek_ringbuf_t *rb, void *item);
@@ -137,6 +160,7 @@ int ek_ringbuf_read(ek_ringbuf_t *rb, void *item);
  * @param rb 环形缓冲区指针
  * @param item 存储查看结果的缓冲区指针
  * @return 0 查看成功
+ * @return -EINVAL rb 或 item 为 NULL
  * @return -ENODATA 缓冲区为空
  */
 int ek_ringbuf_peek(ek_ringbuf_t *rb, void *item);
@@ -162,7 +186,7 @@ bool ek_ringbuf_empty_spsc(const ek_ringbuf_spsc_t *rb);
 /**
  * @brief 创建 SPSC 环形缓冲区
  * @param item_size 单个元素大小（字节）
- * @param item_amount 底层槽位数量，实际最大可存元素数为 item_amount - 1
+ * @param item_amount 底层槽位数量（必须大于 1），实际最大可存元素数为 item_amount - 1
  * @return 成功返回缓冲区指针，失败返回 NULL
  */
 ek_ringbuf_spsc_t *ek_ringbuf_create_spsc(size_t item_size, uint32_t item_amount);
@@ -173,12 +197,34 @@ ek_ringbuf_spsc_t *ek_ringbuf_create_spsc(size_t item_size, uint32_t item_amount
  */
 void ek_ringbuf_destroy_spsc(ek_ringbuf_spsc_t *rb);
 
+/**
+ * @brief 在调用者提供的缓冲区上静态初始化 SPSC 环形缓冲区
+ * @param rb        环形缓冲区对象指针（后随紧邻的数据缓冲区）
+ * @param item_size 单个元素大小（字节，须大于 0）
+ * @param amount    底层槽位数量（须大于 1，实际最大可存元素数为 amount - 1）
+ * @return 0 成功
+ * @return -EINVAL rb 为 NULL、item_size 为 0 或 amount <= 1
+ */
 int ek_ringbuf_init_spsc_static(ek_ringbuf_spsc_t *rb, size_t item_size, uint32_t amount);
+
+/**
+ * @brief 反初始化静态 SPSC 环形缓冲区，清空索引与配置
+ * @param rb 环形缓冲区对象指针
+ */
 void ek_ringbuf_deinit_spsc_static(ek_ringbuf_spsc_t *rb);
 
 #        if EKCFG_STATIC_ALLOC == 1
 #            include "ek/mem/static_alloc.h"
 
+/**
+ * @brief 静态声明一个 SPSC 环形缓冲区并自动注册初始化
+ * @param handle 缓冲区句柄变量名（static ek_ringbuf_spsc_t *const）
+ * @param type   元素数据类型
+ * @param amount 底层槽位数量（须大于 1，实际最大可存元素数为 amount - 1）
+ *
+ * @note 必须在 .c 文件作用域使用，且同一翻译单元内重复使用 handle 会重定义
+ * @note 句柄在 ek_static_alloc_init() 执行前不可使用
+ */
 #            define EK_DEFINE_RINGBUF_SPSC(handle, type, amount)                          \
                 static union                                                              \
                 {                                                                         \
@@ -196,7 +242,7 @@ void ek_ringbuf_deinit_spsc_static(ek_ringbuf_spsc_t *rb);
 
 /**
  * @brief 销毁 SPSC 环形缓冲区并把 rb_ptr 设置为 NULL
- * @param rb_ptr 要销毁的环形缓冲区
+ * @param rb_ptr 要销毁的环形缓冲区指针
  */
 #        define ek_ringbuf_destroy_safely_spsc(rb_ptr) \
             do                                         \
@@ -210,6 +256,7 @@ void ek_ringbuf_deinit_spsc_static(ek_ringbuf_spsc_t *rb);
  * @param rb 环形缓冲区指针
  * @param item 要写入的元素指针
  * @return 0 写入成功
+ * @return -EINVAL rb 或 item 为 NULL
  * @return -ENOSPC 缓冲区已满
  */
 int ek_ringbuf_write_spsc(ek_ringbuf_spsc_t *rb, const void *item);
@@ -219,6 +266,7 @@ int ek_ringbuf_write_spsc(ek_ringbuf_spsc_t *rb, const void *item);
  * @param rb 环形缓冲区指针
  * @param item 存储读取结果的缓冲区指针，传入 NULL 则直接丢弃数据
  * @return 0 读取成功
+ * @return -EINVAL rb 为 NULL
  * @return -ENODATA 缓冲区为空
  */
 int ek_ringbuf_read_spsc(ek_ringbuf_spsc_t *rb, void *item);
@@ -228,6 +276,7 @@ int ek_ringbuf_read_spsc(ek_ringbuf_spsc_t *rb, void *item);
  * @param rb 环形缓冲区指针
  * @param item 存储查看结果的缓冲区指针
  * @return 0 查看成功
+ * @return -EINVAL rb 或 item 为 NULL
  * @return -ENODATA 缓冲区为空
  */
 int ek_ringbuf_peek_spsc(ek_ringbuf_spsc_t *rb, void *item);

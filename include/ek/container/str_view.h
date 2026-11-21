@@ -72,7 +72,7 @@ int ek_str_view_trim(ek_str_view_t *sv);
 
 /**
  * @brief 按分隔符切出一段
- * @param sv 字符串视图指针
+ * @param sv 字符串视图指针（不能为 NULL）
  * @param c 分隔符
  * @return 切出的视图段
  * @note 找到分隔符时返回其之前的段，并从 sv 中移除该段与分隔符

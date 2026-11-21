@@ -1,3 +1,12 @@
+/**
+ * @file picothread.h
+ * @brief 协作式微线程（protothread）调度器与同步原语接口
+ * @author N1netyNine99
+ *
+ * 提供基于状态机跳转宏的轻量级协作式微线程，以及可选的信号量与消息队列同步原语，
+ * 支持动态分配与静态初始化（EKCFG_STATIC_ALLOC）。
+ */
+
 #ifndef EK_PICOTHREAD_H
 #define EK_PICOTHREAD_H
 
@@ -24,8 +33,8 @@ typedef struct ek_pt_sem ek_pt_sem_t;
  */
 struct ek_pt_sem
 {
-    uint8_t count; // 可用计数
-    ek_list_node_t wait_list; // 等待队列
+    uint8_t count; /**< 可用计数 */
+    ek_list_node_t wait_list; /**< 等待队列 */
 };
 #    endif /* EKCFG_PICOTHREAD_SEM */
 
@@ -44,8 +53,8 @@ typedef struct ek_pt_msg ek_pt_msg_t;
  */
 struct ek_pt_msg
 {
-    ek_list_node_t recv_wait;
-    ek_list_node_t send_wait;
+    ek_list_node_t recv_wait; /**< 等待接收消息的任务链表 */
+    ek_list_node_t send_wait; /**< 等待发送空位的任务链表 */
     ek_ringbuf_t rb; /**< 置尾成员：rb.data 即消息数据区（动态=malloc 尾部，静态=union 尾部） */
 };
 #    endif /* EKCFG_PICOTHREAD_MSG */
@@ -58,7 +67,7 @@ typedef struct ek_pt ek_pt_t;
 /**
  * @brief 微线程回调函数类型
  *
- * 每次调度时调用此回调，回调内通过 EK_PT_BEGIN/YEILD/END 宏实现协程式逻辑。
+ * 每次调度时调用此回调，回调内通过 EK_PT_BEGIN/EK_PT_YEILD/EK_PT_END 宏实现协程式逻辑。
  *
  * @param pt  当前微线程句柄
  * @param arg 创建时传入的用户参数
@@ -70,12 +79,12 @@ typedef void (*ek_pt_cb_t)(ek_pt_t *pt, void *arg);
  */
 typedef enum
 {
-    EK_PT_STATE_READY = 0, // 就绪，等待调度
-    EK_PT_STATE_SUSPEND, // 挂起，不参与调度，需手动 resume
-    EK_PT_STATE_BLOCK, // 阻塞，等待定时唤醒
-    EK_PT_STATE_RUNNING, // 正在执行回调
+    EK_PT_STATE_READY = 0, /**< 就绪，等待调度 */
+    EK_PT_STATE_SUSPEND, /**< 挂起，不参与调度，需手动 resume */
+    EK_PT_STATE_BLOCK, /**< 阻塞，等待定时唤醒或事件唤醒 */
+    EK_PT_STATE_RUNNING, /**< 正在执行回调 */
 
-    EK_PT_STATE_MAX
+    EK_PT_STATE_MAX /**< 状态数量哨兵 */
 } ek_pt_state_e;
 
 /**
@@ -83,22 +92,22 @@ typedef enum
  */
 struct ek_pt
 {
-    uint8_t prio; // 优先级（数值越小优先级越高）
-    ek_pt_state_e state; // 当前状态
-    uint32_t tick; // 阻塞唤醒的绝对 tick
-    uint32_t line; // protothread 行号，用于 YEIELD 恢复执行位置
-    ek_list_node_t state_node; // 就绪/阻塞链表的侵入式节点
-    ek_list_node_t event_node; // 事件链表的侵入式节点（信号量/消息队列等待）
-    void *arg; // 用户参数
-    ek_pt_cb_t cb; // 回调函数
+    uint8_t prio; /**< 优先级（数值越小优先级越高） */
+    ek_pt_state_e state; /**< 当前状态 */
+    uint32_t tick; /**< 阻塞唤醒的绝对 tick */
+    uint32_t line; /**< protothread 行号，用于 EK_PT_YEILD 恢复执行位置 */
+    ek_list_node_t state_node; /**< 就绪/阻塞链表的侵入式节点 */
+    ek_list_node_t event_node; /**< 事件链表的侵入式节点（信号量/消息队列等待） */
+    void *arg; /**< 用户参数 */
+    ek_pt_cb_t cb; /**< 回调函数 */
 #    if EKCFG_PICOTHREAD_SEM || EKCFG_PICOTHREAD_MSG
-    int wait_result; // 事件等待结果：0=成功，-ETIMEDOUT=超时
+    int wait_result; /**< 事件等待结果：0=成功，-ETIMEDOUT=超时，-ECANCELED=同步对象已销毁 */
 #    endif
 #    if EKCFG_PICOTHREAD_SEM
-    ek_pt_sem_t *wait_sem;
+    ek_pt_sem_t *wait_sem; /**< 当前等待的信号量指针（未等待时为 NULL） */
 #    endif /* EKCFG_PICOTHREAD_SEM */
 #    if EKCFG_PICOTHREAD_MSG
-    ek_pt_msg_t *wait_msg;
+    ek_pt_msg_t *wait_msg; /**< 当前等待的消息队列指针（未等待时为 NULL） */
 #    endif /* EKCFG_PICOTHREAD_MSG */
 };
 
@@ -183,22 +192,68 @@ ek_pt_t *ek_pt_create(ek_pt_cb_t cb, uint8_t prio, void *arg);
  */
 void ek_pt_destroy(ek_pt_t *pt);
 
+/**
+ * @brief 在调用者提供的存储上静态初始化微线程
+ * @param pt   微线程结构体指针
+ * @param cb   回调函数（不可为 NULL）
+ * @param prio 优先级（数值越小优先级越高，范围为 0..EKCFG_PT_PRIO_LOWEST）
+ * @param arg  用户参数
+ * @return 0 成功，-EINVAL 参数无效
+ */
 int ek_pt_init_static(ek_pt_t *pt, ek_pt_cb_t cb, uint8_t prio, void *arg);
+
+/**
+ * @brief 反初始化静态微线程，将其从所有调度及等待队列移除
+ * @param pt 微线程结构体指针
+ */
 void ek_pt_deinit_static(ek_pt_t *pt);
 
 #    if EKCFG_PICOTHREAD_SEM == 1
+/**
+ * @brief 在调用者提供的存储上静态初始化微线程信号量
+ * @param sem   信号量结构体指针
+ * @param count 初始计数
+ * @return 0 成功，-EINVAL sem 为 NULL
+ */
 int ek_pt_sem_init_static(ek_pt_sem_t *sem, uint8_t count);
+
+/**
+ * @brief 反初始化静态微线程信号量，并唤醒所有等待任务返回 -ECANCELED
+ * @param sem 信号量结构体指针
+ */
 void ek_pt_sem_deinit_static(ek_pt_sem_t *sem);
 #    endif /* EKCFG_PICOTHREAD_SEM */
 
 #    if EKCFG_PICOTHREAD_MSG == 1
+/**
+ * @brief 在调用者提供的缓冲区上静态初始化微线程消息队列
+ * @param msg         消息队列结构体指针（后随紧邻的环形缓冲区存储区）
+ * @param item_size   单条消息大小（字节，须大于 0）
+ * @param item_amount 消息容量（条数，须大于 0）
+ * @return 0 成功，-EINVAL 参数无效
+ */
 int ek_pt_msg_init_static(ek_pt_msg_t *msg, size_t item_size, uint32_t item_amount);
+
+/**
+ * @brief 反初始化静态微线程消息队列，并唤醒所有等待任务返回 -ECANCELED
+ * @param msg 消息队列结构体指针
+ */
 void ek_pt_msg_deinit_static(ek_pt_msg_t *msg);
 #    endif /* EKCFG_PICOTHREAD_MSG */
 
 #    if EKCFG_STATIC_ALLOC == 1
 #        include "ek/mem/static_alloc.h"
 
+/**
+ * @brief 静态声明一个微线程并自动注册初始化
+ * @param handle 微线程句柄变量名（static ek_pt_t）
+ * @param cb     回调函数
+ * @param prio   优先级（0..EKCFG_PT_PRIO_LOWEST）
+ * @param arg    用户参数
+ *
+ * @note 必须在 .c 文件作用域使用，且同一翻译单元内重复使用 handle 会重定义
+ * @note 在 ek_static_alloc_init() 执行前微线程未初始化，不可提前使用
+ */
 #        define EK_DEFINE_PT(handle, cb, prio, arg)                       \
             static ek_pt_t handle;                                        \
             static int _static_alloc_init_##handle(void)                  \
@@ -208,6 +263,14 @@ void ek_pt_msg_deinit_static(ek_pt_msg_t *msg);
             EK_STATIC_ALLOC_REGISTER(handle, EK_STATIC_ALLOC_ORDER_PT, _static_alloc_init_##handle)
 
 #        if EKCFG_PICOTHREAD_SEM == 1
+/**
+ * @brief 静态声明一个微线程信号量并自动注册初始化
+ * @param handle 信号量句柄变量名（static ek_pt_sem_t）
+ * @param count  初始计数
+ *
+ * @note 必须在 .c 文件作用域使用，且同一翻译单元内重复使用 handle 会重定义
+ * @note 在 ek_static_alloc_init() 执行前信号量未初始化，不可提前使用
+ */
 #            define EK_DEFINE_PT_SEM(handle, count)                   \
                 static ek_pt_sem_t handle;                            \
                 static int _static_alloc_init_##handle(void)          \
@@ -218,6 +281,15 @@ void ek_pt_msg_deinit_static(ek_pt_msg_t *msg);
 #        endif /* EKCFG_PICOTHREAD_SEM */
 
 #        if EKCFG_PICOTHREAD_MSG == 1
+/**
+ * @brief 静态声明一个微线程消息队列并自动注册初始化
+ * @param handle 消息队列句柄变量名（static ek_pt_msg_t *const）
+ * @param type   消息元素数据类型
+ * @param amount 消息容量（条数）
+ *
+ * @note 必须在 .c 文件作用域使用，且同一翻译单元内重复使用 handle 会重定义
+ * @note 句柄在 ek_static_alloc_init() 执行前不可使用
+ */
 #            define EK_DEFINE_PT_MSG(handle, type, amount)                          \
                 static union                                                        \
                 {                                                                   \
@@ -242,7 +314,7 @@ void ek_pt_msg_deinit_static(ek_pt_msg_t *msg);
  *
  * @param now 当前绝对 tick
  * @return == now → 就绪任务存在，不应睡眠；
- *         &gt;  now → 最近阻塞任务的唤醒 tick；
+ *         >  now → 最近阻塞任务的唤醒 tick；
  *         == 0   → 无任务，可无限睡眠
  */
 uint32_t ek_pt_schedule(uint32_t now);
@@ -251,7 +323,7 @@ uint32_t ek_pt_schedule(uint32_t now);
  * @brief 阻塞当前或指定任务
  *
  * @param pt    微线程句柄（传入 ek_pt_active() 阻塞当前任务）
- * @param xtick 阻塞时长（相对 tick），0=不等待，~0=永远等待
+ * @param xtick 阻塞时长（相对 tick）；0 表示下一轮调度立即到期，(uint32_t)-1（~0U）表示永久等待
  *
  * @warning 不应直接调用，请使用 EK_PT_DELAY 宏。
  */
@@ -261,7 +333,7 @@ void ek_pt_block(ek_pt_t *pt, uint32_t xtick);
  * @brief 挂起当前或指定任务
  *
  * @param pt 微线程句柄（NULL 表示挂起自己）
- * @return 传入 NULL 时返回被挂起的任务句柄，否则返回 NULL
+ * @return 若挂起的是当前运行中的任务（传入 NULL 或当前任务句柄），返回该任务句柄；挂起其他任务或当前无运行任务时返回 NULL
  *
  * @warning 不应直接调用，请使用 EK_PT_SUSPEND 宏。
  */
@@ -362,7 +434,7 @@ void ek_pt_sem_give(ek_pt_sem_t *sem);
  *
  * 若信号量可用则立即返回；否则阻塞当前任务并让出执行权，
  * 由 EK_PT_SEM_GIVE 唤醒或超时自动唤醒。
- * 恢复后通过 err 判断结果：0=成功，-ETIMEDOUT=超时。
+ * 恢复后通过 err 判断结果：0=成功，-ETIMEDOUT=超时，-ECANCELED=对象已销毁。
  *
  * @param sem  信号量句柄
  * @param tick 超时 tick 数
@@ -437,7 +509,7 @@ bool ek_pt_msg_recv(ek_pt_msg_t *msg, void *data);
  *
  * 若队列有空位则立即返回；否则阻塞当前任务并让出执行权，
  * 由 EK_PT_MSG_RECV 消费后唤醒或超时自动唤醒。
- * 恢复后通过 err 判断结果：0=成功，-ETIMEDOUT=超时。
+ * 恢复后通过 err 判断结果：0=成功，-ETIMEDOUT=超时，-ECANCELED=对象已销毁。
  *
  * @param msg  消息队列句柄
  * @param data 指向消息数据的指针
@@ -461,7 +533,7 @@ bool ek_pt_msg_recv(ek_pt_msg_t *msg, void *data);
  *
  * 若队列有数据则立即返回；否则阻塞当前任务并让出执行权，
  * 由 EK_PT_MSG_SEND 写入后唤醒或超时自动唤醒。
- * 恢复后通过 err 判断结果：0=成功，-ETIMEDOUT=超时。
+ * 恢复后通过 err 判断结果：0=成功，-ETIMEDOUT=超时，-ECANCELED=对象已销毁。
  *
  * @param msg  消息队列句柄
  * @param data 接收消息数据的缓冲区指针

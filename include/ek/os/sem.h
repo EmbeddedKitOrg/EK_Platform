@@ -95,10 +95,10 @@ int ek_os_sem_give(ek_os_sem_t *sem);
 /**
  * @brief 获取信号量
  * @param sem     信号量句柄
- * @param timeout 相对超时时长；传 EK_OS_FOREVER 表示永久等待，传 0 表示不等待
+ * @param timeout 相对超时时长（单位为内核时间基计数，推荐通过 EK_OS_MSEC()/EK_OS_SEC() 构造）；传 EK_OS_FOREVER 表示永久等待，传 0 表示不等待
  * @return 0 成功获取
  * @retval -ENOENT    句柄无效或已销毁
- * @retval -EPERM     在中断上下文调用
+ * @retval -EPERM     在中断上下文调用，或需阻塞等待时处于空闲线程/内核未启动状态
  * @retval -EAGAIN    超时为 0 且当前无可用计数
  * @retval -ETIMEDOUT 等待超时
  * @retval -EINTR     等待期间被挂起打断

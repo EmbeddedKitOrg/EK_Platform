@@ -57,11 +57,8 @@ typedef struct
     _ek_export_init_fn_t fn;
 } ek_export_item_t;
 
-/**
- * @brief 导出顺序常量
- *
- * 同一阶段内数值越小越先执行；相同 phase/order 不保证相对顺序。
- */
+/* ========== 导出顺序常量 ========== */
+/* 同一阶段内数值越小越先执行；相同 phase/order 不保证相对顺序。 */
 #    define EK_EXPORT_ORDER_BOOT_ARCH              (1)
 #    define EK_EXPORT_ORDER_BOOT_ARCH_IRQ          (2)
 
@@ -72,9 +69,7 @@ typedef struct
 #    define EK_EXPORT_ORDER_COMPONENT_SCHED        (8)
 #    define EK_EXPORT_ORDER_COMPONENT_STATIC_ALLOC (10)
 
-/**
- * @brief 生成唯一符号名（内部使用）
- */
+/* 生成唯一符号名（内部使用） */
 #    define _EK_EXPORT_JOIN2(a, b) a##b
 #    define _EK_EXPORT_JOIN(a, b)  _EK_EXPORT_JOIN2(a, b)
 
@@ -84,11 +79,7 @@ typedef struct
 #        define _EK_EXPORT_UNIQUE_ID __LINE__
 #    endif
 
-/**
- * @brief 导出函数宏（内部使用）
- *
- * 不对外暴露裸 phase，避免调用方绕过阶段分类。
- */
+/* 导出函数宏（内部使用）：不对外暴露裸 phase，避免调用方绕过阶段分类 */
 #    define _EK_EXPORT_LEVEL(fn, phase, order)          _EK_EXPORT_LEVEL_IMPL(_EK_EXPORT_UNIQUE_ID, fn, phase, order)
 #    define _EK_EXPORT_LEVEL_IMPL(id, fn, phase, order) _EK_EXPORT_LEVEL_IMPL2(id, fn, phase, order)
 #    define _EK_EXPORT_LEVEL_IMPL2(id, fn, phase, order)                     \
@@ -104,16 +95,22 @@ typedef struct
 
 /**
  * @brief 板级阶段导出
+ * @param fn 要导出的函数指针
+ * @param order 阶段内顺序，数值越小越先执行
  */
 #    define EK_EXPORT_BOARD(fn, order) _EK_EXPORT_LEVEL(fn, EK_EXPORT_PHASE_BOARD, order)
 
 /**
  * @brief 组件阶段导出
+ * @param fn 要导出的函数指针
+ * @param order 阶段内顺序，数值越小越先执行
  */
 #    define EK_EXPORT_COMPONENT(fn, order) _EK_EXPORT_LEVEL(fn, EK_EXPORT_PHASE_COMPONENT, order)
 
 /**
  * @brief 应用阶段导出
+ * @param fn 要导出的函数指针
+ * @param order 阶段内顺序，数值越小越先执行
  */
 #    define EK_EXPORT_APP(fn, order) _EK_EXPORT_LEVEL(fn, EK_EXPORT_PHASE_APP, order)
 

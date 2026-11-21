@@ -45,7 +45,7 @@ struct ek_os_msgq
     size_t tail; /**< 下一个读取槽下标 */
     ek_list_node_t recv_list; /**< 队列空时阻塞的接收者链表，按线程优先级升序 */
     ek_list_node_t send_list; /**< 队列满时阻塞的发送者链表，按线程优先级升序 */
-    uint8_t *buf; /**< 数据槽区，cap * slot_size 字节，位于控制块之后 */
+    uint8_t *buf; /**< 数据槽区，cap * item_size 字节，位于控制块之后 */
 };
 
 /**
@@ -101,12 +101,12 @@ void ek_os_msgq_destroy(ek_os_msgq_t *msgq);
  * @brief 向队列发送一条消息
  * @param msgq    消息队列句柄
  * @param item    待发送消息的地址，长度由创建时的 item_size 决定
- * @param timeout 队列满时的等待时长；传 EK_OS_FOREVER 表示永久等待，传 0 表示不等待
+ * @param timeout 队列满时的等待时长（单位为内核时间基计数，推荐通过 EK_OS_MSEC()/EK_OS_SEC() 构造）；传 EK_OS_FOREVER 表示永久等待，传 0 表示不等待
  * @return 0 成功
  * @retval -ENOENT    句柄无效或已销毁
  * @retval -EINVAL    item 为空
- * @retval -EPERM     在空闲线程上下文调用
- * @retval -EAGAIN    队列已满且无需等待（含中断上下文调用）
+ * @retval -EPERM     在内核未启动或空闲线程上下文调用
+ * @retval -EAGAIN    队列已满且不等待（timeout == 0 或中断上下文调用）
  * @retval -ETIMEDOUT 等待期间队列始终没有空位
  * @retval -EINTR     等待期间被挂起打断
  * @retval -ECANCELED 等待期间队列被销毁
@@ -120,12 +120,12 @@ int ek_os_msgq_send(ek_os_msgq_t *msgq, const void *item, int64_t timeout);
  * @brief 从队列接收一条消息
  * @param msgq    消息队列句柄
  * @param item    接收缓冲区地址，长度由创建时的 item_size 决定
- * @param timeout 队列空时的等待时长；传 EK_OS_FOREVER 表示永久等待，传 0 表示不等待
+ * @param timeout 队列空时的等待时长（单位为内核时间基计数，推荐通过 EK_OS_MSEC()/EK_OS_SEC() 构造）；传 EK_OS_FOREVER 表示永久等待，传 0 表示不等待
  * @return 0 成功
  * @retval -ENOENT    句柄无效或已销毁
  * @retval -EINVAL    item 为空
- * @retval -EPERM     在中断上下文或空闲线程上下文调用
- * @retval -EAGAIN    队列为空且无需等待
+ * @retval -EPERM     在中断上下文、空闲线程或内核未启动时调用
+ * @retval -EAGAIN    队列为空且不等待（timeout == 0）
  * @retval -ETIMEDOUT 等待期间队列始终没有消息
  * @retval -EINTR     等待期间被挂起打断
  * @retval -ECANCELED 等待期间队列被销毁

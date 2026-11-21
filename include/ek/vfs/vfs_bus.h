@@ -100,9 +100,9 @@ int ek_vfs_bus_dev_unregister(const char *bus_name, const char *dev_name);
  * @retval -EINVAL 参数非法
  * @retval -ENAMETOOLONG 名字过长或路径截断
  * @retval -ENODEV 总线不存在或节点不是 BUS
- * @retval -ENOTSUP 总线未实现 transfer
+ * @retval -ENOTSUP 总线未实现 xfer
  * @note 每次调用都会按名字查找总线，适合控制面、调试和 scan；
- *       设备数据面应缓存 ek_vfs_bus_t * 并直接调用 ops->transfer。
+ *       设备数据面应缓存 ek_vfs_bus_t * 并直接调用 ops->xfer。
  */
 int ek_vfs_bus_xfer(const char *name, uint16_t addr, const char *tx, size_t tx_len, uint8_t *rx, size_t rx_len);
 

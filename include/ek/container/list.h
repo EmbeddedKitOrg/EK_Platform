@@ -165,7 +165,7 @@ __EK_STATIC_INLINE bool ek_list_is_empty(const ek_list_node_t *head)
 /**
  * @brief 获取链表的第一个节点
  * @param head 链表头节点指针
- * @return 第一个节点指针，如果链表为空则返回 head
+ * @return 第一个节点指针，如果链表为空则返回 NULL
  */
 __EK_STATIC_INLINE ek_list_node_t *ek_list_get_first(const ek_list_node_t *head)
 {
@@ -176,7 +176,7 @@ __EK_STATIC_INLINE ek_list_node_t *ek_list_get_first(const ek_list_node_t *head)
 /**
  * @brief 获取链表的最后一个节点
  * @param head 链表头节点指针
- * @return 最后一个节点指针，如果链表为空则返回 head
+ * @return 最后一个节点指针，如果链表为空则返回 NULL
  */
 __EK_STATIC_INLINE ek_list_node_t *ek_list_get_last(const ek_list_node_t *head)
 {
@@ -187,7 +187,7 @@ __EK_STATIC_INLINE ek_list_node_t *ek_list_get_last(const ek_list_node_t *head)
 /**
  * @brief 获取链表的第一个节点，并且将该节点从链表移除
  * @param head 链表头节点指针
- * @return 第一个节点指针，如果链表为空则返回 head
+ * @return 第一个节点指针，如果链表为空则返回 NULL
  */
 __EK_STATIC_INLINE ek_list_node_t *ek_list_pop_first(const ek_list_node_t *head)
 {

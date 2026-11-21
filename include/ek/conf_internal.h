@@ -75,7 +75,8 @@
 #    define EKCFG_IO_LWPRTF (0) /* picolibc 接管 printf，关闭 lwprintf */
 #endif
 #ifndef EKCFG_STATIC_ALLOC
-#    define EKCFG_STATIC_ALLOC (1) /**< 是否启用 EK_DEFINE_* 静态对象注册 (1=使用, 0=不使用);静态初始化函数始终可用 */
+#    define EKCFG_STATIC_ALLOC \
+        (1) /**< 是否启用 EK_DEFINE_* 静态对象注册 (1=启用, 0=禁用；各模块的手动静态初始化函数始终可用) */
 #endif
 
 /* ========================================================================
@@ -324,7 +325,7 @@
 #        define EKCFG_SHELL_UTF8 (0) /**< Shell 支持 UTF-8 处理 */
 #    endif
 #    ifndef EKCFG_SHELL_BUILTIN_CMDS
-#        define EKCFG_SHELL_BUILTIN_CMDS (0) /**< 启动几个默认的 Shell 命令 */
+#        define EKCFG_SHELL_BUILTIN_CMDS (0) /**< 是否启用内置默认 Shell 命令 (1=启用, 0=禁用) */
 #    endif
 #endif
 
@@ -337,7 +338,7 @@
 #endif
 #if EKCFG_RTOS == 1
 #    ifndef EKCFG_OS_KERNEL_TIMEBASE_HZ
-#        define EKCFG_OS_KERNEL_TIMEBASE_HZ (1000000U) /**< OS 内核频率 */
+#        define EKCFG_OS_KERNEL_TIMEBASE_HZ (1000000U) /**< OS 内核时基频率（Hz） */
 #    endif
 #    ifndef EKCFG_OS_THREAD_NAME_LEN
 #        define EKCFG_OS_THREAD_NAME_LEN (16) /**< OS 线程名字的最大长度 */
@@ -368,7 +369,7 @@
 
 // DEPEND_ON 为真表示依赖满足：module 未开启，或 dependency 已开启。
 #define DEPEND_ON(module, dependency) (!(module) || (dependency))
-// MUTUAL_EXCLUSION 为真表示互斥，为假为不互斥。
+// MUTUAL_EXCLUSION 为真表示两个互斥模块同时启用（冲突），为假表示未冲突。
 #define MUTUAL_EXCLUSION(module1, module2) ((module1) && (module2))
 
 #if MUTUAL_EXCLUSION(EKCFG_PICOLIBC, EKCFG_NEWLIB)

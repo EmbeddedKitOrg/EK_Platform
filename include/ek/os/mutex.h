@@ -44,6 +44,7 @@ struct ek_os_mutex
 /**
  * @brief 动态创建互斥量
  * @return 成功返回互斥量句柄，失败返回 NULL
+ * @note 不允许在中断上下文调用。
  */
 ek_os_mutex_t *ek_os_mutex_create(void);
 
@@ -52,20 +53,24 @@ ek_os_mutex_t *ek_os_mutex_create(void);
  * @param buf  缓冲区起始地址，必须按 _Alignof(ek_os_mutex_t) 对齐
  * @param size 缓冲区字节数，不得小于 EK_OS_MUTEX_STATIC_BUF_SIZE
  * @return 成功返回互斥量句柄，失败返回 NULL
+ * @note 缓冲区由调用者持有；destroy 只清除生命周期标记，不会释放缓冲区。
+ * @note 不允许在中断上下文调用。
  */
 ek_os_mutex_t *ek_os_mutex_create_static(void *buf, size_t size);
 
 /**
  * @brief 销毁互斥量（唤醒所有阻塞等待者返回 -ECANCELED，并重新计算原持有者的优先级）
  * @param mutex 互斥量句柄
+ * @note 不允许在中断上下文调用。
  */
 void ek_os_mutex_destroy(ek_os_mutex_t *mutex);
 
 /**
  * @brief 获取互斥量（支持同一线程重入加锁与优先级继承）
  * @param mutex   互斥量句柄
- * @param timeout 相对超时时长；传 EK_OS_FOREVER 表示永久等待，传 0 表示非阻塞试探
- * @return 0 成功获取，负数错误码失败（-ENOENT/-EPERM/-EAGAIN/-ETIMEDOUT/-EINTR/-ECANCELED）
+ * @param timeout 相对超时时长（单位为内核时间基计数，推荐通过 EK_OS_MSEC()/EK_OS_SEC() 构造）；传 EK_OS_FOREVER 表示永久等待，传 0 表示非阻塞试探
+ * @return 0 成功获取，负数错误码失败（-ENOENT/-EPERM/-EAGAIN/-ETIMEDOUT/-EINTR/-ECANCELED/-EOVERFLOW）
+ * @note 不允许在中断上下文或空闲线程上下文调用。
  */
 int ek_os_mutex_lock(ek_os_mutex_t *mutex, int64_t timeout);
 
@@ -73,6 +78,7 @@ int ek_os_mutex_lock(ek_os_mutex_t *mutex, int64_t timeout);
  * @brief 非阻塞尝试获取互斥量
  * @param mutex 互斥量句柄
  * @return 0 成功获取，-EAGAIN 锁已被其它线程持有，或其它负数错误码
+ * @note 不允许在中断上下文或空闲线程上下文调用。
  */
 static inline int ek_os_mutex_trylock(ek_os_mutex_t *mutex)
 {
@@ -80,9 +86,10 @@ static inline int ek_os_mutex_trylock(ek_os_mutex_t *mutex)
 }
 
 /**
- * @brief 释放互斥量（仅持有者可调用；计数归 0 时按优先级继承并移交所有权）
+ * @brief 释放互斥量（仅持有者可调用；计数归 0 时移交所有权给最高优先级等待者并重算原持有者优先级）
  * @param mutex 互斥量句柄
  * @return 0 成功，负数错误码失败（-ENOENT/-EPERM）
+ * @note 不允许在中断上下文调用。
  */
 int ek_os_mutex_unlock(ek_os_mutex_t *mutex);
 

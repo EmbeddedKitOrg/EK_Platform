@@ -1,15 +1,14 @@
 /**
  * @file def.h
- * @brief 基础类型定义和编译器相关宏
+ * @brief 基础类型定义、版本号与通用工具宏
  * @author N1netyNine99
  *
- * 提供跨编译器的统一宏定义，包括：
- * - 弱符号、打包、对齐等属性宏
- * - 内联函数宏
- * - 汇编指令宏
- * - 平台相关的换行符定义
- *
- * 支持的编译器：GCC、ARM Compiler 6、ARM Compiler 5
+ * 汇总标准头文件与编译器抽象宏（compiler.h），并提供：
+ * - 软件版本号与构建模式查询接口
+ * - 平台相关的换行符定义（CRLF）
+ * - 常用位运算、对齐、容器偏移与数学辅助宏
+ * - 错误码传播宏（EK_ERR_RETURN / EK_ERR_GOTO）
+ * - 跨平台基础类型兜底定义（ssize_t / off_t / ek_off_t）
  */
 
 #ifndef EK_DEF_H

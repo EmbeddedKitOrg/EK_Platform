@@ -23,9 +23,10 @@ extern "C"
 #    include "lwprintf.h"
 
 /**
- * @brief 底层字符输出函数声明
- * @note 用户需要实现此函数，用于底层字符输出（如 UART）
+ * @brief 底层字符输出函数（弱函数）
+ * @param ch 待输出的字符
  * @return 写入的字符
+ * @note 用户可覆盖此函数以实现底层字符输出（如 UART）
  */
 int ek_port_io_fputc(int ch);
 
@@ -46,9 +47,10 @@ void ek_io_init(void);
 #    include <stdio.h>
 
 /**
- * @brief 底层字符输出函数声明
- * @note 用户需要实现此函数，用于底层字符输出（如 UART）
+ * @brief 底层字符输出函数（弱函数）
+ * @param ch 待输出的字符
  * @return 写入的字符
+ * @note 用户可覆盖此函数以实现底层字符输出（如 UART）
  */
 int ek_port_io_fputc(int ch);
 
@@ -67,7 +69,17 @@ void ek_io_init(void);
 
 #    include <stdio.h>
 
+/**
+ * @brief 初始化 I/O 系统（标准 libc 后端下为空实现）
+ */
 void ek_io_init(void);
+
+/**
+ * @brief 底层字符输出函数（弱函数）
+ * @param ch 待输出的字符
+ * @return 写入的字符
+ * @note 标准 libc 后端下的默认弱函数实现，用户可覆盖此函数以实现底层字符输出
+ */
 int ek_port_io_fputc(int ch);
 
 #    define ek_printf    printf

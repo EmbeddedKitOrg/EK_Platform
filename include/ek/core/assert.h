@@ -46,12 +46,12 @@
 /**
  * @brief 完整断言（表达式为假时调用 ek_assert_fault）
  * @param expr 断言表达式
- * @note 会输出文件名、行号和表达式内容
+ * @note 当 EKCFG_ASSERT_LOG == 1 时输出文件名、行号和表达式内容
  */
 #    define ek_assert_full(expr) (expr) ? (void)0 : ek_assert_fault(__FILE_NAME__, __LINE__, #expr)
 
 /**
- * @brief 参数断言（根据配置选择实现方式）
+ * @brief 通用断言（根据配置选择实现方式）
  * @param expr 断言表达式
  * @note 通过 EKCFG_ASSERT_TINY 宏选择使用 tiny 或 full 版本
  */
@@ -71,7 +71,7 @@ extern "C"
  * @param file 源文件名
  * @param line 行号
  * @param expr 断言表达式字符串
- * @note 此函数会输出断言失败信息，然后进入死循环
+ * @note 当 EKCFG_ASSERT_LOG == 1 时输出断言失败日志，随后调用 ek_assert_hook()，最后进入死循环
  */
 void ek_assert_fault(const char *file, uint32_t line, const char *expr);
 

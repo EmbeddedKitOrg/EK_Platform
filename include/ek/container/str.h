@@ -64,6 +64,7 @@ void ek_str_clear(ek_str_t *s);
  * @param str 要追加的字符串
  * @param len 追加的长度
  * @return 0 成功
+ * @return -EINVAL 参数无效（s 为 NULL，或 str 与 len 仅其一为空/0）
  * @return -ENOMEM 内存不足
  */
 int ek_str_append_len(ek_str_t *s, const char *str, uint32_t len);
@@ -71,8 +72,9 @@ int ek_str_append_len(ek_str_t *s, const char *str, uint32_t len);
 /**
  * @brief 追加字符串
  * @param s 字符串对象指针
- * @param str 要追加的字符串（以 \0 结尾）
+ * @param str 要追加的字符串（以 \0 结尾，不能为 NULL）
  * @return 0 成功
+ * @return -EINVAL s 为 NULL 或 str 为空字符串
  * @return -ENOMEM 内存不足
  */
 int ek_str_append(ek_str_t *s, const char *str);
@@ -83,6 +85,8 @@ int ek_str_append(ek_str_t *s, const char *str);
  * @param fmt 格式化字符串
  * @param ... 可变参数
  * @return 0 成功
+ * @return -EINVAL s 或 fmt 为 NULL
+ * @return -EBADMSG 格式化失败
  * @return -ENOMEM 内存不足
  */
 int ek_str_append_fmt(ek_str_t *s, const char *fmt, ...);
@@ -92,6 +96,7 @@ int ek_str_append_fmt(ek_str_t *s, const char *fmt, ...);
  * @param dst 目标字符串
  * @param src 源字符串
  * @return 0 成功
+ * @return -EINVAL dst 或 src 为 NULL
  * @return -ENOMEM 内存不足
  * @note 将 src 的内容追加到 dst 末尾
  */
@@ -111,8 +116,7 @@ ek_str_t *ek_str_slice(const ek_str_t *s, int32_t start, int32_t end);
  * @brief 翻转字符串
  * @param s 源字符串
  * @return 0 成功
- * @return -EINVAL 缓冲区为空
- * @note 如果字符串的缓冲区为空会直接返回 -EINVAL
+ * @return -EINVAL s 为 NULL 或内部缓冲区未分配
  */
 int ek_str_reverse(ek_str_t *s);
 
@@ -150,7 +154,7 @@ int ek_str_cmp(ek_str_t *s1, ek_str_t *s2);
  * @brief 比较两个字符串的前 n 个字符
  * @param s1 字符串 1
  * @param s2 字符串 2
- * @param n 比较的字符数
+ * @param n 最大比较字符数（超过两字符串较短长度时按较短长度比较）
  * @return 0 相等，< 0 s1 < s2，> 0 s1 > s2
  */
 int ek_str_ncmp(ek_str_t *s1, ek_str_t *s2, size_t n);

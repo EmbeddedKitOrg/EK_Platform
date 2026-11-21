@@ -60,7 +60,7 @@
 #    define __EK_ASM           __asm volatile
 #    define __EK_CLEANUP(fn)
 
-/* ========== 不支持的编译器（空定义） ========== */
+/* ========== 不支持的编译器（回退默认定义） ========== */
 #else
 #    define __EK_WEAK
 #    define __EK_PACKED

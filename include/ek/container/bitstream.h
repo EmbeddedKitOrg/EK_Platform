@@ -1,5 +1,5 @@
 /**
- * @file bitsteam.h
+ * @file bitstream.h
  * @brief 比特流读写
  * @author N1netyNine99
  *
@@ -27,9 +27,9 @@ typedef struct ek_bitstream ek_bitreader_t;
 
 struct ek_bitstream
 {
-    uint8_t *buf; // bit 流对应的缓冲区
-    size_t bit_pos; // 当前 bit 的位置
-    size_t bit_cap; // 最大比特数
+    uint8_t *buf; /**< 位流对应的字节缓冲区 */
+    size_t bit_pos; /**< 当前读写位偏移 */
+    size_t bit_cap; /**< 最大比特容量 */
 };
 
 /**
@@ -49,7 +49,7 @@ int ek_stream_writer_init(ek_bitwriter_t *bw, uint8_t *buf, size_t bytes);
  * @brief 初始化位流读取器上下文。
  *
  * @param[out] br    指向待初始化的位流读取器上下文结构体指针。不可为 NULL。
- * @param[in]  buf   指向待解析的空口紧凑数据流的字节缓冲区指针。不可为 NULL。
+ * @param[in]  buf   指向待解析二进制位流的字节缓冲区指针。不可为 NULL。
  * @param[in]  bytes 待读取数据缓冲区的有效字节大小。
  *
  * @return 0 成功；-EINVAL 表示 br 或 buf 为 NULL。
@@ -63,7 +63,7 @@ int ek_bitstream_reader_init(ek_bitreader_t *br, const uint8_t *buf, size_t byte
  *
  * @param[in,out] bw   指向已初始化的位流写入器结构体指针。
  * @param[in]     val  待写入的数值数据。仅有效位参与写入，超出 bits 宽度的更高位会被忽略。
- * @param[in]     bits 计划写入的比特位数。有效范围通常为 1 ~ 32。
+ * @param[in]     bits 要写入的比特位数，有效范围为 1 ~ 32。
  *
  * @return 0 成功；-EINVAL 表示 bw 为 NULL、bits 为 0 或 bits 大于 32。
  *
@@ -77,13 +77,13 @@ int ek_bitstream_write(ek_bitwriter_t *bw, uint32_t val, uint8_t bits);
  * @brief 从位流缓冲区按大端位序（MSB-First）提取指定位宽的数据并拼接为 32 位整数。
  *
  * @param[in,out] br   指向已初始化的位流读取器结构体指针。
- * @param[in]     bits 计划读取的比特位数。有效范围通常为 1 ~ 32。
+ * @param[in]     bits 要读取的比特位数，有效范围为 1 ~ 32。
  *
  * @return 成功时返回读取到的无符号位值（0 ~ 2^bits - 1）；参数非法返回 -EINVAL。
  *         到达缓冲区末尾时返回已读取的部分值，不额外报错。
  *
- * @warning 当前返回类型为 int：当 bits 为 32 且最高位为 1 时，结果可能变成负数。
- *          需要完整 32 位无符号值时，建议将返回类型改为 uint32_t。
+ * @warning 返回类型为有符号 int：当 bits 为 32 且最高位为 1 时，结果会表现为负数，
+ *          可能与负错误码（如 -EINVAL）混淆，调用方需注意区分。
  *
  * @note 读取规则与 ek_bitstream_write() 完全对称；若解析有符号数（如经纬度增量、加速度），
  *       外部调用者需对读取出的低位结果进行符号扩展（Sign Extension）。
