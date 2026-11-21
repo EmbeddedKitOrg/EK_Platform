@@ -114,7 +114,7 @@ int ek_os_msgq_send(ek_os_msgq_t *msgq, const void *item, int64_t timeout)
         if (msgq->count < msgq->cap)
         {
             memcpy(msgq->buf + msgq->head * msgq->item_size, item, msgq->item_size);
-            EK_INC_MOD(msgq->head, msgq->cap);
+            msgq->head = EK_INC_MOD(msgq->head, msgq->cap);
             msgq->count++;
 
             bool woke = kernel_wake_one(&msgq->recv_list, 0);
@@ -163,7 +163,7 @@ int ek_os_msgq_recv(ek_os_msgq_t *msgq, void *item, int64_t timeout)
         if (msgq->count)
         {
             memcpy(item, msgq->buf + msgq->tail * msgq->item_size, msgq->item_size);
-            EK_INC_MOD(msgq->tail, msgq->cap);
+            msgq->tail = EK_INC_MOD(msgq->tail, msgq->cap);
             msgq->count--;
 
             bool woke = kernel_wake_one(&msgq->send_list, 0);
