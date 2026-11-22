@@ -61,6 +61,7 @@ set(EK_OS_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/sem.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/condvar.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os/barrier.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os/kfifo.c
 )
 
 set(PORT_SRCS)
