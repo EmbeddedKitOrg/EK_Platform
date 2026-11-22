@@ -26,34 +26,51 @@ typedef struct os_thread os_thread_t;
 /**
  * @brief 内核线程控制块（TCB）
  *
- * @note sp 必须是首成员：上下文切换汇编依赖它位于偏移 0，
+ * @note arch.sp 必须是首成员：上下文切换汇编依赖它位于偏移 0，
  *       kernel.c 中用 static_assert 固定该布局。
  */
 struct os_thread
 {
-    uintptr_t sp; /**< 保存的栈指针，线程切换时由 PendSV 汇编读写 */
-    void *stack_base; /**< 栈内存起始地址；动态栈为 ek_malloc 返回值，供 GC 释放 */
-    size_t stack_size; /**< 可用栈字节数（不含 TCB） */
+    struct
+    {
+        uintptr_t sp; /**< 保存的栈指针，线程切换时由 PendSV 汇编读写 */
+    } arch;
+
+    struct
+    {
+        ek_list_node_t state_node; /**< 挂在就绪/阻塞/挂起队列上的侵入式节点 */
+        uint8_t state; /**< 当前状态，取值见 enum ek_thread_state */
+        uint8_t prio; /**< 当前有效调度优先级，数值越小优先级越高 */
+        uint8_t base_prio; /**< 线程固有基础优先级 */
+        uint8_t sched_lock; /**< 调度器锁嵌套层数；> 0 时禁止被更高优先级线程抢占 */
+    } sched;
+
+    struct
+    {
+        ek_list_node_t node; /**< 挂在同步对象等待队列上的侵入式节点 */
+        int64_t deadline; /**< 阻塞到期时刻（绝对时间）；EK_OS_FOREVER 表示无限等待 */
+        int err; /**< 阻塞唤醒结果：0 成功、-ETIMEDOUT 超时、-EINTR 被打断、-ECANCELED 对象销毁 */
+        void *data; /**< 唤醒直达交接槽（供 fifo/queue 等原语直接传递数据指针） */
+    } wait;
+
+    struct
+    {
+        void *waiting_lock; /**< 若阻塞在某把 mutex 上，指向该 mutex（用于链式传播） */
+        ek_list_node_t owned_list; /**< 当前持有的所有 mutex 链表 */
+    } lock;
+
+    struct
+    {
+        void *base; /**< 栈内存起始地址；动态栈为 ek_malloc 返回值，供 GC 释放 */
+        size_t size; /**< 可用栈字节数（不含 TCB） */
+        bool owned; /**< true 表示栈由内核堆分配，销毁时需 ek_free；false 表示外部静态栈 */
+    } stack;
 
     int tid; /**< 线程 ID；销毁后槽位被回收，旧 tid 不再有效 */
-    int wait_err; /**< 阻塞唤醒结果：0 成功、-ETIMEDOUT 超时、-EINTR 被打断、-ECANCELED 对象销毁 */
-    int64_t deadline; /**< 阻塞到期时刻（绝对时间）；EK_OS_FOREVER 表示无限等待 */
-
     ek_os_thread_fn_t fn; /**< 线程入口函数 */
     void *arg; /**< 传给入口函数的参数 */
-    ek_list_node_t state_node; /**< 挂在就绪/阻塞/挂起队列上的侵入式节点 */
-    ek_list_node_t wait_node; /**< 挂在同步对象（信号量/互斥量/消息队列/join）等待队列上的侵入式节点 */
-    ek_list_node_t join_wait; /**< 等待本线程结束的 joiner 队列头 */
     void *retval; /**< 线程退出返回值，供 join 取回 */
-
-    uint8_t base_prio; /**< 线程固有基础优先级（prio 保留为当前有效调度优先级） */
-    void *waiting_lock; /**< 若阻塞在某把 mutex 上，指向该 mutex（用于链式传播） */
-    ek_list_node_t owned_locks; /**< 当前持有的所有 mutex 链表 */
-
-    uint8_t state; /**< 当前状态，取值见 enum ek_thread_state */
-    uint8_t prio; /**< 优先级，数值越小优先级越高 */
-    uint8_t sched_lock; /**< 调度器锁嵌套层数；> 0 时禁止被更高优先级线程抢占 */
-    bool stack_owned; /**< true 表示栈由内核堆分配，销毁时需 ek_free；false 表示外部静态栈 */
+    ek_list_node_t join_wait; /**< 等待本线程结束的 joiner 队列头 */
     char name[EKCFG_OS_THREAD_NAME_LEN]; /**< 线程名，以 '\0' 结尾 */
 };
 

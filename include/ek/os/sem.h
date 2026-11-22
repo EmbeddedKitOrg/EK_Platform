@@ -19,7 +19,6 @@
 
 #    include "ek/core/def.h"
 #    include "ek/container/list.h"
-#    include "ek/os/kernel.h"
 
 #    ifdef __cplusplus
 extern "C"

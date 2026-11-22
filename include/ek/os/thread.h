@@ -132,7 +132,7 @@ int ek_os_thread_sleep(int64_t timeout);
 #        include "ek/mem/static_alloc.h"
 
 /** @brief 静态线程缓冲区中为内核 TCB 预留的字节数 */
-#        define EK_OS_THREAD_TCB_SIZE EK_ALIGN_UP(sizeof(void *) * 15U + 24U + (EKCFG_OS_THREAD_NAME_LEN), 8)
+#        define EK_OS_THREAD_TCB_SIZE EK_ALIGN_UP(sizeof(void *) * 18U + 24U + (EKCFG_OS_THREAD_NAME_LEN), 8)
 
 /**
  * @brief 静态声明一个线程并自动注册初始化

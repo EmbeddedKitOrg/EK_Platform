@@ -33,7 +33,7 @@ struct ek_os_mutex
     void *owner; /**< 当前持有者线程指针 (os_thread_t *)；NULL 表示未加锁 */
     uint32_t lock_count; /**< 重入加锁计数；0 表示空闲，同一线程重复 lock 时递增 */
     ek_list_node_t wait_list; /**< 等待本互斥量的线程链表，按线程有效优先级升序 */
-    ek_list_node_t owner_node; /**< 挂入持有者线程 owned_locks 链表的侵入式节点 */
+    ek_list_node_t owner_node; /**< 挂入持有者线程 lock.owned_list 链表的侵入式节点 */
 };
 
 /**

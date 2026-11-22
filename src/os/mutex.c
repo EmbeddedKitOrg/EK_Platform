@@ -73,10 +73,10 @@ void kernel_mutex_release_locked(ek_os_mutex_t *mutex)
 
     if (!ek_list_is_empty(&mutex->wait_list))
     {
-        os_thread_t *next = EK_CONTAINER_OF(ek_list_get_first(&mutex->wait_list), os_thread_t, wait_node);
+        os_thread_t *next = EK_CONTAINER_OF(ek_list_get_first(&mutex->wait_list), os_thread_t, wait.node);
         mutex->owner = next;
         mutex->lock_count = 1U;
-        ek_list_insert_tail(&next->owned_locks, &mutex->owner_node);
+        ek_list_insert_tail(&next->lock.owned_list, &mutex->owner_node);
         kernel_thread_unblock(next, 0);
     }
     else
@@ -132,7 +132,7 @@ int ek_os_mutex_lock(ek_os_mutex_t *mutex, int64_t timeout)
     {
         mutex->owner = cur;
         mutex->lock_count = 1U;
-        ek_list_insert_tail(&cur->owned_locks, &mutex->owner_node);
+        ek_list_insert_tail(&cur->lock.owned_list, &mutex->owner_node);
         ek_os_kernel_spin_unlock(flags);
         return 0;
     }
@@ -152,8 +152,8 @@ int ek_os_mutex_lock(ek_os_mutex_t *mutex, int64_t timeout)
         return -EAGAIN;
     }
 
-    cur->wait_err = 0;
-    cur->waiting_lock = mutex;
+    cur->wait.err = 0;
+    cur->lock.waiting_lock = mutex;
 
     kernel_wait_enqueue_locked(&mutex->wait_list);
     kernel_thread_recalc_prio(owner);
@@ -163,8 +163,8 @@ int ek_os_mutex_lock(ek_os_mutex_t *mutex, int64_t timeout)
     ek_arch_isb();
 
     flags = ek_os_kernel_spin_lock();
-    cur->waiting_lock = NULL;
-    int err = cur->wait_err;
+    cur->lock.waiting_lock = NULL;
+    int err = cur->wait.err;
     ek_os_kernel_spin_unlock(flags);
 
     return err;
