@@ -82,7 +82,7 @@ int ek_os_condvar_wait(ek_os_condvar_t *condvar, ek_os_mutex_t *mutex, int64_t t
 
     uint32_t flags = ek_os_kernel_spin_lock();
 
-    const os_thread_t *cur = g_cur_thrd;
+    os_thread_t *cur = g_cur_thrd;
 
     if (!cur || kernel_is_idle_thread(cur) || (os_thread_t *)mutex->owner != cur)
     {
@@ -102,11 +102,22 @@ int ek_os_condvar_wait(ek_os_condvar_t *condvar, ek_os_mutex_t *mutex, int64_t t
         return -EDEADLK;
     }
 
-    // 在同一自旋锁临界区内原子释放互斥量并挂入等待队列，防止唤醒丢失
+    // 记录绑定的互斥量供 signal/broadcast 原地 Wait Morphing，同一临界区内原子释锁并阻塞
+    cur->wait.data = mutex;
     kernel_mutex_release_locked(mutex);
     int err = kernel_wait_on_locked(&condvar->wait_list, timeout, flags);
 
-    // 返回前必须重新持有互斥量；若重加锁期间被挂起打断则继续等待
+    flags = ek_os_kernel_spin_lock();
+    bool morphed = (cur->wait.data == NULL);
+    cur->wait.data = NULL;
+    bool already_owned = mutex_valid(mutex) && ((os_thread_t *)mutex->owner == cur);
+    ek_os_kernel_spin_unlock(flags);
+
+    if (already_owned) return 0;
+
+    // 已通过 Wait Morphing 收到信号，若等锁期间被挂起打断则保留信号并重试加锁
+    if (morphed && err == -EINTR) err = 0;
+
     int lock_err;
     do
     {
@@ -115,6 +126,22 @@ int ek_os_condvar_wait(ek_os_condvar_t *condvar, ek_os_mutex_t *mutex, int64_t t
     if (lock_err < 0) return lock_err;
 
     return err;
+}
+
+static bool _condvar_wake_one_locked(ek_os_condvar_t *condvar)
+{
+    os_thread_t *thrd = EK_CONTAINER_OF(ek_list_get_first(&condvar->wait_list), os_thread_t, wait.node);
+    ek_os_mutex_t *mtx = (ek_os_mutex_t *)thrd->wait.data;
+
+    // 若绑定的互斥量正被持有，直接原地转移到互斥量等待队列，避免无效唤醒折返
+    if (mtx && mutex_valid(mtx) && mtx->owner != NULL)
+    {
+        kernel_wait_morph_to_mutex_locked(thrd, mtx);
+        return ((os_thread_t *)mtx->owner != g_cur_thrd);
+    }
+
+    kernel_thread_unblock(thrd, 0);
+    return true;
 }
 
 int ek_os_condvar_signal(ek_os_condvar_t *condvar)
@@ -129,8 +156,7 @@ int ek_os_condvar_signal(ek_os_condvar_t *condvar)
         return 0;
     }
 
-    bool woke = kernel_wake_one(&condvar->wait_list, 0);
-    if (woke) kernel_schedule();
+    if (_condvar_wake_one_locked(condvar)) kernel_schedule();
 
     ek_os_kernel_spin_unlock(flags);
 
@@ -149,8 +175,12 @@ int ek_os_condvar_broadcast(ek_os_condvar_t *condvar)
         return 0;
     }
 
-    bool woke = kernel_wake_all(&condvar->wait_list, 0);
-    if (woke) kernel_schedule();
+    bool need_sched = false;
+    while (!ek_list_is_empty(&condvar->wait_list))
+    {
+        if (_condvar_wake_one_locked(condvar)) need_sched = true;
+    }
+    if (need_sched) kernel_schedule();
 
     ek_os_kernel_spin_unlock(flags);
 

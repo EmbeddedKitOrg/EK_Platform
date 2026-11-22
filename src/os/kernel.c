@@ -428,6 +428,28 @@ bool kernel_wake_all(ek_list_node_t *wait_list, int err)
     return woke;
 }
 
+void kernel_wait_morph_to_mutex_locked(os_thread_t *thrd, ek_os_mutex_t *mutex)
+{
+    // 已收到条件信号进入无限等锁阶段，必须先解除原条件等待的超时定时器
+    if (thrd->wait.deadline != EK_OS_FOREVER)
+    {
+        bool was_block_head = _is_block_head(thrd);
+        ek_list_remove(&thrd->sched.state_node);
+        thrd->wait.deadline = EK_OS_FOREVER;
+        if (was_block_head) _block_timer_sync();
+    }
+
+    thrd->wait.data = NULL;
+    thrd->wait.err = 0;
+    thrd->lock.waiting_lock = mutex;
+
+    _requeue_wait_list(&mutex->wait_list, thrd);
+    if (mutex->owner)
+    {
+        kernel_thread_recalc_prio((os_thread_t *)mutex->owner);
+    }
+}
+
 static os_thread_t *_get_next_thread(void)
 {
     uint32_t flags = ek_os_kernel_spin_lock();

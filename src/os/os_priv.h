@@ -231,6 +231,14 @@ bool mutex_valid(const ek_os_mutex_t *mutex);
  */
 void kernel_mutex_release_locked(ek_os_mutex_t *mutex);
 
+/**
+ * @brief 将处于阻塞态的条件变量等待者原地转移到指定互斥量的等待队列（Wait Morphing）
+ * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区，且确认 mutex 有效并被持锁
+ * @param thrd  待转移的等待线程
+ * @param mutex 目标互斥量句柄
+ */
+void kernel_wait_morph_to_mutex_locked(os_thread_t *thrd, ek_os_mutex_t *mutex);
+
 #    ifdef __cplusplus
 }
 #    endif
