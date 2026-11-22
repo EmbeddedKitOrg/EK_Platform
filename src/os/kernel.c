@@ -208,6 +208,7 @@ void kernel_thread_suspend(os_thread_t *thrd)
         thrd->wait_err = -EINTR;
     }
 
+    ek_os_mutex_t *wlock = (ek_os_mutex_t *)thrd->waiting_lock;
     thrd->state = EK_OS_THREAD_SUSPEND;
     thrd->waiting_lock = NULL;
     ek_list_remove(&thrd->state_node);
@@ -215,7 +216,6 @@ void kernel_thread_suspend(os_thread_t *thrd)
     ek_list_insert_tail(&s_suspend_thrds, &thrd->state_node);
     _clear_ready_bit(thrd->prio);
 
-    ek_os_mutex_t *wlock = (ek_os_mutex_t *)thrd->waiting_lock;
     if (wlock && wlock->owner) kernel_thread_recalc_prio((os_thread_t *)wlock->owner);
     if (was_block_head) _block_timer_sync();
     ek_os_kernel_spin_unlock(flags);
