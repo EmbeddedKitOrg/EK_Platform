@@ -61,12 +61,11 @@ void ek_os_sem_destroy(ek_os_sem_t *sem)
     if (!_sem_valid(sem)) return;
     if (ek_arch_in_isr()) return;
 
+    uint32_t flags = ek_os_kernel_spin_lock();
     bool owned = sem->mem_owned;
 
-    uint32_t flags = ek_os_kernel_spin_lock();
-
-    bool woke = kernel_wake_all(&sem->wait_list, -ECANCELED);
-    if (woke) kernel_schedule();
+    bool woke = kernel_wake_all_locked(&sem->wait_list, -ECANCELED);
+    if (woke) kernel_schedule_locked();
     if (!owned) SEM_SET_MAGIC(sem, 0U);
 
     ek_os_kernel_spin_unlock(flags);
@@ -85,9 +84,9 @@ int ek_os_sem_give(ek_os_sem_t *sem)
     {
         sem->count++;
     }
-    else woke = kernel_wake_one(&sem->wait_list, 0);
+    else woke = kernel_wake_one_locked(&sem->wait_list, 0);
 
-    if (woke) kernel_schedule();
+    if (woke) kernel_schedule_locked();
 
     ek_os_kernel_spin_unlock(flags);
 

@@ -77,14 +77,14 @@ void kernel_mutex_release_locked(ek_os_mutex_t *mutex)
         mutex->owner = next;
         mutex->lock_count = 1U;
         ek_list_insert_tail(&next->lock.owned_list, &mutex->owner_node);
-        kernel_thread_unblock(next, 0);
+        kernel_thread_unblock_locked(next, 0);
     }
     else
     {
         mutex->owner = NULL;
     }
 
-    kernel_thread_recalc_prio(cur);
+    kernel_thread_recalc_prio_locked(cur);
 }
 
 void ek_os_mutex_destroy(ek_os_mutex_t *mutex)
@@ -103,9 +103,9 @@ void ek_os_mutex_destroy(ek_os_mutex_t *mutex)
         mutex->lock_count = 0U;
     }
 
-    bool woke = kernel_wake_all(&mutex->wait_list, -ECANCELED);
-    if (owner) kernel_thread_recalc_prio(owner);
-    if (woke || owner) kernel_schedule();
+    bool woke = kernel_wake_all_locked(&mutex->wait_list, -ECANCELED);
+    if (owner) kernel_thread_recalc_prio_locked(owner);
+    if (woke || owner) kernel_schedule_locked();
     if (!owned) MUTEX_SET_MAGIC(mutex, 0U);
 
     ek_os_kernel_spin_unlock(flags);
@@ -156,9 +156,9 @@ int ek_os_mutex_lock(ek_os_mutex_t *mutex, int64_t timeout)
     cur->lock.waiting_lock = mutex;
 
     kernel_wait_enqueue_locked(&mutex->wait_list);
-    kernel_thread_recalc_prio(owner);
-    kernel_thread_block(cur, timeout);
-    kernel_schedule();
+    kernel_thread_recalc_prio_locked(owner);
+    kernel_thread_block_locked(cur, timeout);
+    kernel_schedule_locked();
     ek_os_kernel_spin_unlock(flags);
     ek_arch_isb();
 
@@ -191,7 +191,7 @@ int ek_os_mutex_unlock(ek_os_mutex_t *mutex)
     }
 
     kernel_mutex_release_locked(mutex);
-    kernel_schedule();
+    kernel_schedule_locked();
     ek_os_kernel_spin_unlock(flags);
 
     return 0;

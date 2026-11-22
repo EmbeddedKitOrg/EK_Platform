@@ -83,23 +83,26 @@ void kernel_thread_exit(void);
 
 /**
  * @brief 为线程分配 TID 槽位并登记到全局线程表
+ * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区
  * @param thrd 线程控制块指针
  * @return 正整数 tid，或 -ENOSPC/-EINVAL
  */
-int kernel_alloc_thread(os_thread_t *thrd);
+int kernel_alloc_thread_locked(os_thread_t *thrd);
 
 /**
  * @brief 释放指定 TID 占用的线程表槽位
+ * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区
  * @param tid 目标线程 ID
  */
-void kernel_free_thread(int tid);
+void kernel_free_thread_locked(int tid);
 
 /**
  * @brief 根据 TID 查找对应的线程控制块
+ * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区
  * @param tid 目标线程 ID
  * @return 线程控制块指针，无效或已释放返回 NULL
  */
-os_thread_t *kernel_tid_to_thread(int tid);
+os_thread_t *kernel_tid_to_thread_locked(int tid);
 
 /**
  * @brief 获取线程控制块对应的 TID
@@ -110,61 +113,70 @@ int kernel_thread_to_tid(os_thread_t *thrd);
 
 /**
  * @brief 将线程置为 READY 并插入对应优先级就绪链表
+ * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区
  * @param thrd 线程控制块指针
  */
-void kernel_thread_ready(os_thread_t *thrd);
+void kernel_thread_ready_locked(os_thread_t *thrd);
 
 /**
  * @brief 将线程从就绪链表摘除并标记为 RUNNING
+ * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区
  * @param thrd 线程控制块指针
  */
-void kernel_thread_run(os_thread_t *thrd);
+void kernel_thread_run_locked(os_thread_t *thrd);
 
 /**
  * @brief 挂起线程（从当前队列及等待队列摘除并移入挂起链表）
+ * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区
  * @param thrd 线程控制块指针
  */
-void kernel_thread_suspend(os_thread_t *thrd);
+void kernel_thread_suspend_locked(os_thread_t *thrd);
 
 /**
  * @brief 恢复处于 SUSPEND 状态的线程为 READY
+ * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区
  * @param thrd 线程控制块指针
  */
-void kernel_thread_resume(os_thread_t *thrd);
+void kernel_thread_resume_locked(os_thread_t *thrd);
 
 /**
  * @brief 终止线程（置为 DEAD、保存返回值、摘出队列并唤醒所有 joiner）
+ * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区
  * @param thrd   线程控制块指针
  * @param retval 线程退出返回值指针
  */
-void kernel_thread_dead(os_thread_t *thrd, void *retval);
+void kernel_thread_dead_locked(os_thread_t *thrd, void *retval);
 
 /**
  * @brief 修改线程有效调度优先级并同步调整所在就绪链表（供调度与优先级继承使用）
+ * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区
  * @param thrd 线程控制块指针
  * @param prio 新有效优先级（数值越低优先级越高）
  */
-void kernel_thread_set_prio(os_thread_t *thrd, uint8_t prio);
+void kernel_thread_set_prio_locked(os_thread_t *thrd, uint8_t prio);
 
 /**
  * @brief 按 base_prio 与当前持有的 mutex 队头重算线程有效优先级，并向 waiting_lock 链式传播
+ * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区
  * @param thrd 线程控制块指针
  */
-void kernel_thread_recalc_prio(os_thread_t *thrd);
+void kernel_thread_recalc_prio_locked(os_thread_t *thrd);
 
 /**
  * @brief 将线程置为 BLOCK，若 timeout >= 0 则按到期时间升序加入超时链表
+ * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区
  * @param thrd    线程控制块指针
  * @param timeout 相对超时时长（< 0 表示永久阻塞）
  */
-void kernel_thread_block(os_thread_t *thrd, int64_t timeout);
+void kernel_thread_block_locked(os_thread_t *thrd, int64_t timeout);
 
 /**
  * @brief 唤醒处于 BLOCK 状态的线程并写入等待结果
+ * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区
  * @param thrd 线程控制块指针
  * @param err  唤醒结果错误码（0 表示成功，负数表示超时或取消等原因）
  */
-void kernel_thread_unblock(os_thread_t *thrd, int err);
+void kernel_thread_unblock_locked(os_thread_t *thrd, int err);
 
 /**
  * @brief 判断指定线程是否为空闲线程
@@ -175,14 +187,15 @@ bool kernel_is_idle_thread(const os_thread_t *thrd);
 
 /**
  * @brief 触发一次调度判决并在需要时置位上下文切换
+ * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区
  */
-void kernel_schedule(void);
+void kernel_schedule_locked(void);
 
 /**
  * @brief 当前线程让出 CPU（仅当同优先级就绪队列存在其它线程时才真正轮转）
  * @note 要求调用时当前线程处于 RUNNING 状态；调用前须已持 ek_os_kernel_spin_lock() 临界区
  */
-void kernel_thread_yield(void);
+void kernel_thread_yield_locked(void);
 
 /**
  * @brief 将当前线程按当前有效优先级升序插入指定等待队列
@@ -203,19 +216,21 @@ int kernel_wait_on_locked(ek_list_node_t *wait_list, int64_t timeout, uint32_t i
 
 /**
  * @brief 从等待队列头部唤醒一个等待中的线程
+ * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区
  * @param wait_list 同步对象的等待链表头
  * @param err       传递给被唤醒线程的结果错误码
  * @return true 成功唤醒了一个线程，false 等待队列为空
  */
-bool kernel_wake_one(ek_list_node_t *wait_list, int err);
+bool kernel_wake_one_locked(ek_list_node_t *wait_list, int err);
 
 /**
  * @brief 唤醒等待队列中的全部线程
+ * @note 调用前必须已持 ek_os_kernel_spin_lock() 临界区
  * @param wait_list 同步对象的等待链表头
  * @param err       传递给被唤醒线程的结果错误码
  * @return true 至少唤醒了一个线程，false 等待队列为空
  */
-bool kernel_wake_all(ek_list_node_t *wait_list, int err);
+bool kernel_wake_all_locked(ek_list_node_t *wait_list, int err);
 
 /**
  * @brief 检查互斥量句柄是否有效

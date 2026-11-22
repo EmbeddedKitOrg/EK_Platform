@@ -65,8 +65,8 @@ void ek_os_condvar_destroy(ek_os_condvar_t *condvar)
 
     bool owned = condvar->mem_owned;
 
-    bool woke = kernel_wake_all(&condvar->wait_list, -ECANCELED);
-    if (woke) kernel_schedule();
+    bool woke = kernel_wake_all_locked(&condvar->wait_list, -ECANCELED);
+    if (woke) kernel_schedule_locked();
     if (!owned) CONDVAR_SET_MAGIC(condvar, 0U);
 
     ek_os_kernel_spin_unlock(flags);
@@ -140,7 +140,7 @@ static bool _condvar_wake_one_locked(ek_os_condvar_t *condvar)
         return ((os_thread_t *)mtx->owner != g_cur_thrd);
     }
 
-    kernel_thread_unblock(thrd, 0);
+    kernel_thread_unblock_locked(thrd, 0);
     return true;
 }
 
@@ -156,7 +156,7 @@ int ek_os_condvar_signal(ek_os_condvar_t *condvar)
         return 0;
     }
 
-    if (_condvar_wake_one_locked(condvar)) kernel_schedule();
+    if (_condvar_wake_one_locked(condvar)) kernel_schedule_locked();
 
     ek_os_kernel_spin_unlock(flags);
 
@@ -180,7 +180,7 @@ int ek_os_condvar_broadcast(ek_os_condvar_t *condvar)
     {
         if (_condvar_wake_one_locked(condvar)) need_sched = true;
     }
-    if (need_sched) kernel_schedule();
+    if (need_sched) kernel_schedule_locked();
 
     ek_os_kernel_spin_unlock(flags);
 

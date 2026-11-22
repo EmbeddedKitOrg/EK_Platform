@@ -64,8 +64,8 @@ void ek_os_kfifo_destroy(ek_os_kfifo_t *fifo)
 
     uint32_t flags = ek_os_kernel_spin_lock();
     bool owned = fifo->mem_owned;
-    bool woke = kernel_wake_all(&fifo->wait_list, -ECANCELED);
-    if (woke) kernel_schedule();
+    bool woke = kernel_wake_all_locked(&fifo->wait_list, -ECANCELED);
+    if (woke) kernel_schedule_locked();
 
     if (!owned) KFIFO_SET_MAGIC(fifo, 0);
 
@@ -86,8 +86,8 @@ int ek_os_kfifo_put(ek_os_kfifo_t *fifo, void *data)
         os_thread_t *thrd = EK_CONTAINER_OF(ek_list_get_first(&fifo->wait_list), os_thread_t, wait.node);
         thrd->wait.data = data;
 
-        bool woke = kernel_wake_one(&fifo->wait_list, 0);
-        if (woke) kernel_schedule();
+        bool woke = kernel_wake_one_locked(&fifo->wait_list, 0);
+        if (woke) kernel_schedule_locked();
 
         ek_os_kernel_spin_unlock(flags);
         return 0;

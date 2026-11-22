@@ -43,11 +43,10 @@ void kernel_thread_exit(void)
     ek_os_thread_exit(NULL);
 }
 
-int kernel_alloc_thread(os_thread_t *thrd)
+int kernel_alloc_thread_locked(os_thread_t *thrd)
 {
     if (!thrd) return -EINVAL;
 
-    uint32_t flags = ek_os_kernel_spin_lock();
     for (int i = 0; i < EKCFG_OS_THREADS_MAX; i++)
     {
         if (!s_all_threads[i].thrd)
@@ -56,44 +55,38 @@ int kernel_alloc_thread(os_thread_t *thrd)
             if (++s_all_threads[i].gen == 0) s_all_threads[i].gen = 1;
             int tid = MAKE_TID(s_all_threads[i].gen, i);
             thrd->tid = tid;
-            ek_os_kernel_spin_unlock(flags);
             return tid;
         }
     }
-    ek_os_kernel_spin_unlock(flags);
     return -ENOSPC;
 }
 
-void kernel_free_thread(int tid)
+void kernel_free_thread_locked(int tid)
 {
     if (tid <= 0) return;
 
     uint32_t slot = TID_SLOT(tid);
     if (slot >= EKCFG_OS_THREADS_MAX) return;
 
-    uint32_t flags = ek_os_kernel_spin_lock();
     os_thread_t *thrd = s_all_threads[slot].thrd;
     if (thrd && thrd->tid == tid)
     {
         s_all_threads[slot].thrd = NULL;
     }
-    ek_os_kernel_spin_unlock(flags);
 }
 
-os_thread_t *kernel_tid_to_thread(int tid)
+os_thread_t *kernel_tid_to_thread_locked(int tid)
 {
     if (tid <= 0) return NULL;
 
     uint32_t slot = TID_SLOT(tid);
     if (slot >= EKCFG_OS_THREADS_MAX) return NULL;
 
-    uint32_t flags = ek_os_kernel_spin_lock();
     os_thread_t *thrd = s_all_threads[slot].thrd;
     if (!thrd || thrd->tid != tid)
     {
-        thrd = NULL;
+        return NULL;
     }
-    ek_os_kernel_spin_unlock(flags);
 
     return thrd;
 }
@@ -116,14 +109,9 @@ static inline void _clear_ready_bit(uint8_t prio)
     }
 }
 
-void kernel_thread_dead(os_thread_t *thrd, void *retval)
+void kernel_thread_dead_locked(os_thread_t *thrd, void *retval)
 {
-    uint32_t flags = ek_os_kernel_spin_lock();
-    if (thrd->sched.state == EK_OS_THREAD_DEAD || thrd->sched.state == EK_OS_THREAD_UNUSED)
-    {
-        ek_os_kernel_spin_unlock(flags);
-        return;
-    }
+    if (thrd->sched.state == EK_OS_THREAD_DEAD || thrd->sched.state == EK_OS_THREAD_UNUSED) return;
 
     thrd->retval = retval;
     thrd->sched.state = EK_OS_THREAD_DEAD;
@@ -140,36 +128,28 @@ void kernel_thread_dead(os_thread_t *thrd, void *retval)
         ek_list_remove(&m->owner_node);
         m->owner = NULL;
         m->lock_count = 0U;
-        kernel_wake_all(&m->wait_list, -ECANCELED);
+        kernel_wake_all_locked(&m->wait_list, -ECANCELED);
     }
 
-    kernel_wake_all(&thrd->join_wait, 0);
-    ek_os_kernel_spin_unlock(flags);
+    kernel_wake_all_locked(&thrd->join_wait, 0);
 }
 
-void kernel_thread_ready(os_thread_t *thrd)
+void kernel_thread_ready_locked(os_thread_t *thrd)
 {
-    uint32_t flags = ek_os_kernel_spin_lock();
-    if (thrd->sched.state == EK_OS_THREAD_DEAD)
-    {
-        ek_os_kernel_spin_unlock(flags);
-        return;
-    }
+    if (thrd->sched.state == EK_OS_THREAD_DEAD) return;
+
     if (!s_ready_thrds[thrd->sched.prio].next) ek_list_init(&s_ready_thrds[thrd->sched.prio]);
     thrd->sched.state = EK_OS_THREAD_READY;
     ek_list_remove(&thrd->sched.state_node);
     ek_list_insert_tail(&s_ready_thrds[thrd->sched.prio], &thrd->sched.state_node);
     s_ready_bitmap |= (1UL << thrd->sched.prio);
-    ek_os_kernel_spin_unlock(flags);
 }
 
-void kernel_thread_run(os_thread_t *thrd)
+void kernel_thread_run_locked(os_thread_t *thrd)
 {
-    uint32_t flags = ek_os_kernel_spin_lock();
     thrd->sched.state = EK_OS_THREAD_RUNNING;
     ek_list_remove(&thrd->sched.state_node);
     _clear_ready_bit(thrd->sched.prio);
-    ek_os_kernel_spin_unlock(flags);
 }
 
 static inline bool _is_block_head(const os_thread_t *thrd)
@@ -192,13 +172,11 @@ static void _block_timer_sync(void)
     s_timer_ops.set_timeout(delta);
 }
 
-void kernel_thread_suspend(os_thread_t *thrd)
+void kernel_thread_suspend_locked(os_thread_t *thrd)
 {
-    uint32_t flags = ek_os_kernel_spin_lock();
     if (thrd->sched.state == EK_OS_THREAD_DEAD || thrd->sched.state == EK_OS_THREAD_UNUSED ||
         thrd->sched.state == EK_OS_THREAD_SUSPEND)
     {
-        ek_os_kernel_spin_unlock(flags);
         return;
     }
 
@@ -217,36 +195,24 @@ void kernel_thread_suspend(os_thread_t *thrd)
     ek_list_insert_tail(&s_suspend_thrds, &thrd->sched.state_node);
     _clear_ready_bit(thrd->sched.prio);
 
-    if (wlock && wlock->owner) kernel_thread_recalc_prio((os_thread_t *)wlock->owner);
+    if (wlock && wlock->owner) kernel_thread_recalc_prio_locked((os_thread_t *)wlock->owner);
     if (was_block_head) _block_timer_sync();
-    ek_os_kernel_spin_unlock(flags);
 }
 
-void kernel_thread_resume(os_thread_t *thrd)
+void kernel_thread_resume_locked(os_thread_t *thrd)
 {
-    uint32_t flags = ek_os_kernel_spin_lock();
     if (thrd->sched.state == EK_OS_THREAD_SUSPEND)
     {
-        kernel_thread_ready(thrd);
+        kernel_thread_ready_locked(thrd);
     }
-    ek_os_kernel_spin_unlock(flags);
 }
 
-void kernel_thread_set_prio(os_thread_t *thrd, uint8_t prio)
+void kernel_thread_set_prio_locked(os_thread_t *thrd, uint8_t prio)
 {
-    uint32_t flags = ek_os_kernel_spin_lock();
-    if (thrd->sched.state == EK_OS_THREAD_DEAD || thrd->sched.state == EK_OS_THREAD_UNUSED)
-    {
-        ek_os_kernel_spin_unlock(flags);
-        return;
-    }
+    if (thrd->sched.state == EK_OS_THREAD_DEAD || thrd->sched.state == EK_OS_THREAD_UNUSED) return;
 
     uint8_t new_prio = EK_MIN(prio, (uint8_t)EKCFG_OS_THREAD_MIN_PRIO);
-    if (thrd->sched.prio == new_prio)
-    {
-        ek_os_kernel_spin_unlock(flags);
-        return;
-    }
+    if (thrd->sched.prio == new_prio) return;
 
     uint8_t old_prio = thrd->sched.prio;
     thrd->sched.prio = new_prio;
@@ -254,9 +220,8 @@ void kernel_thread_set_prio(os_thread_t *thrd, uint8_t prio)
     {
         ek_list_remove(&thrd->sched.state_node);
         _clear_ready_bit(old_prio);
-        kernel_thread_ready(thrd);
+        kernel_thread_ready_locked(thrd);
     }
-    ek_os_kernel_spin_unlock(flags);
 }
 
 static void _requeue_wait_list(ek_list_node_t *wait_list, os_thread_t *thrd)
@@ -271,9 +236,8 @@ static void _requeue_wait_list(ek_list_node_t *wait_list, os_thread_t *thrd)
     ek_list_insert_before(pnode, &thrd->wait.node);
 }
 
-void kernel_thread_recalc_prio(os_thread_t *thrd)
+void kernel_thread_recalc_prio_locked(os_thread_t *thrd)
 {
-    uint32_t flags = ek_os_kernel_spin_lock();
     for (int depth = 0; thrd && depth < EKCFG_OS_THREADS_MAX; depth++)
     {
         if (thrd->sched.state == EK_OS_THREAD_DEAD || thrd->sched.state == EK_OS_THREAD_UNUSED) break;
@@ -292,7 +256,7 @@ void kernel_thread_recalc_prio(os_thread_t *thrd)
 
         if (target == thrd->sched.prio) break;
 
-        kernel_thread_set_prio(thrd, target);
+        kernel_thread_set_prio_locked(thrd, target);
 
         ek_os_mutex_t *wlock = (ek_os_mutex_t *)thrd->lock.waiting_lock;
         if (!wlock) break;
@@ -300,13 +264,10 @@ void kernel_thread_recalc_prio(os_thread_t *thrd)
         _requeue_wait_list(&wlock->wait_list, thrd);
         thrd = (os_thread_t *)wlock->owner;
     }
-    ek_os_kernel_spin_unlock(flags);
 }
 
-void kernel_thread_block(os_thread_t *thrd, int64_t timeout)
+void kernel_thread_block_locked(os_thread_t *thrd, int64_t timeout)
 {
-    uint32_t flags = ek_os_kernel_spin_lock();
-
     thrd->sched.state = EK_OS_THREAD_BLOCK;
     ek_list_remove(&thrd->sched.state_node);
     _clear_ready_bit(thrd->sched.prio);
@@ -314,7 +275,6 @@ void kernel_thread_block(os_thread_t *thrd, int64_t timeout)
     if (timeout < 0 || !s_timer_ops.now || !s_timer_ops.set_timeout)
     {
         thrd->wait.deadline = EK_OS_FOREVER;
-        ek_os_kernel_spin_unlock(flags);
         return;
     }
 
@@ -334,18 +294,11 @@ void kernel_thread_block(os_thread_t *thrd, int64_t timeout)
     {
         s_timer_ops.set_timeout(thrd->wait.deadline - now);
     }
-
-    ek_os_kernel_spin_unlock(flags);
 }
 
-void kernel_thread_unblock(os_thread_t *thrd, int err)
+void kernel_thread_unblock_locked(os_thread_t *thrd, int err)
 {
-    uint32_t flags = ek_os_kernel_spin_lock();
-    if (thrd->sched.state != EK_OS_THREAD_BLOCK)
-    {
-        ek_os_kernel_spin_unlock(flags);
-        return;
-    }
+    if (thrd->sched.state != EK_OS_THREAD_BLOCK) return;
 
     bool was_head = _is_block_head(thrd);
 
@@ -353,14 +306,12 @@ void kernel_thread_unblock(os_thread_t *thrd, int err)
     thrd->lock.waiting_lock = NULL;
     thrd->wait.deadline = EK_OS_FOREVER;
     thrd->wait.err = err;
-    kernel_thread_ready(thrd);
+    kernel_thread_ready_locked(thrd);
 
     if (was_head)
     {
         _block_timer_sync();
     }
-
-    ek_os_kernel_spin_unlock(flags);
 }
 
 void kernel_wait_enqueue_locked(ek_list_node_t *wait_list)
@@ -387,32 +338,25 @@ int kernel_wait_on_locked(ek_list_node_t *wait_list, int64_t timeout, uint32_t i
     cur->wait.err = 0;
     kernel_wait_enqueue_locked(wait_list);
 
-    kernel_thread_block(cur, timeout);
-    kernel_schedule();
+    kernel_thread_block_locked(cur, timeout);
+    kernel_schedule_locked();
     ek_os_kernel_spin_unlock(irq_flags);
     ek_arch_isb();
 
     return cur->wait.err;
 }
 
-bool kernel_wake_one(ek_list_node_t *wait_list, int err)
+bool kernel_wake_one_locked(ek_list_node_t *wait_list, int err)
 {
-    uint32_t flags = ek_os_kernel_spin_lock();
-    if (ek_list_is_empty(wait_list))
-    {
-        ek_os_kernel_spin_unlock(flags);
-        return false;
-    }
+    if (ek_list_is_empty(wait_list)) return false;
 
     os_thread_t *thrd = EK_CONTAINER_OF(ek_list_get_first(wait_list), os_thread_t, wait.node);
-    kernel_thread_unblock(thrd, err);
-    ek_os_kernel_spin_unlock(flags);
+    kernel_thread_unblock_locked(thrd, err);
     return true;
 }
 
-bool kernel_wake_all(ek_list_node_t *wait_list, int err)
+bool kernel_wake_all_locked(ek_list_node_t *wait_list, int err)
 {
-    uint32_t flags = ek_os_kernel_spin_lock();
     bool woke = false;
     ek_list_node_t *pos = NULL;
     ek_list_node_t *n = NULL;
@@ -420,11 +364,10 @@ bool kernel_wake_all(ek_list_node_t *wait_list, int err)
     ek_list_foreach_safe(pos, n, wait_list)
     {
         os_thread_t *thrd = EK_CONTAINER_OF(pos, os_thread_t, wait.node);
-        kernel_thread_unblock(thrd, err);
+        kernel_thread_unblock_locked(thrd, err);
         woke = true;
     }
 
-    ek_os_kernel_spin_unlock(flags);
     return woke;
 }
 
@@ -446,91 +389,64 @@ void kernel_wait_morph_to_mutex_locked(os_thread_t *thrd, ek_os_mutex_t *mutex)
     _requeue_wait_list(&mutex->wait_list, thrd);
     if (mutex->owner)
     {
-        kernel_thread_recalc_prio((os_thread_t *)mutex->owner);
+        kernel_thread_recalc_prio_locked((os_thread_t *)mutex->owner);
     }
 }
 
-static os_thread_t *_get_next_thread(void)
+static os_thread_t *_get_next_thread_locked(void)
 {
-    uint32_t flags = ek_os_kernel_spin_lock();
     if (s_ready_bitmap == 0)
     {
-        os_thread_t *fallback = s_idle_thrd ? s_idle_thrd : g_cur_thrd;
-        ek_os_kernel_spin_unlock(flags);
-        return fallback;
+        return s_idle_thrd ? s_idle_thrd : g_cur_thrd;
     }
 
     int prio = __builtin_ctz(s_ready_bitmap);
     ek_list_node_t *node = ek_list_get_first(&s_ready_thrds[prio]);
     os_thread_t *thrd = EK_CONTAINER_OF(node, os_thread_t, sched.state_node);
-    kernel_thread_run(thrd);
-    ek_os_kernel_spin_unlock(flags);
+    kernel_thread_run_locked(thrd);
 
     return thrd;
 }
 
-void kernel_schedule(void)
+void kernel_schedule_locked(void)
 {
-    uint32_t flags = ek_os_kernel_spin_lock();
-    if (!g_cur_thrd)
-    {
-        ek_os_kernel_spin_unlock(flags);
-        return;
-    }
+    if (!g_cur_thrd) return;
 
     os_thread_t *cur = g_next_thrd ? g_next_thrd : g_cur_thrd;
     if (cur->sched.state == EK_OS_THREAD_RUNNING)
     {
-        if (s_ready_bitmap)
+        if (s_ready_bitmap && !cur->sched.sched_lock)
         {
-            if (cur->sched.sched_lock)
-            {
-                ek_os_kernel_spin_unlock(flags);
-                return;
-            }
-
             int highest_prio = __builtin_ctz(s_ready_bitmap);
             if ((uint8_t)highest_prio < cur->sched.prio)
             {
-                kernel_thread_ready(cur);
-                g_next_thrd = _get_next_thread();
+                kernel_thread_ready_locked(cur);
+                g_next_thrd = _get_next_thread_locked();
                 ek_arch_switch_yield();
             }
         }
-        ek_os_kernel_spin_unlock(flags);
         return;
     }
 
-    g_next_thrd = _get_next_thread();
+    g_next_thrd = _get_next_thread_locked();
     if (g_next_thrd != g_cur_thrd)
     {
         ek_arch_switch_yield();
     }
-    ek_os_kernel_spin_unlock(flags);
 }
 
-void kernel_thread_yield(void)
+void kernel_thread_yield_locked(void)
 {
-    uint32_t flags = ek_os_kernel_spin_lock();
     os_thread_t *cur = g_next_thrd ? g_next_thrd : g_cur_thrd;
-    if (!cur || cur->sched.state != EK_OS_THREAD_RUNNING || cur->sched.sched_lock)
-    {
-        ek_os_kernel_spin_unlock(flags);
-        return;
-    }
+    if (!cur || cur->sched.state != EK_OS_THREAD_RUNNING || cur->sched.sched_lock) return;
 
     /* 同优先级无人竞争时无需轮转，避免无谓的 PendSV 往返 */
     ek_list_node_t *head = &s_ready_thrds[cur->sched.prio];
-    if (!head->next || ek_list_is_empty(head))
-    {
-        ek_os_kernel_spin_unlock(flags);
-        return;
-    }
+    if (!head->next || ek_list_is_empty(head)) return;
 
-    kernel_thread_ready(cur);
-    g_next_thrd = _get_next_thread();
+    kernel_thread_ready_locked(cur);
+    g_next_thrd = _get_next_thread_locked();
     ek_arch_switch_yield();
-    ek_os_kernel_spin_unlock(flags);
 }
 
 static void *_idle_thread(void *arg)
@@ -558,8 +474,8 @@ __EK_NO_RETURN void ek_os_kernel_start(const ek_os_timer_ops_t *ops)
     if (tid > 0)
     {
         uint32_t flags = ek_os_kernel_spin_lock();
-        s_idle_thrd = kernel_tid_to_thread(tid);
-        g_cur_thrd = _get_next_thread();
+        s_idle_thrd = kernel_tid_to_thread_locked(tid);
+        g_cur_thrd = _get_next_thread_locked();
         g_next_thrd = g_cur_thrd;
         ek_os_kernel_spin_unlock(flags);
         ek_arch_sched_start();
@@ -596,9 +512,9 @@ void ek_os_kernel_announce_isr(void)
         ek_list_remove(&thrd->wait.node);
         thrd->wait.deadline = EK_OS_FOREVER;
         thrd->wait.err = -ETIMEDOUT;
-        kernel_thread_ready(thrd);
+        kernel_thread_ready_locked(thrd);
 
-        if (wlock && wlock->owner) kernel_thread_recalc_prio((os_thread_t *)wlock->owner);
+        if (wlock && wlock->owner) kernel_thread_recalc_prio_locked((os_thread_t *)wlock->owner);
         woke = true;
     }
 
@@ -612,7 +528,7 @@ void ek_os_kernel_announce_isr(void)
         s_timer_ops.set_timeout(head->wait.deadline - now);
     }
 
-    if (woke) kernel_schedule();
+    if (woke) kernel_schedule_locked();
     ek_os_kernel_spin_unlock(flags);
 }
 
@@ -664,9 +580,9 @@ int ek_os_kernel_sched_unlock(void)
     cur->sched.sched_lock--;
     int depth = cur->sched.sched_lock;
 
+    if (!depth) kernel_schedule_locked();
     ek_os_kernel_spin_unlock(flags);
 
-    if (!depth) kernel_schedule();
     return depth;
 }
 

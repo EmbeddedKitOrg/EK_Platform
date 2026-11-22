@@ -83,9 +83,9 @@ void ek_os_msgq_destroy(ek_os_msgq_t *msgq)
     uint32_t flags = ek_os_kernel_spin_lock();
     bool owned = msgq->mem_owned;
 
-    bool woke = kernel_wake_all(&msgq->send_list, -ECANCELED);
-    woke = kernel_wake_all(&msgq->recv_list, -ECANCELED) || woke;
-    if (woke) kernel_schedule();
+    bool woke = kernel_wake_all_locked(&msgq->send_list, -ECANCELED);
+    woke = kernel_wake_all_locked(&msgq->recv_list, -ECANCELED) || woke;
+    if (woke) kernel_schedule_locked();
     if (!owned) MSGQ_SET_MAGIC(msgq, 0U);
 
     ek_os_kernel_spin_unlock(flags);
@@ -117,8 +117,8 @@ int ek_os_msgq_send(ek_os_msgq_t *msgq, const void *item, int64_t timeout)
             msgq->head = EK_INC_MOD(msgq->head, msgq->cap);
             msgq->count++;
 
-            bool woke = kernel_wake_one(&msgq->recv_list, 0);
-            if (woke) kernel_schedule();
+            bool woke = kernel_wake_one_locked(&msgq->recv_list, 0);
+            if (woke) kernel_schedule_locked();
             ek_os_kernel_spin_unlock(flags);
             return 0;
         }
@@ -166,8 +166,8 @@ int ek_os_msgq_recv(ek_os_msgq_t *msgq, void *item, int64_t timeout)
             msgq->tail = EK_INC_MOD(msgq->tail, msgq->cap);
             msgq->count--;
 
-            bool woke = kernel_wake_one(&msgq->send_list, 0);
-            if (woke) kernel_schedule();
+            bool woke = kernel_wake_one_locked(&msgq->send_list, 0);
+            if (woke) kernel_schedule_locked();
             ek_os_kernel_spin_unlock(flags);
             return 0;
         }

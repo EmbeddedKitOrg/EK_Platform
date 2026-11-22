@@ -37,12 +37,12 @@ typedef struct
 /**
  * @brief 进入内核临界区（关闭中断并保存进入前的状态）
  *
- * 所有会操作就绪队列、超时链表、等待队列等共享调度状态的内核路径都必须调用。
- * 支持嵌套：内层返回的 flags 必须原样传回 ek_os_kernel_spin_unlock()。
+ * 所有会操作就绪队列、超时链表、等待队列等共享调度状态的内核路径都必须持锁。
+ * 仅允许在公开 API 入口或中断入口处最外层获取一次，不允许嵌套调用；
+ * 所有内核内部 *_locked 原语均假定调用方已持有该锁。
  *
  * @return 进入前的中断状态：Cortex-M 上即 PRIMASK 寄存器的值——0 表示此前中断是开启的，
- *         非 0 表示此前已经处于关中断状态；该值必须原样传回 ek_os_kernel_spin_unlock()，
- *         不能自行构造，否则嵌套临界区会提前打开中断。
+ *         非 0 表示此前已经处于关中断状态；该值必须原样传回 ek_os_kernel_spin_unlock()。
  */
 __EK_STATIC_INLINE uint32_t ek_os_kernel_spin_lock(void)
 {
@@ -53,9 +53,9 @@ __EK_STATIC_INLINE uint32_t ek_os_kernel_spin_lock(void)
  * @brief 退出内核临界区（恢复进入前的中断状态）
  *
  * @param flags ek_os_kernel_spin_lock() 返回的进入前中断状态（Cortex-M 上为 PRIMASK）；
- *              原样传回以恢复进入该层临界区前的中断开关状态
+ *              原样传回以恢复进入临界区前的中断开关状态
  *
- * @note 若这是最外层临界区且期间已置位 PendSV，本调用会直接触发上下文切换。
+ * @note 若在持有期间已置位 PendSV，本调用恢复中断后会立即触发上下文切换。
  */
 __EK_STATIC_INLINE void ek_os_kernel_spin_unlock(uint32_t flags)
 {

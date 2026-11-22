@@ -71,8 +71,8 @@ void ek_os_barrier_destroy(ek_os_barrier_t *barrier)
 
     bool owned = barrier->mem_owned;
 
-    bool woke = kernel_wake_all(&barrier->wait_list, -ECANCELED);
-    if (woke) kernel_schedule();
+    bool woke = kernel_wake_all_locked(&barrier->wait_list, -ECANCELED);
+    if (woke) kernel_schedule_locked();
 
     if (!owned) BARRIER_SET_MAGIC(barrier, 0);
 
@@ -126,8 +126,8 @@ int ek_os_barrier_wait(ek_os_barrier_t *barrier, int64_t timeout)
     {
         barrier->count = 0U;
         barrier->generation++;
-        bool woke = kernel_wake_all(&barrier->wait_list, 0);
-        if (woke) kernel_schedule();
+        bool woke = kernel_wake_all_locked(&barrier->wait_list, 0);
+        if (woke) kernel_schedule_locked();
 
         ek_os_kernel_spin_unlock(flags);
         return 0;
