@@ -36,8 +36,8 @@ ek_os_condvar_t *ek_os_condvar_create(void)
 ek_os_condvar_t *ek_os_condvar_create_static(void *buf, size_t size)
 {
     if (ek_arch_in_isr()) return NULL;
-    if (!buf || size < CONDVAR_HDR + sizeof(ek_os_condvar_t)) return NULL;
-    if (((uintptr_t)buf % _Alignof(ek_os_condvar_t)) != 0U) return NULL;
+    if (!buf || size < EK_OS_CONDVAR_STATIC_BUF_SIZE) return NULL;
+    if (((uintptr_t)buf % alignof(ek_os_condvar_t)) != 0U) return NULL;
 
     ek_os_condvar_t *condvar = CONDVAR_FROM_BUF(buf);
 

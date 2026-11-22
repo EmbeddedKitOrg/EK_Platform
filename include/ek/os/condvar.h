@@ -45,11 +45,11 @@ struct ek_os_condvar
 /**
  * @brief 静态创建条件变量所需的最小缓冲区字节数
  *
- * 缓冲区前部会预留一个按 _Alignof(ek_os_condvar_t) 对齐的生命周期标记头，
- * 剩余部分容纳控制块。缓冲区起始地址必须按 _Alignof(ek_os_condvar_t) 对齐。
+ * 缓冲区前部会预留一个按 alignof(ek_os_condvar_t) 对齐的生命周期标记头，
+ * 剩余部分容纳控制块。缓冲区起始地址必须按 alignof(ek_os_condvar_t) 对齐。
  */
 #    define EK_OS_CONDVAR_STATIC_BUF_SIZE \
-        (sizeof(ek_os_condvar_t) + EK_ALIGN_UP(sizeof(uint32_t), _Alignof(ek_os_condvar_t)))
+        (sizeof(ek_os_condvar_t) + EK_ALIGN_UP(sizeof(uint32_t), alignof(ek_os_condvar_t)))
 
 /**
  * @brief 动态创建条件变量
@@ -62,7 +62,7 @@ ek_os_condvar_t *ek_os_condvar_create(void);
 
 /**
  * @brief 在调用者提供的缓冲区上创建条件变量
- * @param buf  缓冲区起始地址，必须按 _Alignof(ek_os_condvar_t) 对齐
+ * @param buf  缓冲区起始地址，必须按 alignof(ek_os_condvar_t) 对齐
  * @param size 缓冲区字节数，不得小于 EK_OS_CONDVAR_STATIC_BUF_SIZE
  * @return 成功返回条件变量句柄，失败返回 NULL
  *
@@ -130,14 +130,14 @@ int ek_os_condvar_broadcast(ek_os_condvar_t *condvar);
  * @brief 静态声明一个条件变量并自动注册初始化
  * @param handle 条件变量句柄变量名（static ek_os_condvar_t *，初始化后指向静态缓冲区内的控制块）
  *
- * @note 缓冲区按 _Alignof(ek_os_condvar_t) 对齐，大小为 EK_OS_CONDVAR_STATIC_BUF_SIZE。
+ * @note 缓冲区按 alignof(ek_os_condvar_t) 对齐，大小为 EK_OS_CONDVAR_STATIC_BUF_SIZE。
  * @note 必须在 .c 文件作用域使用，且同一翻译单元内重复使用 handle 会重定义。
  * @note 句柄在 ek_static_alloc_init() 执行前为 NULL，不可提前使用。
  */
 #        define EK_DEFINE_OS_CONDVAR(handle)                                                              \
             static union                                                                                  \
             {                                                                                             \
-                ek_os_condvar_t condvar; /* 抬高 union 的对齐到 _Alignof(ek_os_condvar_t) */              \
+                ek_os_condvar_t condvar; /* 抬高 union 的对齐到 alignof(ek_os_condvar_t) */              \
                 uint8_t storage[EK_OS_CONDVAR_STATIC_BUF_SIZE];                                           \
             } handle##_mem;                                                                               \
             static ek_os_condvar_t *handle;                                                               \

@@ -25,7 +25,7 @@ struct ptr_header
     uint32_t magic;
 };
 
-#    define HEADER_ALIGN _Alignof(max_align_t)
+#    define HEADER_ALIGN alignof(max_align_t)
 #    define HEADER_SIZE  ((sizeof(struct ptr_header) + HEADER_ALIGN - 1) & ~(HEADER_ALIGN - 1))
 
 static inline struct ptr_header *_get_header(void *ptr)

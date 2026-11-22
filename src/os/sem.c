@@ -36,8 +36,8 @@ ek_os_sem_t *ek_os_sem_create(size_t init)
 
 ek_os_sem_t *ek_os_sem_create_static(size_t init, void *buf, size_t size)
 {
-    if (!buf || size < SEM_HDR + sizeof(ek_os_sem_t)) return NULL;
-    if (((uintptr_t)buf % _Alignof(ek_os_sem_t)) != 0U) return NULL;
+    if (!buf || size < EK_OS_SEM_STATIC_BUF_SIZE) return NULL;
+    if (((uintptr_t)buf % alignof(ek_os_sem_t)) != 0U) return NULL;
     if (ek_arch_in_isr()) return NULL;
 
     ek_os_sem_t *sem = SEM_FROM_BUF(buf);

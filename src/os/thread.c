@@ -82,7 +82,7 @@ int ek_os_thread_create(const char *name, ek_os_thread_fn_t fn, void *arg, uint8
 
     if (!name || !fn || size < EKCFG_OS_THREAD_MIN_STACK) return -EINVAL;
 
-    size_t tcb_align = _Alignof(os_thread_t);
+    size_t tcb_align = alignof(os_thread_t);
     size_t overhead = sizeof(os_thread_t) + tcb_align - 1U + 7U;
     if (size > SIZE_MAX - overhead) return -EINVAL;
 
@@ -120,7 +120,7 @@ int ek_os_thread_create_static(
     }
 
     uintptr_t mem_end = stack_ptr + size;
-    uintptr_t tcb_addr = EK_ALIGN_DOWN(mem_end - sizeof(os_thread_t), _Alignof(os_thread_t));
+    uintptr_t tcb_addr = EK_ALIGN_DOWN(mem_end - sizeof(os_thread_t), alignof(os_thread_t));
     uintptr_t stack_top = EK_ALIGN_DOWN(tcb_addr, 8);
     uintptr_t stack_base = EK_ALIGN_UP(stack, 8);
 

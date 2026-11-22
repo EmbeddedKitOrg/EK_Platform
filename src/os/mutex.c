@@ -38,8 +38,8 @@ ek_os_mutex_t *ek_os_mutex_create(void)
 ek_os_mutex_t *ek_os_mutex_create_static(void *buf, size_t size)
 {
     if (ek_arch_in_isr()) return NULL;
-    if (!buf || size < MUTEX_HDR + sizeof(ek_os_mutex_t)) return NULL;
-    if (((uintptr_t)buf % _Alignof(ek_os_mutex_t)) != 0U) return NULL;
+    if (!buf || size < EK_OS_MUTEX_STATIC_BUF_SIZE) return NULL;
+    if (((uintptr_t)buf % alignof(ek_os_mutex_t)) != 0U) return NULL;
 
     ek_os_mutex_t *mutex = MUTEX_FROM_BUF(buf);
     MUTEX_SET_MAGIC(mutex, MAGIC);

@@ -44,10 +44,10 @@ struct ek_os_sem
 /**
  * @brief 静态创建信号量所需的最小缓冲区字节数
  *
- * 缓冲区前部会预留一个按 _Alignof(ek_os_sem_t) 对齐的生命周期标记头，
- * 剩余部分容纳控制块。缓冲区起始地址必须按 _Alignof(ek_os_sem_t) 对齐。
+ * 缓冲区前部会预留一个按 alignof(ek_os_sem_t) 对齐的生命周期标记头，
+ * 剩余部分容纳控制块。缓冲区起始地址必须按 alignof(ek_os_sem_t) 对齐。
  */
-#    define EK_OS_SEM_STATIC_BUF_SIZE (sizeof(ek_os_sem_t) + EK_ALIGN_UP(sizeof(uint32_t), _Alignof(ek_os_sem_t)))
+#    define EK_OS_SEM_STATIC_BUF_SIZE (sizeof(ek_os_sem_t) + EK_ALIGN_UP(sizeof(uint32_t), alignof(ek_os_sem_t)))
 
 /**
  * @brief 动态创建信号量
@@ -62,7 +62,7 @@ ek_os_sem_t *ek_os_sem_create(size_t init);
 /**
  * @brief 在调用者提供的缓冲区上创建信号量
  * @param init 初始计数
- * @param buf  缓冲区起始地址，必须按 _Alignof(ek_os_sem_t) 对齐
+ * @param buf  缓冲区起始地址，必须按 alignof(ek_os_sem_t) 对齐
  * @param size 缓冲区字节数，不得小于 EK_OS_SEM_STATIC_BUF_SIZE
  * @return 成功返回信号量句柄，失败返回 NULL
  *
@@ -123,14 +123,14 @@ int ek_os_sem_count(ek_os_sem_t *sem);
  * @param handle     信号量句柄变量名（static ek_os_sem_t *，初始化后指向静态缓冲区内的控制块）
  * @param init_count 初始计数
  *
- * @note 缓冲区按 _Alignof(ek_os_sem_t) 对齐，大小为 EK_OS_SEM_STATIC_BUF_SIZE。
+ * @note 缓冲区按 alignof(ek_os_sem_t) 对齐，大小为 EK_OS_SEM_STATIC_BUF_SIZE。
  * @note 必须在 .c 文件作用域使用，且同一翻译单元内重复使用 handle 会重定义。
  * @note 句柄在 ek_static_alloc_init() 执行前为 NULL，不可提前使用。
  */
 #        define EK_DEFINE_OS_SEM(handle, init_count)                                                                \
             static union                                                                                            \
             {                                                                                                       \
-                ek_os_sem_t sem; /* 抬高 union 的对齐到 _Alignof(ek_os_sem_t) */                                    \
+                ek_os_sem_t sem; /* 抬高 union 的对齐到 alignof(ek_os_sem_t) */                                     \
                 uint8_t storage[EK_OS_SEM_STATIC_BUF_SIZE];                                                         \
             } handle##_mem;                                                                                         \
             static ek_os_sem_t *handle;                                                                             \

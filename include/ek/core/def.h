@@ -27,6 +27,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdalign.h>
 #include <inttypes.h>
 #include <errno.h>
 #include <sys/types.h>

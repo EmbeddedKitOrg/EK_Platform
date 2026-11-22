@@ -39,7 +39,7 @@ struct ek_os_mutex
 /**
  * @brief 静态创建互斥量所需的最小缓冲区字节数
  */
-#    define EK_OS_MUTEX_STATIC_BUF_SIZE (sizeof(ek_os_mutex_t) + EK_ALIGN_UP(sizeof(uint32_t), _Alignof(ek_os_mutex_t)))
+#    define EK_OS_MUTEX_STATIC_BUF_SIZE (sizeof(ek_os_mutex_t) + EK_ALIGN_UP(sizeof(uint32_t), alignof(ek_os_mutex_t)))
 
 /**
  * @brief 动态创建互斥量
@@ -50,7 +50,7 @@ ek_os_mutex_t *ek_os_mutex_create(void);
 
 /**
  * @brief 在调用者提供的缓冲区上创建互斥量
- * @param buf  缓冲区起始地址，必须按 _Alignof(ek_os_mutex_t) 对齐
+ * @param buf  缓冲区起始地址，必须按 alignof(ek_os_mutex_t) 对齐
  * @param size 缓冲区字节数，不得小于 EK_OS_MUTEX_STATIC_BUF_SIZE
  * @return 成功返回互斥量句柄，失败返回 NULL
  * @note 缓冲区由调用者持有；destroy 只清除生命周期标记，不会释放缓冲区。

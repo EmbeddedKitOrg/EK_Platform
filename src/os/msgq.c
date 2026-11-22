@@ -57,7 +57,7 @@ ek_os_msgq_t *ek_os_msgq_create_static(const size_t item_size, const size_t dept
 {
     if (ek_arch_in_isr()) return NULL;
     if (!item_size || !depth || !buf) return NULL;
-    if (((uintptr_t)buf % _Alignof(ek_os_msgq_t)) != 0U) return NULL;
+    if (((uintptr_t)buf % alignof(ek_os_msgq_t)) != 0U) return NULL;
     if (depth > SIZE_MAX / item_size) return NULL;
     if (size < EK_OS_MSGQ_STATIC_BUF_SIZE(item_size, depth)) return NULL;
 

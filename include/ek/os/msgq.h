@@ -51,7 +51,7 @@ struct ek_os_msgq
 /**
  * @brief 静态创建所需缓冲区中，生命周期标记头占用的字节数
  */
-#    define EK_OS_MSGQ_HDR_SIZE (EK_ALIGN_UP(sizeof(uint32_t), _Alignof(ek_os_msgq_t)))
+#    define EK_OS_MSGQ_HDR_SIZE (EK_ALIGN_UP(sizeof(uint32_t), alignof(ek_os_msgq_t)))
 
 /**
  * @brief 计算静态创建消息队列所需的最小缓冲区字节数
@@ -78,7 +78,7 @@ ek_os_msgq_t *ek_os_msgq_create(size_t item_size, size_t depth);
  * @brief 在调用者提供的缓冲区上创建消息队列
  * @param item_size 单条消息字节数（须大于 0）
  * @param depth     队列深度（须大于 0）
- * @param buf       缓冲区起始地址，必须按 _Alignof(ek_os_msgq_t) 对齐
+ * @param buf       缓冲区起始地址，必须按 alignof(ek_os_msgq_t) 对齐
  * @param size      缓冲区字节数，不得小于 EK_OS_MSGQ_STATIC_BUF_SIZE(item_size, depth)
  * @return 成功返回消息队列句柄，失败返回 NULL
  *
@@ -151,14 +151,14 @@ int ek_os_msgq_count(ek_os_msgq_t *msgq);
  * @param item_size 单条消息字节数（须为常量表达式）
  * @param depth     队列深度（须为常量表达式）
  *
- * @note 缓冲区按 _Alignof(ek_os_msgq_t) 对齐，大小为 EK_OS_MSGQ_STATIC_BUF_SIZE(item_size, depth)。
+ * @note 缓冲区按 alignof(ek_os_msgq_t) 对齐，大小为 EK_OS_MSGQ_STATIC_BUF_SIZE(item_size, depth)。
  * @note 必须在 .c 文件作用域使用，且同一翻译单元内重复使用 handle 会重定义。
  * @note 句柄在 ek_static_alloc_init() 执行前为 NULL，不可提前使用。
  */
 #        define EK_DEFINE_OS_MSGQ(handle, item_size, depth)                                    \
             static union                                                                       \
             {                                                                                  \
-                ek_os_msgq_t msgq; /* 抬高 union 的对齐到 _Alignof(ek_os_msgq_t) */            \
+                ek_os_msgq_t msgq; /* 抬高 union 的对齐到 alignof(ek_os_msgq_t) */            \
                 uint8_t storage[EK_OS_MSGQ_STATIC_BUF_SIZE(item_size, depth)];                 \
             } handle##_mem;                                                                    \
             static ek_os_msgq_t *handle;                                                       \
