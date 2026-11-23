@@ -23,9 +23,7 @@ void ek_assert_fault(const char *file, uint32_t line, const char *expr)
 
     ek_assert_hook(file, line, expr);
 
-    while (1)
-    {
-    }
+    abort();
 }
 
 __EK_WEAK void ek_assert_hook(const char *file, uint32_t line, const char *expr)
