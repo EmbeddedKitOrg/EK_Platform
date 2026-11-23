@@ -1,88 +1,52 @@
 # 更新日志
 
-本文件记录 [ek_utils](https://github.com/EmbeddedKitOrg/EK_UTILS) 的版本变更。
+本文件记录 [ek_platform](https://github.com/EmbeddedKitOrg/EK_Platform) 的版本变更。
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ## [Unreleased]
 
+## [7.0.0] - 2026-11-23
+
 ### 新增
 
-- `cmake/arch.cmake`：`PLATFORM` 的唯一架构表，集中提供 FAMILY / FLAGS / TOOLCHAIN / LINKER_ARCH / ENTRY / PICOLIBC_PLATFORM；ARM、RISC-V、host 共用一份数据。
-- `cmake/platform.cmake`：两阶段配置入口。`ek_platform_prepare(ARCH ... PICOLIBC ...)` 在 `project()` 前选择工具链并同步 `PLATFORM` / `PICOLIBC_PLATFORM`；`ek_platform_configure(CONF ... BOARD ... LINKER ...)` 在 `add_subdirectory()` 前设置配置与链接模式。
-- `ek_platform_configure(SOC ...)` / `SOC_TARGET ...`：`SOC` 指定 `ek_soc.h` 路径并生成 `EK_SOC_PATH`；`SOC_TARGET` 提供厂商 SDK 的 include 路径和编译定义，可以是已有库或 INTERFACE target。Cortex-M 架构实现（由 `src/core/arch.c` 移入 `port/arch/cortexm/arch.c`）在 `#ifndef EK_SOC_PATH` 校验后直接包含 `"ek_soc.h"`；`conf_internal.h` 在 `#ifndef EK_CONF_PATH` 校验后直接包含 `"ek_conf.h"`。`EK_CONF_PATH` / `EK_SOC_PATH` 只用于校验，不参与 include 展开。
-- host 原生构建：新增 `cmake/gnu-gcc.cmake` 与 `cmake/linker/host.ld`，`ek_platform_prepare(ARCH host)` 可直接编译并链接 host 可执行文件，`host.ld` 提供 `.ek_export` / `.ek_static_alloc` 段边界。
-- `cmake/linker.cmake` 新增 `ek_linker_script()`：纯生成函数，不读全局、不碰 target；新增 `ek_linker_attach()` 作为唯一注入点，按 target 类型自动选择 `INTERFACE` / `PRIVATE`。
-- `cmake/picolibc.cmake` 新增 `ek_picolibc_apply(target)`：探测、下载、源码构建、链接策略全部收敛到 target，不再回写 9 个全局变量。
-- `conf_internal.h` 新增内部 `DEPEND_ON` 宏与配套 `#error` 依赖校验。
-- `def.h` 内部新增 `__EK_CLEANUP` 宏，用于包装 `__attribute__((cleanup(x)))`。
-- `def.h` 新增 `ek_off_t`（`int64_t`），作为 VFS 文件位置类型。
-- `ek_vfs_ops_t` 新增 `destroy(node_priv)` 回调，节点注销时释放节点私有数据。
-- 完善 VFS 内核支持：节点注册/查找、fd 池、树输出，以及 `read/write/lseek/ioctl/poll/close` 分发。
-- `bitsteam.c/.h` 新增比特流读写模块。
-- `vfs_bus.c/.h`：添加 VFS 总线模型。
-- `EK_DEFINE_VFS_PATH` / `EK_DEFINE_VFS_BUS` / `EK_DEFINE_VFS_BUS_DEV`：VFS 静态设备树声明宏，通过 `.ek_static_alloc` 在启动时自动注册路径、总线和总线设备；`EK_DEFINE_VFS_PATH` 不接收 handle，使用 `__COUNTER__`（无则 `__LINE__`）生成唯一符号。
-- `static_alloc.h`：新增 `EK_STATIC_ALLOC_ORDER_*` 初始化顺序常量，集中管理容器、调度和 VFS 的注册顺序。
-- `ek_arch_irq_install()`：ARM 分支把中断处理函数写入当前 SRAM 向量表；只负责安装，不设置优先级、不使能中断。
-- `EK_DEFINE_ARCH_IRQ(irqn, handler)`：静态声明中断处理函数，启动时通过 `ek_static_alloc` 调用 `ek_arch_irq_install()` 安装到 SRAM 向量表。
-- `EKCFG_ARCH_IRQ_COUNT`：ARM 目标必填的外部 IRQ 数量配置，用于向量安装边界检查；GD32F470 为 91。
-- `shared_ptr.c/.h`：添加共享指针模型。
-- `arch.h` 与 `port/arch/{cortexm,riscv,host}/`：跨平台汇编内联库，Cortex-M 分支提供中断向量重定义到 SRAM；实现按架构拆分为 `port/arch/cortexm/arch.c`、`port/arch/riscv/arch.c`、`port/arch/host/arch.c`。
-- `EKLD_VECTOR_ALIGN`：用于控制向量表的对齐大小，默认下是 0x200。
-- `port/startup/cortexm/startup.S`：通用 Cortex-M 启动文件，提供向量表、`Reset_Handler`、默认异常处理和 `SystemInit` 弱桩；外部 IRQ 槽位数由 `EKCFG_ARCH_IRQ_COUNT` 生成，默认指向 `ek_default_irq_handler`。Cortex-M 目标默认编译，不再需要厂商 startup。
-- `ek_shell` 子模块
-- `include/ek/core/compiler.h`：将原 `def.h` 中的编译器属性与内联抽象宏（GCC / ARM Compiler 6 / ARM Compiler 5）拆分为独立零依赖头文件，`def.h` 改为直接引入 `compiler.h`。
-- 无滴答 RTOS 内核（`src/os/`、`include/ek/os/`）：新增基于 `ek_os_timer_ops_t`（`now` / `set_timeout`）与 `ek_os_kernel_announce_isr()` 的时间及超时调度抽象、线程管理接口（`ek_os_thread_create` / `create_static` / `suspend` / `resume` / `set_prio` / `abort` / `sleep`）、等待队列原语（`kernel_wait_on_locked` / `kernel_wake_one` / `kernel_wake_all`）及 `EK_DEFINE_OS_THREAD` 静态线程自动注册宏（`EK_STATIC_ALLOC_ORDER_OS_THREAD`）。
+- **内置无滴答抢占式 RTOS 内核**（`EKCFG_RTOS=1`，`include/ek/os/`、`src/os/`、`port/arch/cortexm/context.S`）：
+  - 调度与时间抽象：`ek_os_timer_ops_t`（`now` / `set_timeout`）、`ek_os_kernel_start()`、`ek_os_kernel_time()`、`ek_os_kernel_announce_isr()`、`ek_os_kernel_sched_lock/unlock()`、`ek_os_kernel_spin_lock/unlock()`、`ek_os_kernel_current_tid()`、`EK_OS_MSEC()` / `EK_OS_SEC()` / `EK_OS_FOREVER`、`EKCFG_OS_KERNEL_TIMEBASE_HZ`。
+  - 线程生命周期管理：`ek_os_thread_create()` / `create_static()` / `EK_DEFINE_OS_THREAD`、`ek_os_thread_exit()`、`ek_os_thread_join()`、`ek_os_thread_yield()`、`ek_os_thread_sleep()`、`ek_os_thread_suspend/resume()`（支持在中断中调用 `resume`）、`ek_os_thread_set_prio/get_prio()`、`ek_os_thread_abort()`；Cortex-M4F 硬件 FPU 上下文保存与恢复及空闲线程 `WFI` 等待。
+  - 同步与通信原语（均支持动态与静态创建 / `EK_DEFINE_OS_*`）：信号量（`sem.h`）、支持递归重入与级联优先级继承的互斥量（`mutex.h`）、支持 Wait Morphing 优化的条件变量（`condvar.h`）、周期同步屏障（`barrier.h`）、定长消息队列（`msgq.h`）、零拷贝侵入式 FIFO（`kfifo.h`）。
+  - 栈溢出检测与钩子：`EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK`（级别 `1` 边界/对齐检查、级别 `2` 魔数染色哨兵 + `ek_os_thread_stack_high_water_mark()` 高水位查询）、`ek_os_kernel_stackoverflow_hook()` 与 `ek_os_kernel_idle_hook()` 弱钩子。
+- **VFS 虚拟文件系统与总线模型**（`EKCFG_VFS=1`，`include/ek/vfs/`、`src/vfs/`）：静态节点池、路径注册/注销/查找、fd 池、`read/write/lseek/ioctl/poll/close` 分发、`ek_vfs_tree_dump()`（支持 `EKCFG_VFS_TREE_DUMP_UTF8`）、标准流 `fd 0/1/2` 预留及 `ek_vfs_bind_fd()` / `ek_vfs_bind_stdio()` 运行期热重定向；`vfs_bus` 总线模型与静态设备树声明宏 `EK_DEFINE_VFS_PATH` / `EK_DEFINE_VFS_BUS` / `EK_DEFINE_VFS_BUS_DEV`。
+- **嵌入式命令行解释器 Shell**（`EKCFG_SHELL=1`，`include/ek/shell/`、`src/shell/`）：基于 VFS fd 解耦 IO、`.ek_shell_cmd` 静态命令段（`EK_DEFINE_SHELL_CMD`）与动态命令注册/注销、VT100/ANSI 行编辑快捷键、UTF-8 字符列宽支持（`EKCFG_SHELL_UTF8`）与可选内置命令（`EKCFG_SHELL_BUILTIN_CMDS`：`hello`、`echo`、`tree`、`clear`、`version`、`help`）。
+- **硬件架构抽象层与通用 Cortex-M 启动文件**（`EKCFG_ARCH=1`，`include/ek/core/arch.h`、`port/arch/{cortexm,riscv,host}/`、`port/startup/cortexm/startup.S`）：跨平台内存屏障、临界区、`ek_arch_in_isr()`、`ek_arch_idle()`；Cortex-M 支持启动期自动重定向 VTOR 至 SRAM、`ek_arch_irq_install()` / `EK_DEFINE_ARCH_IRQ()`、`EKCFG_ARCH_IRQ_COUNT` 边界校验、`EKLD_VECTOR_ALIGN`（默认 `0x200`）与通用启动汇编（不再依赖厂商 `startup_xxx.s`）。
+- **新容器与基础工具**：`bitstream`（比特流读写）、`shared_ptr`（引用计数共享指针）、`compiler.h`（独立编译器属性与内联抽象头）；`list.h` 扩充链表操作 API；`def.h` 新增 `ek_off_t`（`int64_t`）、`__EK_CLEANUP`、`EK_INC_MOD` 软件取模与对齐宏。
+- **两阶段 CMake 配置与多构建支持**：`cmake/arch.cmake`、`cmake/platform.cmake`（`ek_platform_prepare()` / `ek_platform_configure()`，支持 `SOC` / `SOC_TARGET` / `BUILD_TYPE`）、`cmake/linker.cmake`（`ek_linker_script()` / `ek_linker_attach()`）、`cmake/picolibc.cmake`（`ek_picolibc_apply()`）；支持 Debug/Release 模式联动（`EK_PLATFORM_DEBUG`、`EK_IS_DEBUG`、`EK_DEBUG_ONLY`、`ek_is_debug()`、`ek_build_mode_str()`）与 Host 原生构建（`ARCH host`、`cmake/gnu-gcc.cmake`、`cmake/linker/host.ld`）。
+- **新版标准 IO 接口与配置依赖校验**：`ek/core/io.h` 新增 `EK_IO_STDIN/STDOUT/STDERR`、`ek_io_write/read/putc/getc`、`EKCFG_IO_CONSOLE_PATH` 启动自动绑定及非 VFS 模式 `ek_io_ops_t` / `ek_io_set_ops()`；`conf_internal.h` 新增模块间依赖与互斥编译期校验；`static_alloc.h` 新增 `EK_STATIC_ALLOC_ORDER_*` 初始化顺序常量。
+
 ### 变更
 
-- CMake 配置收敛为 `ek_platform_prepare()` / `ek_platform_configure()` 两个函数；`PICOLIBC` 成为构建事实，`EKCFG_PICOLIBC` / `EKCFG_NEWLIB` 由 CMake 的 `PICOLIBC` 选项派生，`ek_conf_template.h` 不再重复定义。
-- 链接脚本生成与注入分离：生成结果登记 conf/board/template 以及 `EK_LINKER_INCLUDE_DIRS` 下的头文件为 configure 依赖；注入按 target 类型选择 `INTERFACE` / `PRIVATE`，重复注入直接报错。
-- picolibc 探测顺序保持 `PICOLIBC_SPECS` → `PICOLIBC_ROOT` → 工具链 → 系统安装 → `PICOLIBC_BUILD` → `PICOLIBC_FETCH`；下载增加 30 秒超时，删除无人设置的 `PICOLIBC_SHA256_<platform>` 分支。
-- `port/clib` 按 `PICOLIBC` 选择实现：`PICOLIBC=ON` 只编译 `port/clib/picolibc/picolibc_port.c`，否则只编译 `port/clib/newlib/newlib_port.c`；newlib 端口是否实际生效仍由 `EKCFG_NEWLIB` 控制。
-- 调整各个模块 `EK_EXPORT_COMPONENT` 的优先级，不再占用 0、1 这类最高优先级。
-- 优化 `ek_log` 模块的日志输出宏
-- VFS `read/write` 回调新增 `ek_off_t *offset` 参数，core 传入 `vfs_file_t::offset`，驱动按实际读写字节数推进；`lseek` 回调新增 `ek_off_t *current`，`SEEK_CUR` 使用当前值。
-- `vfs_file_t::offset` 与 `ek_vfs_lseek()` 的返回/参数类型改为 `ek_off_t`。
-- `poll` / `close` 公开接口更名为 `ek_vfs_poll()` / `ek_vfs_close()`，避免与 libc 同名。
-- `ek_conf_template.h` 修改默认的配置模板展示。
-- 所有 `EK_DEFINE_*` 的静态初始化顺序改为 `EK_STATIC_ALLOC_ORDER_*` 命名宏，不再在调用点写裸数字；VFS 静态宏固定使用 `EK_DEFINE_VFS_*` 命名。
-- 导出初始化分类重构为 `BOOT` / `BOARD` / `COMPONENT` / `APP` 四个阶段；新增 `EK_EXPORT_ORDER_*` 顺序常量，初始化顺序不再在调用点写裸数字。
-- `EK_EXPORT_ORDER_BOOT_SYSTEM`、`EK_EXPORT_ORDER_BOARD_*` 属于主控/BSP 工程，移到项目 `main.h`；`export.h` 只保留库内顺序常量。
-- `ek_arch_redirect_vtor()` 通过 `EK_EXPORT_BOOT` 在启动阶段自动执行，并增加幂等保护。
-- 内部静态函数改为“先定义后使用”：删除 `.c` 文件顶部的函数前向声明，把 helper 定义移动到首次调用之前；仅调整布局，不改变行为。
-- `cortexm.ld.S`：优化链接模板。
-- `cortexm.ld.S` 的 `.vectors` 输出段收集 `.ek_vectors`，供通用启动文件使用。
-- `EK_DEFINE_ARCH_IRQ` 在 `EKCFG_EXPORT=1` 时改为通过 `EK_EXPORT_BOOT` 在 BOOT 阶段安装（`ek_arch_redirect_vtor()` 之后），避免 BOARD 阶段使能中断时 handler 尚未写入 SRAM 向量表；`EKCFG_EXPORT=0` 时保留 `ek_static_alloc` 回退路径。
-- `cmake/linker/cortexm.ld.S` / `cmake/linker/riscv.ld.S`：增加 `EKLD_*` 输入参数校验，覆盖长度正负、地址/长度对齐、可选区域完整性，以及 Cortex-M 向量表大小与起始地址对齐。
-- 架构移植实现由 `src/core/arch.c` 拆分到 `port/arch/cortexm/arch.c`、`port/arch/riscv/arch.c`、`port/arch/host/arch.c`；`include/ek/core/arch.h` 仍作为统一接口头文件。Cortex-M 分支在 `EKCFG_ARCH=1` 时要求定义 `EK_SOC_PATH`（由 `SOC` 生成），否则编译直接报错。
-- 配置模板与内部校验模块化重构：`ek_conf_template.h` 与 `conf_internal.h` 统一按功能模块分块，各模块子配置及单模块参数校验收入 `#if EKCFG_xxx == 1` 内，并新增 `EKCFG_RTOS` 对 `EKCFG_ARCH` 与 `EKCFG_LIST` 的依赖校验。
-- OS 模块（`include/ek/os/{kernel.h,thread.h}`、`src/os/{kernel.c,thread.c,os_priv.h}`）统一接入 `#if EKCFG_RTOS == 1` 编译守卫。
-- 移除 `conf_internal.h`、`ek_conf_template.h` 中的旧 `EK_LOCK_*` RTOS 锁抽象层，并清理 `ringbuf`、`snapshot`、`stack` 与 `picothread` 中原有的 `EKCFG_RTOS` 锁兼容代码。
+- 版本宏更新：`EK_VERSION_MAJOR` 6 → 7（`7.0.0`）。
+- TLSF 堆增强：`ek_malloc` / `ek_realloc` / `ek_free` 在 `EKCFG_RTOS=1` 下自动提供线程安全并在中断上下文安全拒绝；`EKCFG_TLSF_FL_INDEX_MAX` 与 `EKCFG_TLSF_SL_INDEX_COUNT_LOG2` 改为按堆大小自动推导（新增 `EKCFG_HEAP_MAX_POOL_SIZE`）；`EKCFG_STATIC_ALLOC` 默认改为 `1`。
+- 自动初始化阶段重构为 `BOOT` / `BOARD` / `COMPONENT` / `APP` 四阶段，新增库内顺序常量 `EK_EXPORT_ORDER_*`（板级顺序常量移由应用工程自行维护）；`ek_arch_redirect_vtor()` 与 `EK_DEFINE_ARCH_IRQ` 在 `BOOT` 阶段自动安装；`ek_io_init()` 排在 `ek_static_alloc_init()` 之后以支持启动期绑定静态 VFS 控制台设备。
+- 配置模板与内部校验按模块重组：`ek_conf_template.h` 与 `conf_internal.h` 将子配置收入各模块条件块内；`EKCFG_ASSERT` / `EKCFG_ASSERT_TINY` / `EKCFG_ASSERT_LOG` / `EKCFG_LOG_DEBUG` 默认跟随 Debug/Release 构建模式；`EKCFG_PICOLIBC` / `EKCFG_NEWLIB` 由 CMake `PICOLIBC` 选项派生。
+- `port/clib` 与链接脚本改进：`PICOLIBC=ON` 时仅编译 `picolibc_port.c`（独立 `stdin/stdout/stderr` 流并接入 `ek_io_*`），否则仅编译 `newlib_port.c`（`_write/_read` 整块透传并补齐 `_init/_fini/_exit/_kill/_getpid` 弱桩）；`cortexm.ld.S` / `riscv.ld.S` 增加 `EKLD_*` 参数合法性校验，`.vectors` 收集 `.ek_vectors`。
+- 默认 `ek_assert_hook` 失败后改为调用 `abort()` 替代 `while (1)` 死循环；优化 `ek_log` 格式化与输出路径减少底层 IO 调用次数。
+- 同步更新中英文集成文档 `README.md` 与 `README.en.md`。
 
 ### 修复
 
-- 链接模板补齐 picolibc 的 `__bothinit_array_start` / `__bothinit_array_end`：picolibc 的 `__libc_init_array()` 使用这两个符号，缺失时不会执行 `.init_array`，导致 `ek_export_init()` 及所有导出初始化被跳过。
-- `newlib_port.c` 补齐 `_init` / `_fini` / `_exit` / `_kill` / `_getpid` 弱桩，修复 newlib/nanolibc 链接时的未定义引用。
-- 链接模板的 `/DISCARD/` 仅在 `EKCFG_PICOLIBC != 0` 时生成，避免 newlib/lwprintf 路径丢弃 `libc.a` / `libm.a` / `libgcc.a`。
-- `._user_heap_stack` 增加 `__heap_start` / `__heap_end`，供 newlib `_sbrk` 使用；picolibc 路径下未被引用时不会生成。
-- `ek_static_alloc_init()` 的导出 order 调整为 20，确保在 `ek_heap_init` / `ek_io_init` / `ek_evoke_init` / `ek_pt_init`（order 10）之后执行，避免静态对象在依赖组件初始化前注册。
-- `ek_vfs_ioctl()` 改为检查 `file->ops->ioctl`，不再误检查 `lseek`。
-- `ek_vfs_unregister()` 不再把 `node_priv` 传给 `close()`，改调 `destroy(node_priv)`；`close(file_priv)` 只负责打开实例。
-- `ek_vfs_read/write()` 不再把 `file->offset` 加到用户缓冲区指针上。
-- `EK_STATIC_ALLOC_REGISTER` 增加 `__EK_ALIGNED(sizeof(void *))`，修复 64 位 host 上静态注册项按更大步进排列导致 `end - start` 误算、启动期 qsort 崩溃的问题。
+- 修复 picolibc 链接模板缺失 `__bothinit_array_start` / `__bothinit_array_end` 导致 `.init_array`（含 `ek_export_init()`）被跳过的问题。
+- 修复链接模板 `/DISCARD/` 在 newlib/lwprintf 路径下误丢弃 `libc.a` / `libm.a` / `libgcc.a` 的问题，并在 `._user_heap_stack` 补齐 newlib `_sbrk` 所需 `__heap_start` / `__heap_end`。
+- 修复 `EK_STATIC_ALLOC_REGISTER` 在 64 位 host 上缺少指针宽度对齐导致段遍历步进错位及启动崩溃的问题。
 
 ### 破坏性变更
-- 文件与 CMake 模块移除 `ek_` 前缀：头文件统一为 `include/ek/<模块>/<文件>.h`（如 `core/def.h`、`vfs/vfs_core.h`），源文件同步改名；头文件保护宏保留 `EK_` 前缀（如 `EK_DEF_H`）。`include/ek/**` 各子目录不再作为扁平 include 路径导出，使用方需把 `#include "ek_log.h"` 改为 `#include "ek/core/log.h"`。
 
-- 删除 `cmake/config.cmake` 和全部 `ek_set_*` 接口；消费者改用 `ek_platform_prepare()` / `ek_platform_configure()`，调用顺序不变（`project()` 前 / `add_subdirectory()` 前）。
-- `EK_LINKER_AUTO` 改为 `EK_LINKER_MODE`（`auto` / `off`）；`ek_linker_attach()` 的 `BOARD_PATH` 参数改名为 `BOARD`，多 target 场景先调用 `ek_platform_configure(... LINKER off)`。
-- `ek_conf_template.h` 不再定义 `EKCFG_PICOLIBC` / `EKCFG_NEWLIB`；裸机 newlib 需要 syscall port 时在项目 `ek_conf.h` 中定义 `EKCFG_NEWLIB 1`。
-- 删除工具链文件中的 `TOOLCHAIN_LINK_LIBRARIES`（未被消费）。
-- 删除旧导出宏 `EK_EXPORT_EARLIEST` / `EK_EXPORT_HARDWARE` / `EK_EXPORT_COMPONENTS` / `EK_EXPORT_USER`；改用 `EK_EXPORT_BOOT` / `EK_EXPORT_BOARD` / `EK_EXPORT_COMPONENT` / `EK_EXPORT_APP`。`EK_EXPORT_LEVEL` 不再公开，`ek_export_item_t.level` 更名 `phase`。
-- 枚举类型别名统一由 `_t` 改为 `_e`：`ek_pt_state_t` → `ek_pt_state_e`、`ek_evoke_state_t` → `ek_evoke_state_e`、`ek_log_level_t` → `ek_log_level_e`；`ek_vfs_node_e` 原本已使用 `_e`。不保留旧名兼容别名。
-- `ek_vfs_ops_t::read/write` 新增 `ek_off_t *offset`，`lseek` 新增 `ek_off_t *current`；现有驱动需同步签名。
-- `ek_vfs_poll()` / `ek_vfs_close()` 替代原 `poll()` / `close()` 名称。
-- `ek_vfs_lseek()` 的位置类型由 `off_t` 改为 64 位 `ek_off_t`。
+- **头文件与源文件移除 `ek_` 前缀**：头文件统一为 `include/ek/<模块>/<文件>.h`（如 `#include "ek/core/log.h"`），不再导出扁平子目录 include 路径（头文件保护宏保留 `EK_` 前缀）。
+- **CMake 接口替换**：删除 `cmake/ek_config.cmake` / `cmake/ek_linker.cmake` 及全部 `ek_set_*` 函数，改用 `ek_platform_prepare()` 与 `ek_platform_configure()`；`EK_LINKER_AUTO` 改为 `EK_LINKER_MODE`（`auto` / `off`）；`ek_linker_attach()` 的 `BOARD_PATH` 改名为 `BOARD`；Cortex-M 目标须提供 `SOC`（`ek_soc.h`）且不再引入厂商启动汇编；删除未使用的 `TOOLCHAIN_LINK_LIBRARIES`。
+- **移除 `ek_port_io_fputc` 弱函数**：改用 VFS `fd 0/1/2`（`EKCFG_VFS=1`，可配 `EKCFG_IO_CONSOLE_PATH`）或非 VFS 模式 `ek_io_set_ops()`（`EKCFG_VFS=0`）。
+- **移除旧导出宏与 `EK_LOCK_*` 外部锁宏**：删除 `EK_EXPORT_EARLIEST` / `HARDWARE` / `COMPONENTS` / `USER` 与公开 `EK_EXPORT_LEVEL`（`ek_export_item_t.level` 更名为 `phase`），改用 `EK_EXPORT_BOOT` / `BOARD` / `COMPONENT` / `APP`；移除旧 `EK_LOCK_*` 宏，`EKCFG_RTOS=1` 转为启用内置 RTOS 内核（并与 `EKCFG_EVOKE` 互斥）。
+- **`evoke` 平台回调改为 ops 虚函数表**：移除原弱函数钩子，改为通过 `ek_evoke_ops_t` 传入。
+- **枚举命名与断言宏统一**：枚举类型后缀统一由 `_t` 改为 `_e`（`ek_pt_state_e`、`ek_evoke_state_e`、`ek_log_level_e`），不保留兼容别名；移除 `ek_assert_param`，统一使用 `ek_assert`。
+- `ek_conf_template.h` 不再定义 `EKCFG_PICOLIBC` / `EKCFG_NEWLIB`；裸机 newlib 需要 syscall 桩时在项目 `ek_conf.h` 中定义 `EKCFG_NEWLIB 1`。
 
 ## [6.2.1] - 2026-10-27
 
@@ -286,3 +250,4 @@
 [6.2.0]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.1.1...v6.2.0
 [6.2.1]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.2.0...v6.2.1
 [7.0.0]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.2.1...v7.0.0
+[Unreleased]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v7.0.0...HEAD

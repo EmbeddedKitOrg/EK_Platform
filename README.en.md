@@ -2,7 +2,7 @@ English | [简体中文](README.md)
 
 # EmbeddedKit (ek_platform)
 
-A lightweight embedded C foundation library for resource-constrained MCUs, providing data structures, memory management, logging, assertions, an event scheduler (evoke), cooperative microthreads (picothread), and VFS. Zero RTOS dependency; modules are enabled on demand at compile time via configuration macros.
+A lightweight embedded C foundation library (v7) for resource-constrained MCUs, providing data structures, TLSF memory management, leveled logging, assertions, an event-driven scheduler (evoke), cooperative microthreads (picothread), a Virtual File System (VFS), an embedded command-line Shell, and a built-in tickless preemptive RTOS kernel (threads, semaphores, mutexes with priority inheritance, condition variables with Wait Morphing, barriers, message queues, zero-copy intrusive kfifo, stack overflow detection, and stack high-water-mark tracking). Supports both bare-metal and built-in RTOS modes with zero third-party RTOS dependencies, tailored on demand at compile time via configuration macros.
 
 ## Quick Start (CMake)
 
@@ -55,14 +55,19 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
   EK_DEFINE_ARCH_IRQ(USART0_IRQn, USART0_IRQHandler);      // Static registration
   ek_arch_irq_install(USART0_IRQn, USART0_IRQHandler);     // Or dynamic runtime binding
   ```
+- **Standard I/O Adaptation (`ek/core/io.h`)**:
+  - **With VFS (`EKCFG_VFS=1`)**: Standard streams route directly to VFS `fd 0/1/2`. Defining `#define EKCFG_IO_CONSOLE_PATH "/dev/uart0"` in `ek_conf.h` automatically binds `stdin/stdout/stderr` during `ek_io_init()`, and streams can be hot-rebound at runtime via `ek_vfs_bind_fd()` / `ek_vfs_bind_stdio()`.
+  - **Without VFS (`EKCFG_VFS=0`)**: Register an `ek_io_ops_t` table (`put_ch` / `get_ch` / `write` / `read`) via `ek_io_set_ops(&ops)` to handle `ek_printf` / `printf`.
+- **Built-in RTOS Integration (`EKCFG_RTOS=1`)**: Implement `ek_os_timer_ops_t` (`now` and `set_timeout`), call `ek_os_kernel_announce_isr()` from your hardware timer alarm ISR, and start the scheduler with `ek_os_kernel_start(&timer_ops)` in `main()`.
 - **Override Weak Functions for Hardware Adaptation**: Define strong functions with the same name as needed:
   ```c
-  int ek_port_io_fputc(int ch);                                          // printf character output
-  uint32_t ek_port_log_get_tick(void);                                   // Log timestamp
-  void ek_assert_hook(const char *file, uint32_t line, const char *expr); // Assertion hook
-  void *ek_malloc(size_t size);                                          // Custom heap when EKCFG_HEAP_TLSF=0
+  uint32_t ek_port_log_get_tick(void);                                    // Log timestamp
+  void ek_assert_hook(const char *file, uint32_t line, const char *expr); // Assertion hook (calls abort() by default)
+  void ek_os_kernel_idle_hook(void);                                      // RTOS idle thread hook
+  void ek_os_kernel_stackoverflow_hook(int tid, const char *name);        // RTOS stack overflow hook (CHECK > 0)
+  void *ek_malloc(size_t size);                                           // Custom heap when EKCFG_HEAP_TLSF=0
   void *ek_realloc(void *ptr, size_t size);
-  void *ek_free(void *ptr);
+  void ek_free(void *ptr);
   ```
 
 ### 4. Direct Source Integration without CMake (Optional)
@@ -103,12 +108,14 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
 
 | Macro | Default | Description |
 |---|---|---|
-| `EKCFG_RTOS` | `0` | `0`=bare-metal, `1`=RTOS (requires defining `EK_LOCK_*` mutex macros) |
-| `EKCFG_IO_LWPRTF` | `1` | `1`=use built-in lwprintf (forced to `0` when `PICOLIBC=ON`, delegating to `printf`) |
-| `EKCFG_NEWLIB` | `0` | `1`=enable bare-metal newlib/nanolibc syscall stubs (mutually exclusive with picolibc) |
+| `EKCFG_RTOS` | `0` | `0`=bare-metal, `1`=enable built-in tickless RTOS kernel (requires `EKCFG_ARCH=1` and `EKCFG_LIST=1`, mutually exclusive with `EKCFG_EVOKE`; `ek_malloc/free/realloc` are automatically thread-safe; provides `thread`, `sem`, `mutex`, `condvar`, `barrier`, `msgq`, `kfifo`) |
+| `EKCFG_PICOLIBC` | `1` | `1`=use picolibc adaptation layer (overridden by CMake `PICOLIBC`; forces `EKCFG_NEWLIB=0` and `EKCFG_IO_LWPRTF=0` when enabled) |
+| `EKCFG_NEWLIB` | `0` | `1`=enable bare-metal newlib/nanolibc syscall stubs (mutually exclusive with `EKCFG_PICOLIBC`) |
+| `EKCFG_IO_LWPRTF` | `0` | `1`=use built-in lwprintf (forced to `0` when `EKCFG_PICOLIBC=1`, delegating to standard `printf`) |
+| `EKCFG_IO_CONSOLE_PATH` | Undefined (optional) | When `EKCFG_VFS=1`, specifies the default console device path (e.g., `"/dev/uart0"`) to auto-bind `stdin/stdout/stderr` on boot |
 | `EKCFG_STATIC_ALLOC` | `1` | Enable `EK_DEFINE_*` static object linker-section registration |
 | `EKCFG_EXPORT` | `1` | Enable `EK_EXPORT_*` auto-initialization mechanism |
-| `EKCFG_ASSERT` | `1` | Enable assertion module |
+| `EKCFG_ASSERT` | `EKCFG_DEBUG` | Enable assertion module (follows `EKCFG_DEBUG` by default: `Debug=1`, `Release=0`) |
 | `EKCFG_LOG` | `1` | Enable leveled logging module |
 | `EKCFG_ARCH` | `1` | Enable hardware architecture abstraction layer (IRQ management, critical sections, VTOR redirection) |
 
@@ -124,32 +131,46 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
 | `EKCFG_SNAPSHOT` | `0` | State snapshot component |
 | `EKCFG_BITSTREAM` | `0` | Bitstream reader/writer |
 | `EKCFG_SHARED_PTR` | `0` | Reference-counted shared pointer |
-| `EKCFG_EVOKE` | `0` | Event-driven cooperative scheduler (bare-metal only; platform hooks supplied via `ek_evoke_ops_t`) |
-| `EKCFG_PICOTHREAD` | `0` | Cooperative microthreads |
-| `EKCFG_PICOTHREAD_SEM` / `MSG` | `0` | Microthread semaphore / message queue (requires `EKCFG_PICOTHREAD`) |
-| `EKCFG_VFS` | `0` | Virtual File System |
+| `EKCFG_EVOKE` | `0` | Event-driven cooperative scheduler (bare-metal only; requires `EKCFG_LIST` and `EKCFG_RINGBUF_SPSC`, mutually exclusive with `EKCFG_RTOS`; hooks supplied via `ek_evoke_ops_t`) |
+| `EKCFG_PICOTHREAD` | `0` | Cooperative microthreads (requires `EKCFG_LIST`) |
+| `EKCFG_PICOTHREAD_SEM` / `MSG` | `0` | Microthread semaphore / message queue (requires `EKCFG_PICOTHREAD`; message queue also requires `EKCFG_RINGBUF`) |
+| `EKCFG_VFS` | `0` | Virtual File System (includes `vfs_bus` static bus/device tree registration and `ek_vfs_bind_fd` stdio binding) |
+| `EKCFG_SHELL` | `0` | Embedded command-line Shell (requires `EKCFG_VFS=1`; supports `.ek_shell_cmd` static export, dynamic command registration, and VT100 line editing) |
 
 #### Module Parameters
 
 | Macro | Default | Description |
 |---|---|---|
-| `EKCFG_ARCH_IRQ_COUNT` | None (required on ARM) | External IRQ count; evaluated by assembler, must be a plain integer like `(91)` |
+| `EKCFG_ARCH_IRQ_COUNT` | None (required on ARM) | External IRQ count (`1..240`); evaluated by assembler, must be a plain integer like `(91)` |
 | `EKCFG_HEAP_TLSF` | `1` | `1`=use built-in TLSF allocator, `0`=custom `ek_malloc/free/realloc` |
-| `EKCFG_HEAP_SECTION` | `".heap"` | Linker section for heap memory (e.g., `".tcmram"`) |
-| `EKCFG_HEAP_SIZE` | `(16 * 1024)` | Default heap size in bytes |
-| `EKCFG_TLSF_FL_INDEX_MAX` | `(24)` | TLSF first-level index max (max block size is $2^{\text{FL}}$ bytes) |
-| `EKCFG_TLSF_SL_INDEX_COUNT_LOG2` | `(3)` | $\log_2$ of TLSF second-level index count |
-| `EKCFG_LOG_DEBUG` | `1` | Enable DEBUG-level log output |
-| `EKCFG_LOG_COLOR` | `0` | Enable ANSI color output in logs |
-| `EKCFG_LOG_BUF_SIZE` | `(128)` | Single-line log formatting buffer size in bytes |
-| `EKCFG_ASSERT_TINY` | `1` | `1`=compact assertion (omits file name and expression string), `0`=full assertion |
-| `EKCFG_ASSERT_LOG` | `1` | Output log message on assertion failure |
+| `EKCFG_HEAP_SECTION` | Undefined (optional) | When defined, places the default heap in the specified linker section (e.g., `".heap"` or `".tcmram"`) |
+| `EKCFG_HEAP_SIZE` | `(30 * 1024)` | Default heap size in bytes |
+| `EKCFG_HEAP_MAX_POOL_SIZE` | `EKCFG_HEAP_SIZE` | Maximum single pool size in bytes (override explicitly for multi-pool setups) |
+| `EKCFG_TLSF_FL_INDEX_MAX` | Auto-derived from `EKCFG_HEAP_MAX_POOL_SIZE` | TLSF first-level index max in `[10, 30]` (max block size is $2^{\text{FL}}$ bytes) |
+| `EKCFG_TLSF_SL_INDEX_COUNT_LOG2` | Auto-derived from `EKCFG_HEAP_SIZE` | $\log_2$ of TLSF second-level index count in `[1, 5]` |
+| `EKCFG_LOG_DEBUG` | `EKCFG_DEBUG` | Enable DEBUG-level log output (follows `EKCFG_DEBUG` by default) |
+| `EKCFG_LOG_COLOR` | `1` | Enable ANSI color output in logs |
+| `EKCFG_LOG_BUF_SIZE` | `(256)` | Single-line log formatting buffer size in bytes |
+| `EKCFG_ASSERT_TINY` | `EKCFG_RELEASE` | `1`=compact assertion (omits file name and expression string), `0`=full assertion (`Debug=0`, `Release=1` by default) |
+| `EKCFG_ASSERT_LOG` | `EKCFG_DEBUG` | Output log message on assertion failure (follows `EKCFG_DEBUG` by default) |
 | `EKCFG_EVOKE_MIN_DEEPSLEEP_TICK` | `(10)` | Minimum idle ticks before evoke enters deep sleep |
-| `EKCFG_PT_PRIO_LOWEST` | `(31)` | Lowest microthread priority value (priority levels = value + 1) |
-| `EKCFG_VFS_MAX_FDS` | `(16)` | Maximum simultaneously open VFS file descriptors |
+| `EKCFG_PT_PRIO_LOWEST` | `(31)` | Lowest microthread priority value (`<= 31`; priority levels = value + 1) |
+| `EKCFG_VFS_MAX_FDS` | `(16)` | Maximum simultaneously open VFS file descriptors (`<= 32`) |
 | `EKCFG_VFS_MAX_NODES` | `(30)` | VFS static node pool capacity |
-| `EKCFG_VFS_NAME_LEN` | `(12)` | Maximum VFS node name length |
+| `EKCFG_VFS_NAME_LEN` | `(12)` | Maximum VFS node name length (must be a multiple of `4`) |
 | `EKCFG_VFS_TREE_DUMP_UTF8` | `0` | Use UTF-8 box-drawing characters when dumping VFS directory tree |
+| `EKCFG_SHELL_BUF_SIZE` | `(64)` | Shell line-editing buffer size in bytes |
+| `EKCFG_SHELL_PROMPT` | `"ek>"` | Shell interactive prompt string |
+| `EKCFG_SHELL_CMD_MAX_ARGS` | `(8)` | Maximum argument count (`argc` limit) per Shell command |
+| `EKCFG_SHELL_UTF8` | `0` | Enable UTF-8 multibyte width and editing support in Shell |
+| `EKCFG_SHELL_BUILTIN_CMDS` | `0` | Enable built-in Shell commands (`hello` / `echo` / `tree` / `clear` / `version` / `help`) |
+| `EKCFG_OS_KERNEL_TIMEBASE_HZ` | `(1000000U)` | RTOS kernel timebase frequency in Hz |
+| `EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK` | `(0U)` | Stack overflow check level: `0`=off, `1`=SP bounds/alignment check, `2`=magic canary paint + high-water-mark tracking |
+| `EKCFG_OS_THREAD_NAME_LEN` | `(16)` | Maximum RTOS thread name length |
+| `EKCFG_OS_THREADS_MAX` | `(16)` | Maximum concurrent RTOS threads (`<= 64`) |
+| `EKCFG_OS_THREAD_MIN_STACK` | `(256)` | Minimum RTOS thread stack size in bytes |
+| `EKCFG_OS_THREAD_MIN_PRIO` | `(31U)` | Lowest RTOS thread priority (`< 32`; priority levels = value + 1) |
+| `EKCFG_OS_IDLE_THREAD_STACK` | `(512)` | RTOS idle thread stack size in bytes |
 
 ### 3. Board Memory Layout (`ek_board.h`)
 
