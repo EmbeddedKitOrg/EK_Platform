@@ -142,12 +142,13 @@
 
 #define EKCFG_RTOS (0) /**< 是否启用 RTOS (0=裸机 1=内置 RTOS) */
 #if EKCFG_RTOS == 1
-#    define EKCFG_OS_KERNEL_TIMEBASE_HZ (1000000U) /**< OS 内核频率 */
-#    define EKCFG_OS_THREAD_NAME_LEN    (16) /**< OS 线程名字的最大长度 */
-#    define EKCFG_OS_THREADS_MAX        (16) /**< OS 最大线程数 (<= 64) */
-#    define EKCFG_OS_THREAD_MIN_STACK   (256) /**< OS 线程最小栈大小（字节） */
-#    define EKCFG_OS_THREAD_MIN_PRIO    (31U) /**< OS 线程最低优先级 (< 32) */
-#    define EKCFG_OS_IDLE_THREAD_STACK  (512) /**< OS 空闲线程栈大小（字节） */
+#    define EKCFG_OS_KERNEL_TIMEBASE_HZ         (1000000U) /**< OS 内核频率 */
+#    define EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK (0U) /**< 0=关闭 1=边界指针检查 2=魔数染色 + 高水位线  */
+#    define EKCFG_OS_THREAD_NAME_LEN            (16) /**< OS 线程名字的最大长度 */
+#    define EKCFG_OS_THREADS_MAX                (16) /**< OS 最大线程数 (<= 64) */
+#    define EKCFG_OS_THREAD_MIN_STACK           (256) /**< OS 线程最小栈大小（字节） */
+#    define EKCFG_OS_THREAD_MIN_PRIO            (31U) /**< OS 线程最低优先级 (< 32) */
+#    define EKCFG_OS_IDLE_THREAD_STACK          (512) /**< OS 空闲线程栈大小（字节） */
 #endif
 
 #endif /* EK_CONF_H */

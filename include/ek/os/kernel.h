@@ -109,6 +109,28 @@ int ek_os_kernel_sched_lock(void);
  */
 int ek_os_kernel_sched_unlock(void);
 
+#    if EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK > 0
+/**
+ * @brief 线程栈溢出故障回调钩子（弱函数）
+ * @param tid  发生溢出的线程 ID
+ * @param name 发生溢出的线程名（可能为 NULL 或截断字符串）
+ *
+ * @note 当 EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK > 0 且检测到越界、对齐破坏或栈底魔数哨兵损坏时触发。
+ * @note 默认实现调用 ek_assert() 与 abort() 停机，用户可在应用中重写以记录现场或执行复位。
+ * @warning 本函数在 PendSV 关中断上下文及 MSP 主栈上运行，严禁调用任何阻塞型或依赖中断的接口。
+ */
+void ek_os_kernel_stackoverflow_hook(int tid, const char *name);
+#    endif
+
+/**
+ * @brief 内核空闲线程钩子函数（弱函数）
+ *
+ * @note 在无就绪用户线程可调度时，由内核空闲线程循环每次进入低功耗等待前调用。
+ * @warning 运行于低优先级空闲线程上下文，严禁调用任何可能引起阻塞的 OS 接口；
+ *          同时需严格控制局部栈开销以防超出 EKCFG_OS_IDLE_THREAD_STACK 容量。
+ */
+void ek_os_kernel_idle_hook(void);
+
 #    ifdef __cplusplus
 }
 #    endif

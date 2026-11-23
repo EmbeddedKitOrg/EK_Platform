@@ -76,6 +76,13 @@ ek_arch_switch_thread:
 
     str r0, [r1] /* sp = g_cur_thrd->arch.sp */
 
+#if EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK > 0
+    push {r1-r3, lr}                  /* 8 字节对齐，压在 MSP 主栈上，即使线程 PSP 已爆栈也安全 */
+    mov  r0, r1                       /* r0 = g_cur_thrd */
+    bl   kernel_stackoverflow_check   /* C 检测函数，定义在 kernel.c */
+    pop  {r1-r3, lr}
+#endif
+
 .Lswitch_thrd_ptr:
     /* 获取下一个线程 */
     ldr r1, =g_next_thrd /* r1 = g_next_thrd */

@@ -50,6 +50,12 @@ static int _thread_setup(os_thread_t *thrd,
     thrd->arg = arg;
     // 数值越低 优先级越高
     thrd->sched.base_prio = EK_MIN(prio, (uint8_t)EKCFG_OS_THREAD_MIN_PRIO);
+
+#    if EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK == 2
+    memset(stack_base, EK_OS_STACK_MAGIC_BYTE, stack_size);
+    thrd->debug.high_water_mark = 0U;
+#    endif
+
     thrd->arch.sp = (uintptr_t)ek_arch_stack_init(stack_top, fn, arg, kernel_thread_exit);
     thrd->sched.state = EK_OS_THREAD_READY;
     thrd->sched.sched_lock = 0;
@@ -337,5 +343,40 @@ int ek_os_thread_sleep(int64_t timeout)
 
     return 0;
 }
+
+#    if EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK == 2
+
+int ek_os_thread_stack_high_water_mark(int tid, size_t *used, size_t *total)
+{
+    if (!used && !total) return -EINVAL;
+
+    uint32_t flags = ek_os_kernel_spin_lock();
+    os_thread_t *thrd = NULL;
+    int err = _thread_get_locked(tid, true, &thrd);
+    if (err == 0)
+    {
+        const uint8_t *p = (const uint8_t *)thrd->stack.base;
+        size_t size = thrd->stack.size;
+        size_t unused = 0U;
+
+        while (unused < size && p[unused] == EK_OS_STACK_MAGIC_BYTE)
+        {
+            unused++;
+        }
+
+        size_t peak = size - unused;
+        if (peak > thrd->debug.high_water_mark)
+        {
+            thrd->debug.high_water_mark = peak;
+        }
+
+        if (used) *used = thrd->debug.high_water_mark;
+        if (total) *total = size;
+    }
+    ek_os_kernel_spin_unlock(flags);
+    return err;
+}
+
+#    endif
 
 #endif /* EKCFG_RTOS == 1 */

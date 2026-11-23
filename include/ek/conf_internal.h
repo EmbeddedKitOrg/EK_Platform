@@ -340,6 +340,9 @@
 #    ifndef EKCFG_OS_KERNEL_TIMEBASE_HZ
 #        define EKCFG_OS_KERNEL_TIMEBASE_HZ (1000000U) /**< OS 内核时基频率（Hz） */
 #    endif
+#    ifndef EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK
+#        define EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK (0U) /**< 0=关闭 1=边界指针检查 2=魔数染色 + 高水位线  */
+#    endif
 #    ifndef EKCFG_OS_THREAD_NAME_LEN
 #        define EKCFG_OS_THREAD_NAME_LEN (16) /**< OS 线程名字的最大长度 */
 #    endif
@@ -360,6 +363,9 @@
 #    endif
 #    if EKCFG_OS_THREAD_MIN_PRIO > 31
 #        error "EKCFG_OS_THREAD_MIN_PRIO must be <= 31"
+#    endif
+#    if EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK > 2U
+#        error "EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK must be 0, 1, or 2"
 #    endif
 #endif
 

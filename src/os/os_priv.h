@@ -21,6 +21,12 @@ extern "C"
 {
 #    endif
 
+#    if EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK > 0
+#        define EK_OS_STACK_MAGIC_BYTE  (0xA5U) /**< 线程栈染色填充字节魔数 */
+#        define EK_OS_STACK_MAGIC_WORD  (0xA5A5A5A5UL) /**< 线程栈底哨兵检测字魔数 */
+#        define EK_OS_STACK_GUARD_WORDS (4U) /**< 线程栈底哨兵检查字数（16 字节） */
+#    endif
+
 typedef struct os_thread os_thread_t;
 
 /**
@@ -65,6 +71,13 @@ struct os_thread
         size_t size; /**< 可用栈字节数（不含 TCB） */
         bool owned; /**< true 表示栈由内核堆分配，销毁时需 ek_free；false 表示外部静态栈 */
     } stack;
+
+#    if EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK == 2
+    struct
+    {
+        size_t high_water_mark; /**< 历史最大栈深（字节） */
+    } debug;
+#    endif
 
     int tid; /**< 线程 ID；销毁后槽位被回收，旧 tid 不再有效 */
     ek_os_thread_fn_t fn; /**< 线程入口函数 */
@@ -253,6 +266,15 @@ void kernel_mutex_release_locked(ek_os_mutex_t *mutex);
  * @param mutex 目标互斥量句柄
  */
 void kernel_wait_morph_to_mutex_locked(os_thread_t *thrd, ek_os_mutex_t *mutex);
+
+#    if EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK > 0
+/**
+ * @brief 检查刚切出线程的栈溢出状态与高水位记录
+ * @note 由上下文切换汇编在保存当前线程 arch.sp 后于 MSP 栈及关中断上下文调用
+ * @param thrd 即将切出的当前线程控制块指针
+ */
+void kernel_stackoverflow_check(os_thread_t *thrd);
+#    endif
 
 #    ifdef __cplusplus
 }

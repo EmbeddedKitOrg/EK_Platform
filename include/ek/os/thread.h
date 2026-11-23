@@ -121,6 +121,22 @@ __EK_NO_RETURN void ek_os_thread_exit(void *retval);
  */
 int ek_os_thread_yield(void);
 
+#    if EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK == 2
+/**
+ * @brief 查询指定线程自创建以来的历史最大栈使用量（高水位线）
+ * @param tid   目标线程 ID，可传 ek_os_kernel_current_tid() 查询自身
+ * @param used  输出历史最大已用栈字节数（不含 TCB，仅关心 total 可传 NULL）
+ * @param total 输出线程可用栈总字节数（仅关心 used 可传 NULL）
+ * @return 0 成功，负数错误码失败
+ * @retval -EINVAL used 与 total 均为空指针
+ * @retval -ESRCH  线程不存在、未启用或已终止
+ *
+ * @note 仅在 EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK == 2（开启魔数染色）时可用。
+ * @note 内部从栈底向上线性扫描未破坏魔数的区域，耗时与栈空闲大小成正比，不建议在中断或硬实时路径调用。
+ */
+int ek_os_thread_stack_high_water_mark(int tid, size_t *used, size_t *total);
+#    endif
+
 /**
  * @brief 使当前线程休眠指定时长
  * @param timeout 休眠时长（单位为内核时间基计数，推荐通过 EK_OS_MSEC()/EK_OS_SEC() 构造；须 >= 0，传 0 直接返回）

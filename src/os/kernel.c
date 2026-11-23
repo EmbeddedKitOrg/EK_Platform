@@ -11,6 +11,7 @@
 #    include "ek/os/kernel.h"
 #    include "ek/mem/heap.h"
 #    include "ek/core/def.h"
+#    include "ek/core/assert.h"
 
 #    define TID_SLOT_BITS       6
 #    define TID_SLOT_MASK       ((1U << TID_SLOT_BITS) - 1U)
@@ -449,11 +450,69 @@ void kernel_thread_yield_locked(void)
     ek_arch_switch_yield();
 }
 
+#    if EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK > 0
+
+__EK_WEAK void ek_os_kernel_stackoverflow_hook(int tid, const char *name)
+{
+    __EK_UNUSED(tid);
+    __EK_UNUSED(name);
+
+    // 处于 PendSV 关中断上下文（MSP 栈），兜底 abort 确保断言关闭时也能停机
+    ek_assert(0 && "stack overflow");
+    abort();
+}
+
+void kernel_stackoverflow_check(os_thread_t *thrd)
+{
+    if (!thrd || !thrd->stack.base || !thrd->stack.size) return;
+
+    uintptr_t base = (uintptr_t)thrd->stack.base;
+    uintptr_t top = base + thrd->stack.size;
+    uintptr_t sp = thrd->arch.sp;
+
+    // 级别 1 与级别 2 通用：边界指针与对齐检查
+    if (sp < base || sp > top || (sp & 0x3U))
+    {
+        ek_os_kernel_stackoverflow_hook(thrd->tid, thrd->name);
+        return;
+    }
+
+#        if EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK == 2
+    // 级别 2：检查栈底 16 字节魔数哨兵，捕获切出前已返回的瞬时溢栈
+    const uint32_t *guard = (const uint32_t *)EK_ALIGN_UP(base, sizeof(uint32_t));
+    size_t max_words = (top > (uintptr_t)guard) ? ((top - (uintptr_t)guard) / sizeof(uint32_t)) : 0U;
+    size_t n = EK_MIN((size_t)EK_OS_STACK_GUARD_WORDS, max_words);
+
+    for (size_t i = 0U; i < n; i++)
+    {
+        if (guard[i] != EK_OS_STACK_MAGIC_WORD)
+        {
+            ek_os_kernel_stackoverflow_hook(thrd->tid, thrd->name);
+            return;
+        }
+    }
+
+    // 切出瞬间 O(1) 刷新当前栈深记录，完整峰值由查询 API 按需扫栈得出
+    size_t used = (size_t)(top - sp);
+    if (used > thrd->debug.high_water_mark)
+    {
+        thrd->debug.high_water_mark = used;
+    }
+#        endif
+}
+
+#    endif
+
+__EK_WEAK void ek_os_kernel_idle_hook(void)
+{
+}
+
 static void *_idle_thread(void *arg)
 {
     __EK_UNUSED(arg);
     for (;;)
     {
+        ek_os_kernel_idle_hook();
         ek_arch_idle();
     }
 
