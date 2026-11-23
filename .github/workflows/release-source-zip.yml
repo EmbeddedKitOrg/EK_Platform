@@ -30,9 +30,15 @@ jobs:
             --output "${zip_name}" \
             "${TAG_NAME}" \
             CMakeLists.txt \
+            LICENSE \
+            README.md \
+            README.en.md \
+            CHANGELOG.md \
             ek_conf_template.h \
+            ek_board_template.h \
             cmake \
-            inc \
+            include \
+            port \
             src \
             third_party
           echo "ZIP_NAME=${zip_name}" >> "$GITHUB_ENV"
