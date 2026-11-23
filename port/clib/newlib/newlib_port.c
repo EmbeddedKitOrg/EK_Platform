@@ -3,8 +3,8 @@
  * @brief newlib/nanolibc syscall 适配
  *
  * 为裸机 newlib 提供最小系统调用桩：
- * - _write → ek_port_io_fputc
- * - _read / _close / _fstat / _isatty / _lseek → 最小实现
+ * - _write / _read → ek_io_write / ek_io_read（由 VFS fd 或 ek_io_ops_t 承载）
+ * - _close / _fstat / _isatty / _lseek → 最小实现
  * - _sbrk → 使用链接脚本的 __heap_start / __heap_end（弱引用）
  *
  * 全部为弱符号，BSP 可以按需覆盖。
@@ -53,22 +53,24 @@ __EK_WEAK int _getpid(void)
 
 __EK_WEAK int _write(int fd, const void *buf, size_t len)
 {
-    __EK_UNUSED(fd);
-    const char *p = (const char *)buf;
-    for (size_t i = 0; i < len; i++)
+    ssize_t n = ek_io_write(fd, buf, len);
+    if (n < 0)
     {
-        if (ek_port_io_fputc(p[i]) < 0) return -1;
+        errno = (int)(-n);
+        return -1;
     }
-    return (int)len;
+    return (int)n;
 }
 
 __EK_WEAK int _read(int fd, void *buf, size_t len)
 {
-    __EK_UNUSED(fd);
-    __EK_UNUSED(buf);
-    __EK_UNUSED(len);
-    errno = ENOSYS;
-    return -1;
+    ssize_t n = ek_io_read(fd, buf, len);
+    if (n < 0)
+    {
+        errno = (int)(-n);
+        return -1;
+    }
+    return (int)n;
 }
 
 __EK_WEAK int _close(int fd)

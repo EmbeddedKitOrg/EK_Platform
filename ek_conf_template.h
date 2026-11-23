@@ -20,7 +20,8 @@
 
 /* EKCFG_PICOLIBC / EKCFG_NEWLIB 由 CMake 的 PICOLIBC 选项派生。
  * 裸机 newlib 需要 syscall port 时，在项目 ek_conf.h 中定义 EKCFG_NEWLIB 1。 */
-#define EKCFG_IO_LWPRTF    (1) /**< IO 是否使用 lwprintf (1=使用, 0=不使用) */
+#define EKCFG_IO_LWPRTF (1) /**< IO 是否使用 lwprintf (1=使用, 0=不使用) */
+/* #define EKCFG_IO_CONSOLE_PATH "/dev/uart0" */ /**< 默认控制台 VFS 设备路径（开启 VFS 时自动绑定 stdio） */
 #define EKCFG_STATIC_ALLOC (1) /**< 是否启用 EK_DEFINE_* 静态对象注册 (1=使用, 0=不使用);静态初始化函数始终可用 */
 
 /* ========================================================================

@@ -65,9 +65,9 @@ typedef struct
 #    define EK_EXPORT_ORDER_COMPONENT_HEAP         (1)
 #    define EK_EXPORT_ORDER_COMPONENT_VFS          (5)
 #    define EK_EXPORT_ORDER_COMPONENT_SHELL        (6)
-#    define EK_EXPORT_ORDER_COMPONENT_IO           (7)
 #    define EK_EXPORT_ORDER_COMPONENT_SCHED        (8)
 #    define EK_EXPORT_ORDER_COMPONENT_STATIC_ALLOC (10)
+#    define EK_EXPORT_ORDER_COMPONENT_IO           (11)
 
 /* 生成唯一符号名（内部使用） */
 #    define _EK_EXPORT_JOIN2(a, b) a##b

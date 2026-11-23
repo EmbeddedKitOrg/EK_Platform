@@ -6,7 +6,7 @@
  * 统一 picolibc 与 ek_utils 的内存分配器和字符输出：
  * - A (EKCFG_HEAP_TLSF=1): picolibc 的 malloc/free/realloc → ek_malloc/ek_free/ek_realloc (TLSF)
  * - B (EKCFG_HEAP_TLSF=0): ek_malloc/ek_free/ek_realloc → picolibc 的 malloc/free/realloc
- * - stdout: putchar → ek_port_io_fputc
+ * - stdin/stdout/stderr → ek_io_getc / ek_io_putc（由 VFS fd 0/1/2 或 ek_io_ops_t 承载）
  */
 
 #include "ek/conf_internal.h"
@@ -52,16 +52,32 @@ void *ek_realloc(void *ptr, size_t size)
 
 #    endif /* EKCFG_HEAP_TLSF */
 
-static int _ek_picolibc_putc(char ch, FILE *file)
+static int _ek_picolibc_stdin_getc(FILE *file)
 {
     __EK_UNUSED(file);
-    return ek_port_io_fputc(ch);
+    int ch = ek_io_getc(EK_IO_STDIN);
+    return (ch >= 0) ? ch : _FDEV_EOF;
 }
 
-static FILE __stdio = FDEV_SETUP_STREAM(_ek_picolibc_putc, NULL, NULL, _FDEV_SETUP_WRITE);
+static int _ek_picolibc_stdout_putc(char ch, FILE *file)
+{
+    __EK_UNUSED(file);
+    return (ek_io_putc(EK_IO_STDOUT, (unsigned char)ch) >= 0) ? (unsigned char)ch : _FDEV_EOF;
+}
 
-FILE *const stdout = &__stdio;
-FILE *const stderr = &__stdio;
+static int _ek_picolibc_stderr_putc(char ch, FILE *file)
+{
+    __EK_UNUSED(file);
+    return (ek_io_putc(EK_IO_STDERR, (unsigned char)ch) >= 0) ? (unsigned char)ch : _FDEV_EOF;
+}
+
+static FILE __stdin = FDEV_SETUP_STREAM(NULL, _ek_picolibc_stdin_getc, NULL, _FDEV_SETUP_READ);
+static FILE __stdout = FDEV_SETUP_STREAM(_ek_picolibc_stdout_putc, NULL, NULL, _FDEV_SETUP_WRITE);
+static FILE __stderr = FDEV_SETUP_STREAM(_ek_picolibc_stderr_putc, NULL, NULL, _FDEV_SETUP_WRITE);
+
+FILE *const stdin = &__stdin;
+FILE *const stdout = &__stdout;
+FILE *const stderr = &__stderr;
 
 __EK_WEAK void _exit(int status)
 {

@@ -288,7 +288,7 @@ ssize_t ek_vfs_read(int fd, void *buf, size_t size)
     if (file == NULL) return -EBADF;
 
     if ((file->flags & O_ACCMODE) == O_WRONLY) return -EBADF;
-    if (vfs_type_is_dir(file->node->type)) return -EISDIR;
+    if (file->node && vfs_type_is_dir(file->node->type)) return -EISDIR;
     if (!file->ops || !file->ops->read) return -ENOTSUP;
 
     return file->ops->read(file->file_priv, buf, size, &file->offset);
@@ -300,7 +300,7 @@ ssize_t ek_vfs_write(int fd, const void *buf, size_t size)
     if (file == NULL) return -EBADF;
 
     if ((file->flags & O_ACCMODE) == O_RDONLY) return -EBADF;
-    if (vfs_type_is_dir(file->node->type)) return -EISDIR;
+    if (file->node && vfs_type_is_dir(file->node->type)) return -EISDIR;
     if (!file->ops || !file->ops->write) return -ENOTSUP;
 
     return file->ops->write(file->file_priv, buf, size, &file->offset);
@@ -355,6 +355,7 @@ int ek_vfs_close(int fd)
 int ek_vfs_bind_fd(int target_fd, const char *path, int flags)
 {
     if (target_fd < 0 || target_fd >= 3) return -EINVAL;
+    if (!path) return -EINVAL;
 
     vfs_file_t *file = fd_to_file(target_fd);
     if (!file) return -EBADF;
