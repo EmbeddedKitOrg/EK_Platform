@@ -137,7 +137,7 @@ int ek_os_condvar_broadcast(ek_os_condvar_t *condvar);
 #        define EK_DEFINE_OS_CONDVAR(handle)                                                              \
             static union                                                                                  \
             {                                                                                             \
-                ek_os_condvar_t condvar; /* 抬高 union 的对齐到 alignof(ek_os_condvar_t) */              \
+                ek_os_condvar_t condvar; /* 抬高 union 的对齐到 alignof(ek_os_condvar_t) */               \
                 uint8_t storage[EK_OS_CONDVAR_STATIC_BUF_SIZE];                                           \
             } handle##_mem;                                                                               \
             static ek_os_condvar_t *handle;                                                               \

@@ -158,7 +158,7 @@ int ek_os_msgq_count(ek_os_msgq_t *msgq);
 #        define EK_DEFINE_OS_MSGQ(handle, item_size, depth)                                    \
             static union                                                                       \
             {                                                                                  \
-                ek_os_msgq_t msgq; /* 抬高 union 的对齐到 alignof(ek_os_msgq_t) */            \
+                ek_os_msgq_t msgq; /* 抬高 union 的对齐到 alignof(ek_os_msgq_t) */             \
                 uint8_t storage[EK_OS_MSGQ_STATIC_BUF_SIZE(item_size, depth)];                 \
             } handle##_mem;                                                                    \
             static ek_os_msgq_t *handle;                                                       \
