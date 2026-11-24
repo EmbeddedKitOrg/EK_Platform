@@ -6,6 +6,25 @@
 
 ## [Unreleased]
 
+### 变更
+
+- **自动初始化与静态注册改用链接器 `SORT` 编译/链接期排序**：
+  - 新增编译期辅助宏 `_EK_PP_UNPAREN` 与 `EK_PP_PAD2_STR`（支持 `0..99`），将阶段与顺序编码为两位零填充输入段名（`.ek_export_fn.<phase>.<order>`、`.ek_static_alloc.<order>`）。
+  - `ek_export_init()` 与 `ek_static_alloc_init()` 直接顺序遍历链接器排布后的段表，移除运行期 `qsort()` 调用与栈上 VLA `items[count]` 拷贝；同步补齐 `cmake/linker/host.ld` 的 `KEEP(*(SORT(.ek_export_fn*)))`。
+- **容器静态生命周期统一（隐藏 `MAGIC` 头）**：
+  - `ringbuf`（普通 / `spsc`）、`stack`、`snapshot` 控制块新增 `bool mem_owned` 字段与前置隐藏 `MAGIC` 生命周期标记，通过 `EK_*_STATIC_BUF_SIZE(...)` 预留缓冲空间、`ek_*_create_static()` 在调用者缓冲区构造实例，并由 `ek_*_destroy()` 统一释放堆内存或清除静态对象的 `MAGIC` 标记防止 UAF。
+  - `evoke` 内部 ISR SPSC FIFO 与 `picothread` 的 `ek_pt_msg_t` 同步迁移至 `create_static()` / `destroy()` 生命周期接口。
+
+### 破坏性变更
+
+- **静态容器构造/销毁接口统一**：移除 `ek_ringbuf_init_static()` / `deinit_static()`、`ek_ringbuf_init_spsc_static()` / `deinit_spsc_static()`、`ek_stack_init_static()` / `deinit_static()`、`ek_snapshot_init_static()` / `deinit_static()`，改用 `ek_*_create_static()` + `ek_*_destroy()`；`EK_DEFINE_RINGBUF` / `EK_DEFINE_RINGBUF_SPSC` / `EK_DEFINE_STACK` / `EK_SNAPSHOT_DEFINE` 声明的句柄由 `*const` 改为可赋值静态指针（在 `ek_static_alloc_init()` 期间完成初始化）。
+- **容器无效句柄返回值统一**：`ringbuf` / `ringbuf_spsc` / `stack` / `snapshot` 在传入 `NULL` 或已销毁静态句柄时，读写操作统一返回 `-ENOENT`（`full`/`empty` 返回 `false`，`ek_snapshot_get_unique()` 返回 `0U`）。
+- **内部结构体字段精简与调整**：`ek_export_item_t` 仅保留 `fn` 字段，`ek_static_alloc_item_t` 移除 `order` 字段；`ek_pt_msg_t.rb` 由内嵌 `ek_ringbuf_t` 改为 `ek_ringbuf_t *rb` 指针及紧随其后的 `rb_storage[]`。
+
+## [7.1.0] - 2026-11-24
+### 新增
+- **ek_os_thread_state** 获取指定线程的状态；
+
 ## [7.0.0] - 2026-11-23
 
 ### 新增
