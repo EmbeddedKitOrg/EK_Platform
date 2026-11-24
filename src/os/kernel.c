@@ -4,11 +4,11 @@
  * @author N1netyNine99
  */
 
-#include "os_priv.h"
+#include "ek/os/kernel.h"
 
 #if EKCFG_RTOS == 1
 
-#    include "ek/os/kernel.h"
+#    include "os_priv.h"
 #    include "ek/mem/heap.h"
 #    include "ek/core/def.h"
 #    include "ek/core/assert.h"
