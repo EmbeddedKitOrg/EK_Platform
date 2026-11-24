@@ -344,6 +344,21 @@ int ek_os_thread_sleep(int64_t timeout)
     return 0;
 }
 
+int ek_os_thread_state(int tid)
+{
+    uint32_t flags = ek_os_kernel_spin_lock();
+    const os_thread_t *thrd = kernel_tid_to_thread_locked(tid);
+    if (!thrd || thrd->sched.state == EK_OS_THREAD_UNUSED)
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return -ESRCH;
+    }
+
+    const uint8_t state = thrd->sched.state;
+    ek_os_kernel_spin_unlock(flags);
+    return (int)state;
+}
+
 #    if EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK == 2
 
 int ek_os_thread_stack_high_water_mark(int tid, size_t *used, size_t *total)

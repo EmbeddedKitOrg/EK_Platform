@@ -16,7 +16,7 @@
 
 /* ========== 软件版本号 ========== */
 #define EK_VERSION_MAJOR 7
-#define EK_VERSION_MINOR 0
+#define EK_VERSION_MINOR 1
 #define EK_VERSION_PATCH 0
 
 #include "ek/core/compiler.h"

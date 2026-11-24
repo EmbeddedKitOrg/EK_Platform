@@ -121,6 +121,17 @@ __EK_NO_RETURN void ek_os_thread_exit(void *retval);
  */
 int ek_os_thread_yield(void);
 
+/**
+ * @brief 查询指定线程当前的调度状态
+ * @param tid 目标线程 ID，可传 ek_os_kernel_current_tid() 查询自身
+ * @return 非负状态值（取值见 enum ek_thread_state），负数错误码失败
+ * @retval -ESRCH 线程不存在或已被回收
+ *
+ * @note 允许在中断上下文调用。
+ * @note 线程退出后、被 ek_os_thread_join() 回收前仍可查到 EK_OS_THREAD_DEAD。
+ */
+int ek_os_thread_state(int tid);
+
 #    if EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK == 2
 /**
  * @brief 查询指定线程自创建以来的历史最大栈使用量（高水位线）
