@@ -55,7 +55,8 @@ struct ek_pt_msg
 {
     ek_list_node_t recv_wait; /**< 等待接收消息的任务链表 */
     ek_list_node_t send_wait; /**< 等待发送空位的任务链表 */
-    ek_ringbuf_t rb; /**< 置尾成员：rb.data 即消息数据区（动态=malloc 尾部，静态=union 尾部） */
+    ek_ringbuf_t *rb; /**< 指向紧随其后的消息环形缓冲区实例 */
+    uint8_t rb_storage[]; /**< 环形缓冲区及其隐藏头存储区 */
 };
 #    endif /* EKCFG_PICOTHREAD_MSG */
 
@@ -290,18 +291,18 @@ void ek_pt_msg_deinit_static(ek_pt_msg_t *msg);
  * @note 必须在 .c 文件作用域使用，且同一翻译单元内重复使用 handle 会重定义
  * @note 句柄在 ek_static_alloc_init() 执行前不可使用
  */
-#            define EK_DEFINE_PT_MSG(handle, type, amount)                          \
-                static union                                                        \
-                {                                                                   \
-                    ek_pt_msg_t msg;                                                \
-                    type align_; /* 把 union 对齐抬到元素对齐 */                    \
-                    uint8_t storage[sizeof(ek_pt_msg_t) + sizeof(type) * (amount)]; \
-                } handle##_mem;                                                     \
-                static ek_pt_msg_t *const handle = &handle##_mem.msg;               \
-                static int _static_alloc_init_##handle(void)                        \
-                {                                                                   \
-                    return ek_pt_msg_init_static(handle, sizeof(type), (amount));   \
-                }                                                                   \
+#            define EK_DEFINE_PT_MSG(handle, type, amount)                                                     \
+                static union                                                                                   \
+                {                                                                                              \
+                    ek_pt_msg_t msg;                                                                           \
+                    type align_; /* 把 union 对齐抬到元素对齐 */                                               \
+                    uint8_t storage[sizeof(ek_pt_msg_t) + EK_RINGBUF_STATIC_BUF_SIZE(sizeof(type), (amount))]; \
+                } handle##_mem;                                                                                \
+                static ek_pt_msg_t *const handle = &handle##_mem.msg;                                          \
+                static int _static_alloc_init_##handle(void)                                                   \
+                {                                                                                              \
+                    return ek_pt_msg_init_static(handle, sizeof(type), (amount));                              \
+                }                                                                                              \
                 EK_STATIC_ALLOC_REGISTER(handle, EK_STATIC_ALLOC_ORDER_PT, _static_alloc_init_##handle)
 #        endif /* EKCFG_PICOTHREAD_MSG */
 #    endif /* EKCFG_STATIC_ALLOC */

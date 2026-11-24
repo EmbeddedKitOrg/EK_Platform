@@ -51,9 +51,9 @@ static union
 {
     ek_ringbuf_spsc_t rb;
     isr_req_t align_; /* 把 union 对齐抬到元素对齐 */
-    uint8_t storage[sizeof(ek_ringbuf_spsc_t) + sizeof(isr_req_t) * EK_EVOKE_MAX_ISR_REQ];
+    uint8_t storage[EK_RINGBUF_SPSC_STATIC_BUF_SIZE(sizeof(isr_req_t), EK_EVOKE_MAX_ISR_REQ)];
 } s_isr_fifo_mem;
-static ek_ringbuf_spsc_t *const s_isr_fifo = &s_isr_fifo_mem.rb;
+static ek_ringbuf_spsc_t *s_isr_fifo;
 
 static ek_list_node_t s_ready_task_list;
 static ek_list_node_t s_defer_evt_list;
@@ -88,7 +88,9 @@ void ek_evoke_init(void)
         ek_list_insert_tail(&s_defer_pool_free_list, &s_defer_req_pool[i].node);
     }
 
-    ek_ringbuf_init_spsc_static(s_isr_fifo, sizeof(isr_req_t), EK_EVOKE_MAX_ISR_REQ);
+    s_isr_fifo = ek_ringbuf_create_spsc_static(
+        s_isr_fifo_mem.storage, sizeof(s_isr_fifo_mem.storage), sizeof(isr_req_t), EK_EVOKE_MAX_ISR_REQ);
+    if (s_isr_fifo == NULL) EK_LOG_ERROR("create evoke isr fifo failed");
 
     s_defer_earliest_tick = UINT32_MAX;
     s_event_tick_base = 0;
