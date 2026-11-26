@@ -6,8 +6,21 @@
 
 ## [Unreleased]
 
+## [7.1.0] - 2026-11-26
+
+### 新增
+
+- **RTOS 工作队列（`workq`）**（`include/ek/os/workq.h`、`src/os/workq.c`）：
+  - 支持动态创建 `ek_os_workq_create()`、静态缓冲区创建 `ek_os_workq_create_static()`（含隐藏 `MAGIC` 生命周期标记防 UAF）及 `EK_DEFINE_OS_WORKQ` 静态注册宏（`EK_STATIC_ALLOC_ORDER_OS_WORKQ`），以及 `ek_os_workq_destroy()` 同步停机销毁。
+  - 支持工作项与延时工作项初始化 `ek_os_work_init()` / `ek_os_work_delay_init()`、即时提交 `ek_os_workq_submit()`、延时调度 `ek_os_workq_schedule()` / `ek_os_workq_reschedule()`、非阻塞取消 `ek_os_workq_cancel()`、同步取消 `ek_os_workq_cancel_sync()`、栈上栅栏排空 `ek_os_workq_flush()` 及状态查询 `ek_os_work_state()`。
+- **内核内置 ISR 工作队列（`EKCFG_OS_ISR_WORKQ`）**：
+  - 新增配置项 `EKCFG_OS_ISR_WORKQ`（默认 `0`）、`EKCFG_OS_ISR_WORKQ_PRIO`（默认 `0U`）与 `EKCFG_OS_ISR_WORKQ_STACK`（默认 `1024U`），启用后在 `ek_os_kernel_start()` 自动静态创建 `"isr workq"` 工作线程。
+  - 新增 `ek_os_workq_isr()` 句柄查询及两段式中断线程化声明宏 `EK_DEFINE_OS_WORKQ_ISR(irqn, top_fn, bottom_fn)`（上半部在硬中断清硬件标志并返回是否投递，下半部在工作队列线程执行）。
+- **线程状态查询**：新增 `ek_os_thread_state()` 获取指定线程的调度状态。
+
 ### 变更
 
+- 版本宏更新：`EK_VERSION_MINOR` 0 → 1（`7.1.0`）。
 - **自动初始化与静态注册改用链接器 `SORT` 编译/链接期排序**：
   - 新增编译期辅助宏 `_EK_PP_UNPAREN` 与 `EK_PP_PAD2_STR`（支持 `0..99`），将阶段与顺序编码为两位零填充输入段名（`.ek_export_fn.<phase>.<order>`、`.ek_static_alloc.<order>`）。
   - `ek_export_init()` 与 `ek_static_alloc_init()` 直接顺序遍历链接器排布后的段表，移除运行期 `qsort()` 调用与栈上 VLA `items[count]` 拷贝；同步补齐 `cmake/linker/host.ld` 的 `KEEP(*(SORT(.ek_export_fn*)))`。
@@ -20,10 +33,6 @@
 - **静态容器构造/销毁接口统一**：移除 `ek_ringbuf_init_static()` / `deinit_static()`、`ek_ringbuf_init_spsc_static()` / `deinit_spsc_static()`、`ek_stack_init_static()` / `deinit_static()`、`ek_snapshot_init_static()` / `deinit_static()`，改用 `ek_*_create_static()` + `ek_*_destroy()`；`EK_DEFINE_RINGBUF` / `EK_DEFINE_RINGBUF_SPSC` / `EK_DEFINE_STACK` / `EK_SNAPSHOT_DEFINE` 声明的句柄由 `*const` 改为可赋值静态指针（在 `ek_static_alloc_init()` 期间完成初始化）。
 - **容器无效句柄返回值统一**：`ringbuf` / `ringbuf_spsc` / `stack` / `snapshot` 在传入 `NULL` 或已销毁静态句柄时，读写操作统一返回 `-ENOENT`（`full`/`empty` 返回 `false`，`ek_snapshot_get_unique()` 返回 `0U`）。
 - **内部结构体字段精简与调整**：`ek_export_item_t` 仅保留 `fn` 字段，`ek_static_alloc_item_t` 移除 `order` 字段；`ek_pt_msg_t.rb` 由内嵌 `ek_ringbuf_t` 改为 `ek_ringbuf_t *rb` 指针及紧随其后的 `rb_storage[]`。
-
-## [7.1.0] - 2026-11-24
-### 新增
-- **ek_os_thread_state** 获取指定线程的状态；
 
 ## [7.0.0] - 2026-11-23
 
@@ -269,4 +278,5 @@
 [6.2.0]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.1.1...v6.2.0
 [6.2.1]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.2.0...v6.2.1
 [7.0.0]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v6.2.1...v7.0.0
-[Unreleased]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v7.0.0...HEAD
+[7.1.0]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v7.0.0...v7.1.0
+[Unreleased]: https://github.com/EmbeddedKitOrg/EK_Platform/compare/v7.1.0...HEAD

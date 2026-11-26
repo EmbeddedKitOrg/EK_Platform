@@ -8,6 +8,7 @@
 #    include "ek/mem/heap.h"
 #    include "ek/os/kernel.h"
 #    include "ek/os/thread.h"
+#    include "ek/os/sem.h"
 
 #    define MAGIC                 0x57524B51UL
 #    define WORKQ_HDR             ((size_t)_EK_OS_WORKQ_STATIC_HDR_SIZE)
@@ -86,12 +87,7 @@ static void *_workq_thread(void *arg)
             timeout = (head->deadline > now) ? (head->deadline - now) : 0;
         }
 
-        int err = kernel_wait_on_locked(&q->worker_wait, timeout, flags);
-
-        if (err < 0)
-        {
-            // TODO worker 线程的错误处理
-        }
+        __EK_UNUSED(kernel_wait_on_locked(&q->worker_wait, timeout, flags));
     }
 
     return NULL;
@@ -108,6 +104,7 @@ static void _setup_workq(ek_os_workq_t *q, bool mem_owned)
     q->mem_owned = mem_owned;
     q->stop = false;
 }
+
 ek_os_workq_t *ek_os_workq_create(const char *name, uint8_t prio, size_t stack_size)
 {
     if (ek_arch_in_isr()) return NULL;
@@ -245,6 +242,21 @@ int ek_os_work_delay_init(ek_os_work_delay_t *w, ek_os_work_fn_t fn)
     w->deadline = 0;
 
     return 0;
+}
+
+int ek_os_work_state(const ek_os_work_t *w)
+{
+    if (!w) return -ENOENT;
+
+    uint32_t flags = ek_os_kernel_spin_lock();
+
+    uint8_t state = w->flag;
+    ek_os_workq_t *q = w->q;
+    if (q && _workq_valid(q) && q->cur_work == w) state |= EK_OS_WORK_RUNNING;
+
+    ek_os_kernel_spin_unlock(flags);
+
+    return (int)state;
 }
 
 static inline int _workq_ready_locked(const ek_os_workq_t *wq)
@@ -392,5 +404,207 @@ int ek_os_workq_reschedule(ek_os_workq_t *wq, ek_os_work_delay_t *w, int64_t del
     ek_os_kernel_spin_unlock(flags);
     return 0;
 }
+
+int ek_os_workq_cancel(ek_os_work_t *w)
+{
+    if (!w) return -ENOENT;
+
+    uint32_t flags = ek_os_kernel_spin_lock();
+
+    ek_os_workq_t *q = w->q;
+    if (!q || !_workq_valid(q))
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return -ENOENT;
+    }
+
+    if ((w->flag & EK_OS_WORK_CANCELING) || q->cur_work == w)
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return -EBUSY;
+    }
+
+    if (w->flag & (EK_OS_WORK_PENDING | EK_OS_WORK_DELAYED))
+    {
+        ek_list_remove(&w->node);
+        w->flag &= ~(EK_OS_WORK_PENDING | EK_OS_WORK_DELAYED);
+    }
+    w->q = NULL;
+
+    ek_os_kernel_spin_unlock(flags);
+    return 0;
+}
+
+int ek_os_workq_cancel_sync(ek_os_work_t *w, int64_t timeout)
+{
+    if (!w) return -ENOENT;
+    if (ek_arch_in_isr()) return -EPERM;
+
+    uint32_t flags = ek_os_kernel_spin_lock();
+
+    const os_thread_t *thrd = g_cur_thrd;
+    if (!thrd || kernel_is_idle_thread(thrd))
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return -EPERM;
+    }
+
+    if (w->flag & EK_OS_WORK_CANCELING)
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return -EBUSY;
+    }
+
+    ek_os_workq_t *q = w->q;
+    if (!q || !_workq_valid(q))
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return -ENOENT;
+    }
+
+    if (ek_os_kernel_current_tid() == q->worker_tid)
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return -EDEADLK;
+    }
+
+    if (w->flag & (EK_OS_WORK_PENDING | EK_OS_WORK_DELAYED))
+    {
+        ek_list_remove(&w->node);
+        w->flag &= ~(EK_OS_WORK_PENDING | EK_OS_WORK_DELAYED);
+        w->q = NULL;
+
+        ek_os_kernel_spin_unlock(flags);
+        return 0;
+    }
+
+    if (q->cur_work != w)
+    {
+        w->q = NULL;
+        ek_os_kernel_spin_unlock(flags);
+        return 0;
+    }
+
+    if (!timeout)
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return -EAGAIN;
+    }
+
+    w->flag |= EK_OS_WORK_CANCELING;
+    int err = kernel_wait_on_locked(&q->sync_wait, timeout, flags);
+
+    flags = ek_os_kernel_spin_lock();
+    w->flag &= ~EK_OS_WORK_CANCELING;
+    // 队列销毁唤醒时，原队列对象可能已释放，解绑所属指针
+    if (err == -ECANCELED)
+    {
+        w->q = NULL;
+    }
+    ek_os_kernel_spin_unlock(flags);
+
+    return err;
+}
+
+struct fence_work
+{
+    ek_os_work_t w;
+    ek_os_sem_t *sem;
+};
+
+static void _fence_work(ek_os_work_t *work)
+{
+    struct fence_work *f = EK_CONTAINER_OF(work, struct fence_work, w);
+    ek_os_sem_give(f->sem);
+}
+
+int ek_os_workq_flush(ek_os_workq_t *wq, int64_t timeout)
+{
+    if (!wq) return -ENOENT;
+    if (ek_arch_in_isr()) return -EPERM;
+
+    uint32_t flags = ek_os_kernel_spin_lock();
+
+    int err = _workq_ready_locked(wq);
+    if (err < 0)
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return err;
+    }
+
+    const os_thread_t *thrd = g_cur_thrd;
+    if (!thrd || kernel_is_idle_thread(thrd))
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return -EPERM;
+    }
+
+    if (ek_os_kernel_current_tid() == wq->worker_tid)
+    {
+        ek_os_kernel_spin_unlock(flags);
+        return -EDEADLK;
+    }
+
+    if (!timeout)
+    {
+        bool empty = ek_list_is_empty(&wq->ready_list) && (wq->cur_work == NULL);
+        ek_os_kernel_spin_unlock(flags);
+        return empty ? 0 : -EAGAIN;
+    }
+
+    ek_os_kernel_spin_unlock(flags);
+
+    union
+    {
+        ek_os_sem_t align; // 抬高 union 的对齐到 alignof(ek_os_sem_t)
+        uint8_t storage[EK_OS_SEM_STATIC_BUF_SIZE];
+    } sem_buf;
+
+    ek_os_sem_t *sem = ek_os_sem_create_static(0, sem_buf.storage, sizeof(sem_buf.storage));
+    if (!sem) return -ENOMEM;
+
+    struct fence_work f = { .sem = sem };
+    ek_os_work_init(&f.w, _fence_work);
+
+    err = ek_os_workq_submit(wq, &f.w);
+    if (err < 0)
+    {
+        ek_os_sem_destroy(sem);
+        return err;
+    }
+
+    err = ek_os_sem_take(sem, timeout);
+
+    // 超时或被打断时必须同步撤销栈上哨兵，避免回调在退栈后访问悬空指针
+    if (err < 0) ek_os_workq_cancel_sync(&f.w, EK_OS_FOREVER);
+    ek_os_sem_destroy(sem);
+
+    return err;
+}
+
+#    if EKCFG_OS_ISR_WORKQ == 1
+static union
+{
+    ek_os_workq_t workq;
+    uint64_t align;
+    uint8_t storage[EK_OS_WORKQ_STATIC_BUF_SIZE(EKCFG_OS_ISR_WORKQ_STACK)];
+} s_isr_wq_buf;
+
+static ek_os_workq_t *s_isr_wq;
+
+int kernel_isr_workq_init(void)
+{
+    if (s_isr_wq) return 0;
+
+    s_isr_wq = ek_os_workq_create_static(
+        s_isr_wq_buf.storage, sizeof(s_isr_wq_buf.storage), "isr workq", EKCFG_OS_ISR_WORKQ_PRIO);
+    return s_isr_wq ? 0 : -ENOMEM;
+}
+
+ek_os_workq_t *ek_os_workq_isr(void)
+{
+    return s_isr_wq;
+}
+#    endif
 
 #endif /* EKCFG_RTOS == 1 */

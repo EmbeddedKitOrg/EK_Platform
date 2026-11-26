@@ -358,6 +358,23 @@
 #    ifndef EKCFG_OS_IDLE_THREAD_STACK
 #        define EKCFG_OS_IDLE_THREAD_STACK (512) /**< OS 空闲线程的栈大小（字节） */
 #    endif
+#    ifndef EKCFG_OS_ISR_WORKQ
+#        define EKCFG_OS_ISR_WORKQ (0) /**< 是否启用内核内置 ISR 工作队列 (0=关闭 1=启用) */
+#    endif
+#    if EKCFG_OS_ISR_WORKQ == 1
+#        ifndef EKCFG_OS_ISR_WORKQ_PRIO
+#            define EKCFG_OS_ISR_WORKQ_PRIO (0U) /**< 内核内置 ISR 工作队列线程优先级 */
+#        endif
+#        ifndef EKCFG_OS_ISR_WORKQ_STACK
+#            define EKCFG_OS_ISR_WORKQ_STACK (1024U) /**< 内核内置 ISR 工作队列线程栈大小（字节） */
+#        endif
+#        if EKCFG_OS_ISR_WORKQ_PRIO > EKCFG_OS_THREAD_MIN_PRIO
+#            error "EKCFG_OS_ISR_WORKQ_PRIO must be <= EKCFG_OS_THREAD_MIN_PRIO"
+#        endif
+#        if EKCFG_OS_ISR_WORKQ_STACK < EKCFG_OS_THREAD_MIN_STACK
+#            error "EKCFG_OS_ISR_WORKQ_STACK must be >= EKCFG_OS_THREAD_MIN_STACK"
+#        endif
+#    endif
 #    if EKCFG_OS_THREADS_MAX > 64
 #        error "EKCFG_OS_THREADS_MAX must be <= 64"
 #    endif

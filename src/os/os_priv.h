@@ -276,6 +276,14 @@ void kernel_wait_morph_to_mutex_locked(os_thread_t *thrd, ek_os_mutex_t *mutex);
 void kernel_stackoverflow_check(os_thread_t *thrd);
 #    endif
 
+#    if EKCFG_OS_ISR_WORKQ == 1
+/**
+ * @brief 初始化内核内置 ISR 工作队列（仅由 ek_os_kernel_start 调用）
+ * @return 0 成功，负数错误码失败
+ */
+int kernel_isr_workq_init(void);
+#    endif
+
 #    ifdef __cplusplus
 }
 #    endif

@@ -150,6 +150,11 @@
 #    define EKCFG_OS_THREAD_MIN_STACK           (256) /**< OS 线程最小栈大小（字节） */
 #    define EKCFG_OS_THREAD_MIN_PRIO            (31U) /**< OS 线程最低优先级 (< 32) */
 #    define EKCFG_OS_IDLE_THREAD_STACK          (512) /**< OS 空闲线程栈大小（字节） */
+#    define EKCFG_OS_ISR_WORKQ                  (0) /**< 是否启用内核内置 ISR 工作队列 (0=关闭 1=启用) */
+#    if EKCFG_OS_ISR_WORKQ == 1
+#        define EKCFG_OS_ISR_WORKQ_PRIO  (0U) /**< 内核内置 ISR 工作队列线程优先级 */
+#        define EKCFG_OS_ISR_WORKQ_STACK (1024U) /**< 内核内置 ISR 工作队列线程栈大小（字节） */
+#    endif
 #endif
 
 #endif /* EK_CONF_H */

@@ -527,6 +527,10 @@ __EK_NO_RETURN void ek_os_kernel_start(const ek_os_timer_ops_t *ops)
 
     s_timer_ops = *ops;
 
+#    if EKCFG_OS_ISR_WORKQ == 1
+    if (kernel_isr_workq_init() < 0) abort();
+#    endif
+
     int tid = ek_os_thread_create_static(
         "kernel idle", _idle_thread, NULL, EKCFG_OS_THREAD_MIN_PRIO, s_idle_stack, sizeof(s_idle_stack));
 
