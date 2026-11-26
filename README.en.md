@@ -2,7 +2,7 @@ English | [简体中文](README.md)
 
 # EmbeddedKit (ek_platform)
 
-A lightweight embedded C foundation library (v7) for resource-constrained MCUs, providing data structures, TLSF memory management, leveled logging, assertions, an event-driven scheduler (evoke), cooperative microthreads (picothread), a Virtual File System (VFS), an embedded command-line Shell, and a built-in tickless preemptive RTOS kernel (threads, semaphores, mutexes with priority inheritance, condition variables with Wait Morphing, barriers, message queues, zero-copy intrusive kfifo, stack overflow detection, and stack high-water-mark tracking). Supports both bare-metal and built-in RTOS modes with zero third-party RTOS dependencies, tailored on demand at compile time via configuration macros.
+A lightweight embedded C foundation library (v7) for resource-constrained MCUs, providing data structures, TLSF memory management, leveled logging, assertions, an event-driven scheduler (evoke), cooperative microthreads (picothread), a Virtual File System (VFS), an embedded command-line Shell, and a built-in tickless preemptive RTOS kernel (threads, semaphores, mutexes with priority inheritance, condition variables with Wait Morphing, barriers, message queues, zero-copy intrusive kfifo, work queues with delayed scheduling and threaded ISRs, stack overflow detection, and stack high-water-mark tracking). Supports both bare-metal and built-in RTOS modes with zero third-party RTOS dependencies, tailored on demand at compile time via configuration macros.
 
 ## Quick Start (CMake)
 
@@ -52,8 +52,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
 - **Built-in Startup (Cortex-M)**: Compiles `port/startup/cortexm/startup.S` by default; **do not add the vendor `startup_xxx.s` to your project**. Set the external interrupt count in `ek_conf.h` via `#define EKCFG_ARCH_IRQ_COUNT (91)` (plain integer expression, no `U` suffix).
 - **Register External Interrupts (Cortex-M)**:
   ```c
-  EK_DEFINE_ARCH_IRQ(USART0_IRQn, USART0_IRQHandler);      // Static registration
-  ek_arch_irq_install(USART0_IRQn, USART0_IRQHandler);     // Or dynamic runtime binding
+  EK_DEFINE_ARCH_IRQ(USART0_IRQn, USART0_IRQHandler);          // Static registration
+  ek_arch_irq_install(USART0_IRQn, USART0_IRQHandler);         // Or dynamic runtime binding
+  EK_DEFINE_OS_WORKQ_ISR(TIMER6_IRQn, top_fn, bottom_fn);      // Or threaded ISR (EKCFG_OS_ISR_WORKQ=1)
   ```
 - **Standard I/O Adaptation (`ek/core/io.h`)**:
   - **With VFS (`EKCFG_VFS=1`)**: Standard streams route directly to VFS `fd 0/1/2`. Defining `#define EKCFG_IO_CONSOLE_PATH "/dev/uart0"` in `ek_conf.h` automatically binds `stdin/stdout/stderr` during `ek_io_init()`, and streams can be hot-rebound at runtime via `ek_vfs_bind_fd()` / `ek_vfs_bind_stdio()`.
@@ -108,7 +109,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
 
 | Macro | Default | Description |
 |---|---|---|
-| `EKCFG_RTOS` | `0` | `0`=bare-metal, `1`=enable built-in tickless RTOS kernel (requires `EKCFG_ARCH=1` and `EKCFG_LIST=1`, mutually exclusive with `EKCFG_EVOKE`; `ek_malloc/free/realloc` are automatically thread-safe; provides `thread`, `sem`, `mutex`, `condvar`, `barrier`, `msgq`, `kfifo`) |
+| `EKCFG_RTOS` | `0` | `0`=bare-metal, `1`=enable built-in tickless RTOS kernel (requires `EKCFG_ARCH=1` and `EKCFG_LIST=1`, mutually exclusive with `EKCFG_EVOKE`; `ek_malloc/free/realloc` are automatically thread-safe; provides `thread`, `sem`, `mutex`, `condvar`, `barrier`, `msgq`, `kfifo`, `workq`) |
 | `EKCFG_PICOLIBC` | `1` | `1`=use picolibc adaptation layer (overridden by CMake `PICOLIBC`; forces `EKCFG_NEWLIB=0` and `EKCFG_IO_LWPRTF=0` when enabled) |
 | `EKCFG_NEWLIB` | `0` | `1`=enable bare-metal newlib/nanolibc syscall stubs (mutually exclusive with `EKCFG_PICOLIBC`) |
 | `EKCFG_IO_LWPRTF` | `0` | `1`=use built-in lwprintf (forced to `0` when `EKCFG_PICOLIBC=1`, delegating to standard `printf`) |
@@ -171,6 +172,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
 | `EKCFG_OS_THREAD_MIN_STACK` | `(256)` | Minimum RTOS thread stack size in bytes |
 | `EKCFG_OS_THREAD_MIN_PRIO` | `(31U)` | Lowest RTOS thread priority (`< 32`; priority levels = value + 1) |
 | `EKCFG_OS_IDLE_THREAD_STACK` | `(512)` | RTOS idle thread stack size in bytes |
+| `EKCFG_OS_ISR_WORKQ` | `0` | Enable built-in kernel ISR work queue (`1`=auto-creates `"isr workq"` thread on `ek_os_kernel_start()`, used with `EK_DEFINE_OS_WORKQ_ISR`) |
+| `EKCFG_OS_ISR_WORKQ_PRIO` | `(0U)` | Built-in kernel ISR work queue thread priority |
+| `EKCFG_OS_ISR_WORKQ_STACK` | `(1024U)` | Built-in kernel ISR work queue thread stack size in bytes |
 
 ### 3. Board Memory Layout (`ek_board.h`)
 

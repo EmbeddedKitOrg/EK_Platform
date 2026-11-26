@@ -2,7 +2,7 @@
 
 # EmbeddedKit (ek_platform)
 
-面向资源受限 MCU 的轻量级嵌入式 C 基础库（v7），提供数据结构、TLSF 内存管理、分级日志、断言、事件驱动调度器（evoke）、协作式微线程（picothread）、VFS 虚拟文件系统、嵌入式命令行解释器（Shell），以及内置无滴答抢占式 RTOS 内核（线程、信号量、带优先级继承的互斥量、支持 Wait Morphing 的条件变量、屏障、消息队列、侵入式零拷贝 kfifo、栈溢出检测与高水位线）。支持裸机与内置 RTOS 两种模式，零第三方 RTOS 依赖，通过编译期宏按需裁剪。
+面向资源受限 MCU 的轻量级嵌入式 C 基础库（v7），提供数据结构、TLSF 内存管理、分级日志、断言、事件驱动调度器（evoke）、协作式微线程（picothread）、VFS 虚拟文件系统、嵌入式命令行解释器（Shell），以及内置无滴答抢占式 RTOS 内核（线程、信号量、带优先级继承的互斥量、支持 Wait Morphing 的条件变量、屏障、消息队列、侵入式零拷贝 kfifo、支持延时调度与中断线程化的工作队列、栈溢出检测与高水位线）。支持裸机与内置 RTOS 两种模式，零第三方 RTOS 依赖，通过编译期宏按需裁剪。
 
 ## 快速使用（CMake）
 
@@ -52,8 +52,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
 - **内置启动文件（Cortex-M）**：默认编译 `port/startup/cortexm/startup.S`，**请勿再将厂商 `startup_xxx.s` 加入工程**。需在 `ek_conf.h` 中设置外部中断数 `#define EKCFG_ARCH_IRQ_COUNT (91)`（纯整数，勿加 `U`）。
 - **注册外部中断（Cortex-M）**：
   ```c
-  EK_DEFINE_ARCH_IRQ(USART0_IRQn, USART0_IRQHandler);      // 静态注册
-  ek_arch_irq_install(USART0_IRQn, USART0_IRQHandler);     // 或运行时动态绑定
+  EK_DEFINE_ARCH_IRQ(USART0_IRQn, USART0_IRQHandler);          // 静态注册
+  ek_arch_irq_install(USART0_IRQn, USART0_IRQHandler);         // 或运行时动态绑定
+  EK_DEFINE_OS_WORKQ_ISR(TIMER6_IRQn, top_fn, bottom_fn);      // 或中断线程化注册（EKCFG_OS_ISR_WORKQ=1）
   ```
 - **标准 IO 适配（`ek/core/io.h`）**：
   - **开启 VFS（`EKCFG_VFS=1`）**：标准流直接路由到 VFS `fd 0/1/2`；在 `ek_conf.h` 中定义 `#define EKCFG_IO_CONSOLE_PATH "/dev/uart0"` 可在 `ek_io_init()` 启动阶段自动绑定 `stdin/stdout/stderr`，运行期可通过 `ek_vfs_bind_fd()` / `ek_vfs_bind_stdio()` 热重定向。
@@ -108,7 +109,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
 
 | 宏 | 默认值 | 说明 |
 |---|---|---|
-| `EKCFG_RTOS` | `0` | `0`=裸机，`1`=启用内置无滴答 RTOS 内核（依赖 `EKCFG_ARCH=1` 与 `EKCFG_LIST=1`，与 `EKCFG_EVOKE` 互斥；`ek_malloc/free/realloc` 自动提供线程安全；提供 `thread`、`sem`、`mutex`、`condvar`、`barrier`、`msgq`、`kfifo` 原语） |
+| `EKCFG_RTOS` | `0` | `0`=裸机，`1`=启用内置无滴答 RTOS 内核（依赖 `EKCFG_ARCH=1` 与 `EKCFG_LIST=1`，与 `EKCFG_EVOKE` 互斥；`ek_malloc/free/realloc` 自动提供线程安全；提供 `thread`、`sem`、`mutex`、`condvar`、`barrier`、`msgq`、`kfifo`、`workq` 原语） |
 | `EKCFG_PICOLIBC` | `1` | `1`=使用 picolibc 适配层（CMake `PICOLIBC` 选项优先级更高；开启时自动关闭 `EKCFG_NEWLIB` 与 `EKCFG_IO_LWPRTF`） |
 | `EKCFG_NEWLIB` | `0` | `1`=启用裸机 newlib/nanolibc 系统调用桩（与 `EKCFG_PICOLIBC` 互斥） |
 | `EKCFG_IO_LWPRTF` | `0` | `1`=使用内置 lwprintf（启用 `EKCFG_PICOLIBC=1` 时自动强制为 `0` 并由标准 `printf` 接管） |
@@ -171,6 +172,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ek_platform gd32f4xx_driver)
 | `EKCFG_OS_THREAD_MIN_STACK` | `(256)` | RTOS 线程最小栈大小（字节） |
 | `EKCFG_OS_THREAD_MIN_PRIO` | `(31U)` | RTOS 线程最低优先级（`< 32`，就绪档位数为该值 + 1） |
 | `EKCFG_OS_IDLE_THREAD_STACK` | `(512)` | RTOS 空闲线程栈大小（字节） |
+| `EKCFG_OS_ISR_WORKQ` | `0` | 是否启用内核内置 ISR 工作队列（`1`=在 `ek_os_kernel_start()` 自动创建 `"isr workq"` 线程，配合 `EK_DEFINE_OS_WORKQ_ISR` 使用） |
+| `EKCFG_OS_ISR_WORKQ_PRIO` | `(0U)` | 内核内置 ISR 工作队列线程优先级 |
+| `EKCFG_OS_ISR_WORKQ_STACK` | `(1024U)` | 内核内置 ISR 工作队列线程栈大小（字节） |
 
 ### 3. 板级内存布局 (`ek_board.h`)
 
