@@ -3,7 +3,7 @@ SECTIONS
   .ek_export : ALIGN(8)
   {
     _ek_export_fn_start = .;
-    KEEP(*(.ek_export_fn*))
+    KEEP(*(SORT(.ek_export_fn*)))
     _ek_export_fn_end = .;
   }
   .ek_static_alloc : ALIGN(8)

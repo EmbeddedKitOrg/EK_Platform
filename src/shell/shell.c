@@ -75,7 +75,7 @@ static const ek_shell_cmd_t *_shell_cmd_find(const char *name)
     // 优先遍历静态导出的命令段
     for (const ek_shell_cmd_t *cmd = start; cmd < end; cmd++)
     {
-        if (!strncmp(name, cmd->name, strlen(name))) return cmd;
+        if (strcmp(name, cmd->name) == 0) return cmd;
     }
 
     // 随后遍历运行时动态注册的命令链表
@@ -83,7 +83,7 @@ static const ek_shell_cmd_t *_shell_cmd_find(const char *name)
     ek_list_foreach(pnode, &s_dynamic_cmd_head)
     {
         dynamic_cmd_t *dy_cmd = EK_CONTAINER_OF(pnode, dynamic_cmd_t, node);
-        if (!strncmp(name, dy_cmd->cmd.name, strlen(name))) return &dy_cmd->cmd;
+        if (strcmp(name, dy_cmd->cmd.name) == 0) return &dy_cmd->cmd;
     }
 
     return NULL;
@@ -105,18 +105,24 @@ int ek_shell_cmd_register(const char *name, ek_shell_cmd_fn_t fn)
 
 void ek_shell_cmd_unregister(const char *name)
 {
+    if (!name) return;
+
     ek_list_node_t *pnode = NULL;
-    dynamic_cmd_t *dy_cmd = NULL;
+    dynamic_cmd_t *target = NULL;
     ek_list_foreach(pnode, &s_dynamic_cmd_head)
     {
-        dy_cmd = EK_CONTAINER_OF(pnode, dynamic_cmd_t, node);
-        if (!strncmp(name, dy_cmd->cmd.name, strlen(name))) break;
+        dynamic_cmd_t *dy_cmd = EK_CONTAINER_OF(pnode, dynamic_cmd_t, node);
+        if (strcmp(name, dy_cmd->cmd.name) == 0)
+        {
+            target = dy_cmd;
+            break;
+        }
     }
 
-    if (dy_cmd)
+    if (target)
     {
-        ek_list_remove(&dy_cmd->node);
-        ek_free(dy_cmd);
+        ek_list_remove(&target->node);
+        ek_free(target);
     }
 }
 
@@ -720,6 +726,30 @@ static int _builtin_cmd_version(int argc, char *argv[], void *sh)
     return len > 0 ? 0 : 1;
 }
 EK_DEFINE_SHELL_CMD(version, _builtin_cmd_version);
+
+// 列出所有已注册的静态与动态命令
+static int _builtin_cmd_help(int argc, char *argv[], void *sh)
+{
+    __EK_UNUSED(argc);
+    __EK_UNUSED(argv);
+    __EK_UNUSED(sh);
+
+    ek_printf("Available commands:" CRLF);
+    for (const ek_shell_cmd_t *cmd = &_ek_shell_cmd_start; cmd < &_ek_shell_cmd_end; cmd++)
+    {
+        ek_printf("  %s" CRLF, cmd->name);
+    }
+
+    ek_list_node_t *pnode;
+    ek_list_foreach(pnode, &s_dynamic_cmd_head)
+    {
+        dynamic_cmd_t *dy_cmd = EK_CONTAINER_OF(pnode, dynamic_cmd_t, node);
+        ek_printf("  %s" CRLF, dy_cmd->cmd.name);
+    }
+
+    return 0;
+}
+EK_DEFINE_SHELL_CMD(help, _builtin_cmd_help);
 
 #    endif // EKCFG_SHELL_BUILTIN_CMDS == 1
 

@@ -18,13 +18,6 @@ extern const ek_static_alloc_item_t _ek_static_alloc_end;
 
 static int s_static_alloc_error;
 
-static int _static_alloc_compare(const void *lhs, const void *rhs)
-{
-    const ek_static_alloc_item_t *lhs_item = (const ek_static_alloc_item_t *)lhs;
-    const ek_static_alloc_item_t *rhs_item = (const ek_static_alloc_item_t *)rhs;
-    return (lhs_item->order > rhs_item->order) - (lhs_item->order < rhs_item->order);
-}
-
 void ek_static_alloc_init(void)
 {
     const ek_static_alloc_item_t *start = &_ek_static_alloc_start;
@@ -32,22 +25,15 @@ void ek_static_alloc_init(void)
     const size_t count = (size_t)(end - start);
 
     s_static_alloc_error = 0;
-    if (count == 0U) return;
-
-    ek_static_alloc_item_t items[count];
-    for (size_t i = 0; i < count; i++) items[i] = start[i];
-
-    if (count > 1U) qsort(items, count, sizeof(items[0]), _static_alloc_compare);
-
     for (size_t i = 0; i < count; i++)
     {
-        if (items[i].fn == NULL) continue;
-        const int err = items[i].fn();
+        if (start[i].fn == NULL) continue;
+        const int err = start[i].fn();
         if (err < 0)
         {
             if (s_static_alloc_error == 0) s_static_alloc_error = err;
 #    if EKCFG_LOG == 1
-            EK_LOG_ERROR("static allocation init failed: %s: %s", items[i].name, strerror(-err));
+            EK_LOG_ERROR("static allocation init failed: %s: %s", start[i].name, strerror(-err));
 #    endif
         }
     }

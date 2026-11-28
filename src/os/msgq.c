@@ -14,8 +14,11 @@
 #    include "ek/core/arch.h"
 
 #    define MAGIC                 0x4D534751UL
-#    define MSGQ_GET_MAGIC(mq)    (*(const uint32_t *)(uintptr_t)((uintptr_t)(mq) - EK_OS_MSGQ_HDR_SIZE))
-#    define MSGQ_SET_MAGIC(mq, v) (*(uint32_t *)(uintptr_t)((uintptr_t)(mq) - EK_OS_MSGQ_HDR_SIZE) = (uint32_t)(v))
+#    define MSGQ_HDR              ((size_t)EK_OS_MSGQ_HDR_SIZE)
+#    define MSGQ_FROM_BUF(buf)    ((ek_os_msgq_t *)(uintptr_t)((uintptr_t)(buf) + MSGQ_HDR))
+#    define MSGQ_TO_BUF(mq)       ((void *)(uintptr_t)((uintptr_t)(mq) - MSGQ_HDR))
+#    define MSGQ_GET_MAGIC(mq)    (*(const uint32_t *)(uintptr_t)((uintptr_t)(mq) - MSGQ_HDR))
+#    define MSGQ_SET_MAGIC(mq, v) (*(uint32_t *)(uintptr_t)((uintptr_t)(mq) - MSGQ_HDR) = (uint32_t)(v))
 
 static bool _msgq_setup(ek_os_msgq_t *mq, size_t item_size, size_t depth, bool owned)
 {
@@ -54,11 +57,11 @@ ek_os_msgq_t *ek_os_msgq_create_static(const size_t item_size, const size_t dept
 {
     if (ek_arch_in_isr()) return NULL;
     if (!item_size || !depth || !buf) return NULL;
-    if (((uintptr_t)buf % _Alignof(ek_os_msgq_t)) != 0U) return NULL;
+    if (((uintptr_t)buf % alignof(ek_os_msgq_t)) != 0U) return NULL;
     if (depth > SIZE_MAX / item_size) return NULL;
     if (size < EK_OS_MSGQ_STATIC_BUF_SIZE(item_size, depth)) return NULL;
 
-    ek_os_msgq_t *mq = (ek_os_msgq_t *)(uintptr_t)((uintptr_t)buf + EK_OS_MSGQ_HDR_SIZE);
+    ek_os_msgq_t *mq = MSGQ_FROM_BUF(buf);
     MSGQ_SET_MAGIC(mq, MAGIC);
     _msgq_setup(mq, item_size, depth, false);
 
@@ -80,9 +83,9 @@ void ek_os_msgq_destroy(ek_os_msgq_t *msgq)
     uint32_t flags = ek_os_kernel_spin_lock();
     bool owned = msgq->mem_owned;
 
-    bool woke = kernel_wake_all(&msgq->send_list, -ECANCELED);
-    woke = kernel_wake_all(&msgq->recv_list, -ECANCELED) || woke;
-    if (woke) kernel_schedule();
+    bool woke = kernel_wake_all_locked(&msgq->send_list, -ECANCELED);
+    woke = kernel_wake_all_locked(&msgq->recv_list, -ECANCELED) || woke;
+    if (woke) kernel_schedule_locked();
     if (!owned) MSGQ_SET_MAGIC(msgq, 0U);
 
     ek_os_kernel_spin_unlock(flags);
@@ -111,11 +114,11 @@ int ek_os_msgq_send(ek_os_msgq_t *msgq, const void *item, int64_t timeout)
         if (msgq->count < msgq->cap)
         {
             memcpy(msgq->buf + msgq->head * msgq->item_size, item, msgq->item_size);
-            msgq->head = (msgq->head + 1U) % msgq->cap;
+            msgq->head = EK_INC_MOD(msgq->head, msgq->cap);
             msgq->count++;
 
-            bool woke = kernel_wake_one(&msgq->recv_list, 0);
-            if (woke) kernel_schedule();
+            bool woke = kernel_wake_one_locked(&msgq->recv_list, 0);
+            if (woke) kernel_schedule_locked();
             ek_os_kernel_spin_unlock(flags);
             return 0;
         }
@@ -139,7 +142,6 @@ int ek_os_msgq_send(ek_os_msgq_t *msgq, const void *item, int64_t timeout)
 
         int err = kernel_wait_on_locked(&msgq->send_list, wait, flags);
         if (err < 0) return err;
-        // 醒来后重试：空位可能已被其它发送者或中断上下文抢先占用
     }
 }
 
@@ -161,11 +163,11 @@ int ek_os_msgq_recv(ek_os_msgq_t *msgq, void *item, int64_t timeout)
         if (msgq->count)
         {
             memcpy(item, msgq->buf + msgq->tail * msgq->item_size, msgq->item_size);
-            msgq->tail = (msgq->tail + 1U) % msgq->cap;
+            msgq->tail = EK_INC_MOD(msgq->tail, msgq->cap);
             msgq->count--;
 
-            bool woke = kernel_wake_one(&msgq->send_list, 0);
-            if (woke) kernel_schedule();
+            bool woke = kernel_wake_one_locked(&msgq->send_list, 0);
+            if (woke) kernel_schedule_locked();
             ek_os_kernel_spin_unlock(flags);
             return 0;
         }

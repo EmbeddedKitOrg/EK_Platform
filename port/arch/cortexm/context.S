@@ -21,7 +21,7 @@ ek_arch_start_first_thread:
 
     ldr r1, =g_cur_thrd /* r1 = g_cur_thrd */
     ldr r1, [r1]        /* r1 = *g_cur_thrd */
-    ldr r0, [r1]        /* r0 = g_cur_thrd->sp */
+    ldr r0, [r1]        /* r0 = g_cur_thrd->arch.sp */
 
     /* 从伪造栈帧弹出 sf_save */
 #if defined(__ARM_FP) && (__ARM_FP != 0)
@@ -74,7 +74,14 @@ ek_arch_switch_thread:
     stmdb    r0!, {r4-r11}
 #endif
 
-    str r0, [r1] /* sp = g_cur_thrd->sp */
+    str r0, [r1] /* sp = g_cur_thrd->arch.sp */
+
+#if EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK > 0
+    push {r1-r3, lr}                  /* 8 字节对齐，压在 MSP 主栈上，即使线程 PSP 已爆栈也安全 */
+    mov  r0, r1                       /* r0 = g_cur_thrd */
+    bl   kernel_stackoverflow_check   /* C 检测函数，定义在 kernel.c */
+    pop  {r1-r3, lr}
+#endif
 
 .Lswitch_thrd_ptr:
     /* 获取下一个线程 */

@@ -36,8 +36,8 @@ ek_os_sem_t *ek_os_sem_create(size_t init)
 
 ek_os_sem_t *ek_os_sem_create_static(size_t init, void *buf, size_t size)
 {
-    if (!buf || size < SEM_HDR + sizeof(ek_os_sem_t)) return NULL;
-    if (((uintptr_t)buf % _Alignof(ek_os_sem_t)) != 0U) return NULL;
+    if (!buf || size < EK_OS_SEM_STATIC_BUF_SIZE) return NULL;
+    if (((uintptr_t)buf % alignof(ek_os_sem_t)) != 0U) return NULL;
     if (ek_arch_in_isr()) return NULL;
 
     ek_os_sem_t *sem = SEM_FROM_BUF(buf);
@@ -61,12 +61,11 @@ void ek_os_sem_destroy(ek_os_sem_t *sem)
     if (!_sem_valid(sem)) return;
     if (ek_arch_in_isr()) return;
 
+    uint32_t flags = ek_os_kernel_spin_lock();
     bool owned = sem->mem_owned;
 
-    uint32_t flags = ek_os_kernel_spin_lock();
-
-    bool woke = kernel_wake_all(&sem->wait_list, -ECANCELED);
-    if (woke) kernel_schedule();
+    bool woke = kernel_wake_all_locked(&sem->wait_list, -ECANCELED);
+    if (woke) kernel_schedule_locked();
     if (!owned) SEM_SET_MAGIC(sem, 0U);
 
     ek_os_kernel_spin_unlock(flags);
@@ -85,9 +84,9 @@ int ek_os_sem_give(ek_os_sem_t *sem)
     {
         sem->count++;
     }
-    else woke = kernel_wake_one(&sem->wait_list, 0);
+    else woke = kernel_wake_one_locked(&sem->wait_list, 0);
 
-    if (woke) kernel_schedule();
+    if (woke) kernel_schedule_locked();
 
     ek_os_kernel_spin_unlock(flags);
 

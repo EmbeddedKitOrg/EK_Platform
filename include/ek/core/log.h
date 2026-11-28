@@ -4,7 +4,7 @@
  * @author N1netyNine99
  *
  * 提供分级日志输出功能，支持：
- * - 多级别日志（DEBUG、INFO、WARN、ERROR）
+ * - 多级别日志（NONE、DEBUG、INFO、WARN、ERROR、FATAL）
  * - 文件名、行号、时间戳输出
  * - 彩色打印（可选）
  * - 格式化输出
@@ -62,23 +62,25 @@ typedef enum
 } ek_log_level_e;
 
 /**
- * @brief 定义文件标签和最小日志等级
+ * @brief 定义当前源文件的日志标签和最低输出级别
  * @param tag 标签字符串
- * @param level 最低日志等级
- * @note 在源文件开头使用，用于标识日志来源
- * @example
- * EK_LOG_FILE_TAG("main.c");
+ * @param level 最低日志级别（ek_log_level_e）
+ * @note 在源文件开头使用，用于标识日志来源并过滤低于该级别的日志
+ * @code
+ * EK_LOG_MODULE("main.c", EK_LOG_LEVEL_INFO);
+ * @endcode
  */
 #    define EK_LOG_MODULE(tag, level)            \
         static const char *__ek_log_tag = (tag); \
         static const uint8_t __ek_log_min_level = (uint8_t)(level)
 
 /**
- * @brief 定义文件标签并且默认日志全部输出
+ * @brief 定义文件标签并允许输出所有级别日志
  * @param tag 标签字符串
- * @note 用于兼容旧的接口
- * @example
+ * @note 用于兼容旧接口，等价于 EK_LOG_MODULE(tag, EK_LOG_LEVEL_NONE)
+ * @code
  * EK_LOG_FILE_TAG("main.c");
+ * @endcode
  */
 #    define EK_LOG_FILE_TAG(tag) EK_LOG_MODULE(tag, EK_LOG_LEVEL_NONE)
 
@@ -100,7 +102,7 @@ void ek_log_printf(const char *tag, uint32_t line, ek_log_level_e type, uint32_t
 
 /**
  * @brief 获取系统时间戳
- * @note 本身为弱定义，用户可以自己实现
+ * @note 默认实现为弱函数（返回 0），用户可覆盖此函数以提供系统时间戳
  * @return 时间戳
  */
 uint32_t ek_port_log_get_tick(void);
@@ -169,6 +171,7 @@ uint32_t ek_port_log_get_tick(void);
 /**
  * @brief FATAL 级别日志
  * @param ... 格式化字符串和参数
+ * @warning 当该级别允许输出时，打印日志后会进入 while (1) 死循环，永不返回
  */
 #    define EK_LOG_FATAL(...)                                                                                   \
         do                                                                                                      \
@@ -186,4 +189,4 @@ uint32_t ek_port_log_get_tick(void);
 
 #endif /* EKCFG_LOG */
 
-#endif // __SER_LOG_H
+#endif /* EK_LOG_H */

@@ -45,13 +45,13 @@ struct ek_os_msgq
     size_t tail; /**< 下一个读取槽下标 */
     ek_list_node_t recv_list; /**< 队列空时阻塞的接收者链表，按线程优先级升序 */
     ek_list_node_t send_list; /**< 队列满时阻塞的发送者链表，按线程优先级升序 */
-    uint8_t *buf; /**< 数据槽区，cap * slot_size 字节，位于控制块之后 */
+    uint8_t *buf; /**< 数据槽区，cap * item_size 字节，位于控制块之后 */
 };
 
 /**
  * @brief 静态创建所需缓冲区中，生命周期标记头占用的字节数
  */
-#    define EK_OS_MSGQ_HDR_SIZE       (EK_ALIGN_UP(sizeof(uint32_t), _Alignof(ek_os_msgq_t)))
+#    define EK_OS_MSGQ_HDR_SIZE (EK_ALIGN_UP(sizeof(uint32_t), alignof(ek_os_msgq_t)))
 
 /**
  * @brief 计算静态创建消息队列所需的最小缓冲区字节数
@@ -78,7 +78,7 @@ ek_os_msgq_t *ek_os_msgq_create(size_t item_size, size_t depth);
  * @brief 在调用者提供的缓冲区上创建消息队列
  * @param item_size 单条消息字节数（须大于 0）
  * @param depth     队列深度（须大于 0）
- * @param buf       缓冲区起始地址，必须按 _Alignof(ek_os_msgq_t) 对齐
+ * @param buf       缓冲区起始地址，必须按 alignof(ek_os_msgq_t) 对齐
  * @param size      缓冲区字节数，不得小于 EK_OS_MSGQ_STATIC_BUF_SIZE(item_size, depth)
  * @return 成功返回消息队列句柄，失败返回 NULL
  *
@@ -101,12 +101,12 @@ void ek_os_msgq_destroy(ek_os_msgq_t *msgq);
  * @brief 向队列发送一条消息
  * @param msgq    消息队列句柄
  * @param item    待发送消息的地址，长度由创建时的 item_size 决定
- * @param timeout 队列满时的等待时长；传 EK_OS_FOREVER 表示永久等待，传 0 表示不等待
+ * @param timeout 队列满时的等待时长（单位为内核时间基计数，推荐通过 EK_OS_MSEC()/EK_OS_SEC() 构造）；传 EK_OS_FOREVER 表示永久等待，传 0 表示不等待
  * @return 0 成功
  * @retval -ENOENT    句柄无效或已销毁
  * @retval -EINVAL    item 为空
- * @retval -EPERM     在空闲线程上下文调用
- * @retval -EAGAIN    队列已满且无需等待（含中断上下文调用）
+ * @retval -EPERM     在内核未启动或空闲线程上下文调用
+ * @retval -EAGAIN    队列已满且不等待（timeout == 0 或中断上下文调用）
  * @retval -ETIMEDOUT 等待期间队列始终没有空位
  * @retval -EINTR     等待期间被挂起打断
  * @retval -ECANCELED 等待期间队列被销毁
@@ -120,12 +120,12 @@ int ek_os_msgq_send(ek_os_msgq_t *msgq, const void *item, int64_t timeout);
  * @brief 从队列接收一条消息
  * @param msgq    消息队列句柄
  * @param item    接收缓冲区地址，长度由创建时的 item_size 决定
- * @param timeout 队列空时的等待时长；传 EK_OS_FOREVER 表示永久等待，传 0 表示不等待
+ * @param timeout 队列空时的等待时长（单位为内核时间基计数，推荐通过 EK_OS_MSEC()/EK_OS_SEC() 构造）；传 EK_OS_FOREVER 表示永久等待，传 0 表示不等待
  * @return 0 成功
  * @retval -ENOENT    句柄无效或已销毁
  * @retval -EINVAL    item 为空
- * @retval -EPERM     在中断上下文或空闲线程上下文调用
- * @retval -EAGAIN    队列为空且无需等待
+ * @retval -EPERM     在中断上下文、空闲线程或内核未启动时调用
+ * @retval -EAGAIN    队列为空且不等待（timeout == 0）
  * @retval -ETIMEDOUT 等待期间队列始终没有消息
  * @retval -EINTR     等待期间被挂起打断
  * @retval -ECANCELED 等待期间队列被销毁
@@ -151,23 +151,23 @@ int ek_os_msgq_count(ek_os_msgq_t *msgq);
  * @param item_size 单条消息字节数（须为常量表达式）
  * @param depth     队列深度（须为常量表达式）
  *
- * @note 缓冲区按 _Alignof(ek_os_msgq_t) 对齐，大小为 EK_OS_MSGQ_STATIC_BUF_SIZE(item_size, depth)。
+ * @note 缓冲区按 alignof(ek_os_msgq_t) 对齐，大小为 EK_OS_MSGQ_STATIC_BUF_SIZE(item_size, depth)。
  * @note 必须在 .c 文件作用域使用，且同一翻译单元内重复使用 handle 会重定义。
  * @note 句柄在 ek_static_alloc_init() 执行前为 NULL，不可提前使用。
  */
-#        define EK_DEFINE_OS_MSGQ(handle, item_size, depth)                                                     \
-            static union                                                                                       \
-            {                                                                                                  \
-                ek_os_msgq_t msgq; /* 抬高 union 的对齐到 _Alignof(ek_os_msgq_t) */                            \
-                uint8_t storage[EK_OS_MSGQ_STATIC_BUF_SIZE(item_size, depth)];                                  \
-            } handle##_mem;                                                                                    \
-            static ek_os_msgq_t *handle;                                                                       \
-            static int _static_alloc_init_##handle(void)                                                       \
-            {                                                                                                  \
-                handle = ek_os_msgq_create_static(                                                             \
-                    (item_size), (depth), handle##_mem.storage, sizeof(handle##_mem.storage));                  \
-                return handle ? 0 : -ENOMEM;                                                                   \
-            }                                                                                                  \
+#        define EK_DEFINE_OS_MSGQ(handle, item_size, depth)                                    \
+            static union                                                                       \
+            {                                                                                  \
+                ek_os_msgq_t msgq; /* 抬高 union 的对齐到 alignof(ek_os_msgq_t) */             \
+                uint8_t storage[EK_OS_MSGQ_STATIC_BUF_SIZE(item_size, depth)];                 \
+            } handle##_mem;                                                                    \
+            static ek_os_msgq_t *handle;                                                       \
+            static int _static_alloc_init_##handle(void)                                       \
+            {                                                                                  \
+                handle = ek_os_msgq_create_static(                                             \
+                    (item_size), (depth), handle##_mem.storage, sizeof(handle##_mem.storage)); \
+                return handle ? 0 : -ENOMEM;                                                   \
+            }                                                                                  \
             EK_STATIC_ALLOC_REGISTER(handle, EK_STATIC_ALLOC_ORDER_OS_MSGQ, _static_alloc_init_##handle)
 #    endif /* EKCFG_STATIC_ALLOC == 1 */
 

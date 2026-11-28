@@ -48,6 +48,7 @@ void ek_arch_redirect_vtor(void);
  * @return 0 成功；负数 errno 失败
  * @retval -EINVAL 参数非法
  * @retval -EAGAIN VTOR 尚未指向 SRAM 向量表
+ * @retval -ENOSYS 当前架构不支持动态安装中断向量（RISC-V / host）
  *
  * @note 仅修改向量表，不设置优先级、不使能中断。
  * @note EKCFG_EXPORT == 1 时启动阶段会自动重定向 VTOR；
@@ -127,7 +128,7 @@ __EK_NO_RETURN void ek_arch_sched_start(void);
  *       ek_arch_irq_install()，顺序位于 ek_arch_redirect_vtor() 之后、
  *       BOARD 阶段初始化之前。
  * @note EKCFG_EXPORT == 0 且 EKCFG_STATIC_ALLOC == 1 时退回
- *       ek_static_alloc 路径，在 COMPONENT 阶段安装。
+ *       ek_static_alloc 路径，需在调用 ek_static_alloc_init() 时安装。
  * @note 只安装向量，不设置优先级、不使能中断；优先级仍由 vendor/CMSIS 配置。
  * @note 必须在 .c 文件作用域使用；内部用 __COUNTER__ 生成唯一符号，
  *       没有 __COUNTER__ 时退回 __LINE__，此时同一行只能出现一次。
@@ -171,7 +172,7 @@ void *ek_arch_stack_init(void *stack_top, void *(*entry)(void *), void *arg, voi
 /**
  * @brief 触发一次线程上下文切换请求
  *
- * @note Cortex-M 分支通过置位 PendSV 悬起异常，在退出临界区或中断后完成切换。
+ * @note Cortex-M 分支通过挂起 PendSV 异常，在退出临界区或中断后完成切换。
  */
 void ek_arch_switch_yield(void);
 #    endif

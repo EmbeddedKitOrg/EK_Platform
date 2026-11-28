@@ -62,6 +62,9 @@ void root_init(void)
         memset(&s_fd_pool[i], 0, sizeof(vfs_file_t));
         s_fd_pool[i].ops = &s_dummy_stdio_ops;
     }
+    s_fd_pool[0].flags = O_RDONLY;
+    s_fd_pool[1].flags = O_WRONLY;
+    s_fd_pool[2].flags = O_WRONLY;
 }
 
 vfs_node_t *alloc_node(void)

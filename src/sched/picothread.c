@@ -429,10 +429,21 @@ void ek_pt_sem_give(ek_pt_sem_t *sem)
 #    if EKCFG_PICOTHREAD_MSG == 1
 #        include "ek/container/ringbuf.h"
 
+EK_STATIC_ASSERT((offsetof(ek_pt_msg_t, rb_storage) % alignof(ek_ringbuf_t)) == 0U,
+                 "ek_pt_msg_t rb_storage must be aligned to ek_ringbuf_t");
+
 int ek_pt_msg_init_static(ek_pt_msg_t *msg, size_t item_size, uint32_t item_amount)
 {
-    if (msg == NULL) return -EINVAL;
-    EK_ERR_RETURN(ek_ringbuf_init_static(&msg->rb, item_size, item_amount));
+    if (msg == NULL || item_size == 0U || item_amount == 0U) return -EINVAL;
+    if (item_amount > (SIZE_MAX - sizeof(ek_pt_msg_t) - EK_RINGBUF_STATIC_BUF_SIZE(0U, 0U)) / item_size)
+    {
+        return -EINVAL;
+    }
+
+    size_t rb_size = EK_RINGBUF_STATIC_BUF_SIZE(item_size, item_amount);
+    msg->rb = ek_ringbuf_create_static(msg->rb_storage, rb_size, item_size, item_amount);
+    if (msg->rb == NULL) return -EINVAL;
+
     ek_list_init(&msg->recv_wait);
     ek_list_init(&msg->send_wait);
     return 0;
@@ -465,23 +476,30 @@ void ek_pt_msg_deinit_static(ek_pt_msg_t *msg)
         pt->state = EK_PT_STATE_READY;
     }
 
-    ek_ringbuf_deinit_static(&msg->rb);
+    ek_ringbuf_destroy(msg->rb);
+    msg->rb = NULL;
 }
 
 ek_pt_msg_t *ek_pt_msg_create(size_t item_size, uint32_t item_amount)
 {
     if (item_size == 0U || item_amount == 0U) return NULL;
     // 防止总大小溢出
-    if (item_amount > (SIZE_MAX - sizeof(ek_pt_msg_t)) / item_size) return NULL;
+    if (item_amount > (SIZE_MAX - sizeof(ek_pt_msg_t) - EK_RINGBUF_STATIC_BUF_SIZE(0U, 0U)) / item_size)
+    {
+        return NULL;
+    }
 
-    ek_pt_msg_t *msg = (ek_pt_msg_t *)ek_malloc(sizeof(ek_pt_msg_t) + (size_t)item_amount * item_size);
+    size_t rb_size = EK_RINGBUF_STATIC_BUF_SIZE(item_size, item_amount);
+    ek_pt_msg_t *msg = (ek_pt_msg_t *)ek_malloc(sizeof(ek_pt_msg_t) + rb_size);
     if (msg == NULL) return NULL;
 
-    msg->rb.cap = item_amount;
-    msg->rb.item_size = item_size;
-    msg->rb.read_idx = 0U;
-    msg->rb.write_idx = 0U;
-    msg->rb.item_amount = 0U;
+    msg->rb = ek_ringbuf_create_static(msg->rb_storage, rb_size, item_size, item_amount);
+    if (msg->rb == NULL)
+    {
+        ek_free(msg);
+        return NULL;
+    }
+
     ek_list_init(&msg->recv_wait);
     ek_list_init(&msg->send_wait);
     return msg;
@@ -514,15 +532,17 @@ void ek_pt_msg_destroy(ek_pt_msg_t *msg)
         pt->state = EK_PT_STATE_READY;
     }
 
+    ek_ringbuf_destroy(msg->rb);
+    msg->rb = NULL;
     ek_free(msg);
 }
 
 bool ek_pt_msg_send(ek_pt_msg_t *msg, const void *data)
 {
-    if (msg == NULL || data == NULL) return false;
+    if (msg == NULL || msg->rb == NULL || data == NULL) return false;
     ek_assert(s_cur_pt != NULL);
 
-    int ret = ek_ringbuf_write(&msg->rb, data);
+    int ret = ek_ringbuf_write(msg->rb, data);
     if (ret == 0)
     {
         // 写入成功，唤醒一个等待接收的任务
@@ -548,10 +568,10 @@ bool ek_pt_msg_send(ek_pt_msg_t *msg, const void *data)
 
 bool ek_pt_msg_recv(ek_pt_msg_t *msg, void *data)
 {
-    if (msg == NULL) return false;
+    if (msg == NULL || msg->rb == NULL) return false;
     ek_assert(s_cur_pt != NULL);
 
-    int ret = ek_ringbuf_read(&msg->rb, data);
+    int ret = ek_ringbuf_read(msg->rb, data);
     if (ret == 0)
     {
         // 读取成功，唤醒一个等待发送的任务

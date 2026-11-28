@@ -45,18 +45,17 @@ extern "C"
 typedef int (*_ek_static_alloc_init_fn_t)(void);
 
 /**
- * @brief 静态对象注册项
+ * @brief 静态对象注册项（顺序已编码进链接器输入段名，链接期由 SORT 完成排序）
  */
 typedef struct
 {
-    uint16_t order; /**< 初始化顺序，数值越小越先执行 */
     const char *name; /**< 实例名，失败日志使用 */
     _ek_static_alloc_init_fn_t fn; /**< 初始化回调 */
 } ek_static_alloc_item_t;
 
 /* ========== 静态初始化顺序 ========== */
 /*
- * 同一 order 不保证相对顺序，存在依赖的组件必须使用不同 order。
+ * 同一 order（支持 0..99）不保证相对顺序，存在依赖的组件必须使用不同 order。
  * 新增 EK_DEFINE_* 时在这里补一个 EK_STATIC_ALLOC_ORDER_*，不要写裸数字。
  */
 
@@ -73,6 +72,10 @@ typedef struct
 #    define EK_STATIC_ALLOC_ORDER_OS_SEM      (51)
 #    define EK_STATIC_ALLOC_ORDER_OS_MUTEX    (52)
 #    define EK_STATIC_ALLOC_ORDER_OS_MSGQ     (53)
+#    define EK_STATIC_ALLOC_ORDER_OS_CONDVAR  (54)
+#    define EK_STATIC_ALLOC_ORDER_OS_BARRIER  (55)
+#    define EK_STATIC_ALLOC_ORDER_OS_KFIFO    (56)
+#    define EK_STATIC_ALLOC_ORDER_OS_WORKQ    (57)
 
 #    define _EK_STATIC_ALLOC_JOIN2(a, b)      a##b
 #    define _EK_STATIC_ALLOC_JOIN(a, b)       _EK_STATIC_ALLOC_JOIN2(a, b)
@@ -82,13 +85,13 @@ typedef struct
 /**
  * @brief 将静态对象初始化回调登记到 .ek_static_alloc 段
  * @param instance 对象实例名，同一翻译单元内必须唯一
- * @param order    初始化顺序，数值越小越先执行
+ * @param order    初始化顺序（0..99），数值越小越先执行
  * @param fn       返回 int（0 成功、负值失败）的初始化函数
  */
 #    define EK_STATIC_ALLOC_REGISTER(instance, order, fn)                                            \
         static const ek_static_alloc_item_t _EK_STATIC_ALLOC_JOIN(__ek_static_alloc_item_, instance) \
-        __EK_USED __EK_SECTION(".ek_static_alloc")                                                   \
-            __EK_ALIGNED(sizeof(void *)) = { (uint16_t)(order), _EK_STATIC_ALLOC_STRING(instance), (fn) }
+        __EK_USED __EK_SECTION(".ek_static_alloc." EK_PP_PAD2_STR(order))                            \
+            __EK_ALIGNED(sizeof(void *)) = { _EK_STATIC_ALLOC_STRING(instance), (fn) }
 
 /**
  * @brief 扫描注册段并按 order 初始化全部静态对象

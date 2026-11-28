@@ -38,8 +38,8 @@ ek_os_mutex_t *ek_os_mutex_create(void)
 ek_os_mutex_t *ek_os_mutex_create_static(void *buf, size_t size)
 {
     if (ek_arch_in_isr()) return NULL;
-    if (!buf || size < MUTEX_HDR + sizeof(ek_os_mutex_t)) return NULL;
-    if (((uintptr_t)buf % _Alignof(ek_os_mutex_t)) != 0U) return NULL;
+    if (!buf || size < EK_OS_MUTEX_STATIC_BUF_SIZE) return NULL;
+    if (((uintptr_t)buf % alignof(ek_os_mutex_t)) != 0U) return NULL;
 
     ek_os_mutex_t *mutex = MUTEX_FROM_BUF(buf);
     MUTEX_SET_MAGIC(mutex, MAGIC);
@@ -60,6 +60,33 @@ static inline bool _mutex_valid(const ek_os_mutex_t *mutex)
     return MUTEX_GET_MAGIC(mutex) == MAGIC;
 }
 
+bool mutex_valid(const ek_os_mutex_t *mutex)
+{
+    return _mutex_valid(mutex);
+}
+
+void kernel_mutex_release_locked(ek_os_mutex_t *mutex)
+{
+    os_thread_t *cur = (os_thread_t *)mutex->owner;
+    mutex->lock_count = 0U;
+    ek_list_remove(&mutex->owner_node);
+
+    if (!ek_list_is_empty(&mutex->wait_list))
+    {
+        os_thread_t *next = EK_CONTAINER_OF(ek_list_get_first(&mutex->wait_list), os_thread_t, wait.node);
+        mutex->owner = next;
+        mutex->lock_count = 1U;
+        ek_list_insert_tail(&next->lock.owned_list, &mutex->owner_node);
+        kernel_thread_unblock_locked(next, 0);
+    }
+    else
+    {
+        mutex->owner = NULL;
+    }
+
+    kernel_thread_recalc_prio_locked(cur);
+}
+
 void ek_os_mutex_destroy(ek_os_mutex_t *mutex)
 {
     if (ek_arch_in_isr()) return;
@@ -76,9 +103,9 @@ void ek_os_mutex_destroy(ek_os_mutex_t *mutex)
         mutex->lock_count = 0U;
     }
 
-    bool woke = kernel_wake_all(&mutex->wait_list, -ECANCELED);
-    if (owner) kernel_thread_recalc_prio(owner);
-    if (woke || owner) kernel_schedule();
+    bool woke = kernel_wake_all_locked(&mutex->wait_list, -ECANCELED);
+    if (owner) kernel_thread_recalc_prio_locked(owner);
+    if (woke || owner) kernel_schedule_locked();
     if (!owned) MUTEX_SET_MAGIC(mutex, 0U);
 
     ek_os_kernel_spin_unlock(flags);
@@ -105,7 +132,7 @@ int ek_os_mutex_lock(ek_os_mutex_t *mutex, int64_t timeout)
     {
         mutex->owner = cur;
         mutex->lock_count = 1U;
-        ek_list_insert_tail(&cur->owned_locks, &mutex->owner_node);
+        ek_list_insert_tail(&cur->lock.owned_list, &mutex->owner_node);
         ek_os_kernel_spin_unlock(flags);
         return 0;
     }
@@ -125,19 +152,19 @@ int ek_os_mutex_lock(ek_os_mutex_t *mutex, int64_t timeout)
         return -EAGAIN;
     }
 
-    cur->wait_err = 0;
-    cur->waiting_lock = mutex;
+    cur->wait.err = 0;
+    cur->lock.waiting_lock = mutex;
 
     kernel_wait_enqueue_locked(&mutex->wait_list);
-    kernel_thread_recalc_prio(owner);
-    kernel_thread_block(cur, timeout);
-    kernel_schedule();
+    kernel_thread_recalc_prio_locked(owner);
+    kernel_thread_block_locked(cur, timeout);
+    kernel_schedule_locked();
     ek_os_kernel_spin_unlock(flags);
     ek_arch_isb();
 
     flags = ek_os_kernel_spin_lock();
-    cur->waiting_lock = NULL;
-    int err = cur->wait_err;
+    cur->lock.waiting_lock = NULL;
+    int err = cur->wait.err;
     ek_os_kernel_spin_unlock(flags);
 
     return err;
@@ -163,23 +190,8 @@ int ek_os_mutex_unlock(ek_os_mutex_t *mutex)
         return 0;
     }
 
-    ek_list_remove(&mutex->owner_node);
-
-    if (!ek_list_is_empty(&mutex->wait_list))
-    {
-        os_thread_t *next = EK_CONTAINER_OF(ek_list_get_first(&mutex->wait_list), os_thread_t, wait_node);
-        mutex->owner = next;
-        mutex->lock_count = 1U;
-        ek_list_insert_tail(&next->owned_locks, &mutex->owner_node);
-        kernel_thread_unblock(next, 0);
-    }
-    else
-    {
-        mutex->owner = NULL;
-    }
-
-    kernel_thread_recalc_prio(cur);
-    kernel_schedule();
+    kernel_mutex_release_locked(mutex);
+    kernel_schedule_locked();
     ek_os_kernel_spin_unlock(flags);
 
     return 0;

@@ -202,6 +202,15 @@ void ek_evoke_event_deinit_static(ek_evoke_event_t *evt);
 #    if EKCFG_STATIC_ALLOC == 1
 #        include "ek/mem/static_alloc.h"
 
+/**
+ * @brief 静态声明一个 evoke 任务对象并自动注册初始化
+ * @param handle 任务句柄变量名（static ek_evoke_task_t）
+ * @param cb     任务回调函数（不可为 NULL）
+ * @param arg    传递给回调的用户参数
+ *
+ * @note 必须在 .c 文件作用域使用，且同一翻译单元内重复使用 handle 会重定义
+ * @note 在 ek_static_alloc_init() 执行前任务未初始化，不可提前使用
+ */
 #        define EK_DEFINE_EVOKE_TASK(handle, cb, arg)                     \
             static ek_evoke_task_t handle;                                \
             static int _static_alloc_init_##handle(void)                  \
@@ -210,6 +219,14 @@ void ek_evoke_event_deinit_static(ek_evoke_event_t *evt);
             }                                                             \
             EK_STATIC_ALLOC_REGISTER(handle, EK_STATIC_ALLOC_ORDER_EVOKE, _static_alloc_init_##handle)
 
+/**
+ * @brief 静态声明一个 evoke 事件对象并自动注册初始化
+ * @param handle     事件句柄变量名（static ek_evoke_event_t）
+ * @param init_count 事件初始计数值
+ *
+ * @note 必须在 .c 文件作用域使用，且同一翻译单元内重复使用 handle 会重定义
+ * @note 在 ek_static_alloc_init() 执行前事件未初始化，不可提前使用
+ */
 #        define EK_DEFINE_EVOKE_EVENT(handle, init_count)                   \
             static ek_evoke_event_t handle;                                 \
             static int _static_alloc_init_##handle(void)                    \
@@ -225,8 +242,8 @@ void ek_evoke_event_deinit_static(ek_evoke_event_t *evt);
  * @brief 任务订阅事件
  * @param tsk 任务句柄
  * @param evt 事件句柄
- * @return true 任务立即就绪（事件已有计数）
- * @return false 任务进入等待状态
+ * @retval true 任务立即就绪（事件已有计数且无其他等待任务）
+ * @retval false 任务进入等待状态，或参数无效（tsk/evt 为 NULL）
  */
 bool ek_evoke_event_subscribe(ek_evoke_task_t *tsk, ek_evoke_event_t *evt);
 
@@ -261,7 +278,9 @@ void ek_evoke_event_defer(ek_evoke_event_t *evt, void *payload, uint32_t delay, 
  * @brief ISR 中广播事件
  * @param evt 事件句柄
  * @param payload 事件携带的数据
- * @return 执行情况
+ * @return 0 成功；负数 errno 失败
+ * @retval -EINVAL evt 为 NULL
+ * @retval -ENOSPC ISR 请求队列已满
  * @note 请求会被放入 ISR 请求队列，在主循环中处理
  */
 int ek_evoke_event_broadcast_from_isr(ek_evoke_event_t *evt, void *payload);
@@ -270,7 +289,9 @@ int ek_evoke_event_broadcast_from_isr(ek_evoke_event_t *evt, void *payload);
  * @brief ISR 中发布事件
  * @param evt 事件句柄
  * @param payload 事件携带的数据
- * @return 执行情况
+ * @return 0 成功；负数 errno 失败
+ * @retval -EINVAL evt 为 NULL
+ * @retval -ENOSPC ISR 请求队列已满
  * @note 请求会被放入 ISR 请求队列，在主循环中处理
  */
 int ek_evoke_event_publish_from_isr(ek_evoke_event_t *evt, void *payload);
@@ -281,7 +302,9 @@ int ek_evoke_event_publish_from_isr(ek_evoke_event_t *evt, void *payload);
  * @param payload 事件携带的数据
  * @param delay 延迟时间（tick）
  * @param broadcast true 广播模式，false 发布模式
- * @return 执行情况
+ * @return 0 成功；负数 errno 失败
+ * @retval -EINVAL evt 为 NULL
+ * @retval -ENOSPC ISR 请求队列已满
  * @note 请求会被放入 ISR 请求队列，在主循环中处理
  */
 int ek_evoke_event_defer_from_isr(ek_evoke_event_t *evt, void *payload, uint32_t delay, bool broadcast);

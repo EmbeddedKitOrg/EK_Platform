@@ -10,34 +10,49 @@
 
 #    include "ek/mem/heap.h"
 
+#    define STACK_MAGIC            0x5354414BUL
+#    define STACK_HDR              ((size_t)EK_ALIGN_UP(sizeof(uint32_t), alignof(ek_stack_t)))
+#    define STACK_FROM_BUF(buf)    ((ek_stack_t *)(uintptr_t)((uintptr_t)(buf) + STACK_HDR))
+#    define STACK_GET_MAGIC(sk)    (*(const uint32_t *)(uintptr_t)((uintptr_t)(sk) - STACK_HDR))
+#    define STACK_SET_MAGIC(sk, v) (*(uint32_t *)(uintptr_t)((uintptr_t)(sk) - STACK_HDR) = (uint32_t)(v))
+
+static inline bool _stack_valid(const ek_stack_t *sk)
+{
+    if (!sk) return false;
+    if (!sk->mem_owned) return STACK_GET_MAGIC(sk) == STACK_MAGIC;
+    return true;
+}
+
 bool ek_stack_full(ek_stack_t *sk)
 {
-    if (sk == NULL) return false;
+    if (!_stack_valid(sk)) return false;
     return sk->sp >= sk->cap;
 }
 
 bool ek_stack_empty(ek_stack_t *sk)
 {
-    if (sk == NULL) return false;
-    return sk->sp == 0;
+    if (!_stack_valid(sk)) return false;
+    return sk->sp == 0U;
 }
 
-int ek_stack_init_static(ek_stack_t *sk, size_t item_size, uint32_t item_amount)
+ek_stack_t *ek_stack_create_static(void *buf, size_t size, size_t item_size, uint32_t item_amount)
 {
-    if (sk == NULL || item_size == 0U || item_amount == 0U) return -EINVAL;
+    if (!buf || item_size == 0U || item_amount == 0U) return NULL;
+    if (((uintptr_t)buf % alignof(ek_stack_t)) != 0U) return NULL;
+    // 防止总大小溢出
+    if (item_amount > (SIZE_MAX - STACK_HDR - sizeof(ek_stack_t)) / item_size)
+    {
+        return NULL;
+    }
+    if (size < EK_STACK_STATIC_BUF_SIZE(item_size, item_amount)) return NULL;
 
+    ek_stack_t *sk = STACK_FROM_BUF(buf);
+    sk->mem_owned = false;
     sk->sp = 0U;
     sk->cap = item_amount;
     sk->item_size = item_size;
-    return 0;
-}
-
-void ek_stack_deinit_static(ek_stack_t *sk)
-{
-    if (sk == NULL) return;
-    sk->sp = 0U;
-    sk->cap = 0U;
-    sk->item_size = 0U;
+    STACK_SET_MAGIC(sk, STACK_MAGIC);
+    return sk;
 }
 
 ek_stack_t *ek_stack_create(size_t item_size, uint32_t item_amount)
@@ -55,6 +70,7 @@ ek_stack_t *ek_stack_create(size_t item_size, uint32_t item_amount)
         return NULL;
     }
 
+    sk->mem_owned = true;
     sk->sp = 0U;
     sk->cap = item_amount;
     sk->item_size = item_size;
@@ -63,16 +79,26 @@ ek_stack_t *ek_stack_create(size_t item_size, uint32_t item_amount)
 
 void ek_stack_destroy(ek_stack_t *sk)
 {
-    if (sk == NULL) return;
+    if (!_stack_valid(sk)) return;
 
-    ek_free(sk);
+    if (sk->mem_owned)
+    {
+        ek_free(sk);
+        return;
+    }
+
+    STACK_SET_MAGIC(sk, 0U);
+    sk->sp = 0U;
+    sk->cap = 0U;
+    sk->item_size = 0U;
 }
 
 int ek_stack_push(ek_stack_t *sk, const void *item)
 {
-    if (sk == NULL || item == NULL) return -EINVAL;
+    if (!_stack_valid(sk)) return -ENOENT;
+    if (item == NULL) return -EINVAL;
 
-    if (ek_stack_full(sk) == true)
+    if (sk->sp >= sk->cap)
     {
         return -ENOSPC;
     }
@@ -86,9 +112,10 @@ int ek_stack_push(ek_stack_t *sk, const void *item)
 
 int ek_stack_pop(ek_stack_t *sk, void *item)
 {
-    if (sk == NULL || item == NULL) return -EINVAL;
+    if (!_stack_valid(sk)) return -ENOENT;
+    if (item == NULL) return -EINVAL;
 
-    if (ek_stack_empty(sk) == true)
+    if (sk->sp == 0U)
     {
         return -ENODATA;
     }

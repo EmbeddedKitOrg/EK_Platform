@@ -31,7 +31,7 @@
  * @brief 定义指定类型的动态数组结构体
  * @param type 元素数据类型
  *
- * @example
+ * @code
  * // 定义 int 类型的动态数组
  * EK_VEC_IMPLEMENT(int);
  *
@@ -40,6 +40,7 @@
  * ek_vec_init(my_vec);
  * ek_vec_append(my_vec, 42);
  * ek_vec_destroy(my_vec);
+ * @endcode
  */
 #    define EK_VEC_IMPLEMENT(type) \
         typedef struct             \
@@ -111,6 +112,7 @@
  *
  * @note 当容量不足时自动扩容
  * @note 扩容策略：小数组翻倍，大数组增加 1/2
+ * @note 扩容内存分配失败时不会追加元素，保持原数组不变
  */
 #    define ek_vec_append(v, val)                                                                            \
         do                                                                                                   \
@@ -187,7 +189,7 @@
  * @brief 收缩动态数组内存至实际大小
  * @param v 动态数组变量
  *
- * @note 将容量缩减为当前元素数量，释放多余内存,如果元素数目为0，则会释放items的所有内存
+ * @note 将容量缩减为当前元素数量，释放多余内存；如果元素数量为 0，则会释放 items 的所有内存
  * @note 如果 realloc 失败，则保持原状态不变
  */
 #    define ek_vec_shrink(v)                                                                         \

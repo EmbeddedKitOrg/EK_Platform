@@ -61,7 +61,7 @@
 
 /* ========================================================================
  * 单片机向终端输出的 VT100 终端控制字符串宏
- * 直接通过 ek_vfs_write(1, ...) 打印这些字符串，终端即可执行对应动作
+ * 直接通过 ek_vfs_write(EK_VFS_STDOUT, ...) 输出这些字符串，终端即可执行对应动作
  * ======================================================================== */
 
 #define EK_KEY_VT100_ERASE_BACK     "\b \b" /**< 标准退格擦除（左移、打空格、再左移） */
@@ -78,28 +78,38 @@
 
 /**
  * @brief 判断是否为标准 7-bit ASCII 字符 (0x00 ~ 0x7F)
+ * @param c 待判断的字节
+ * @return 非 0（true）表示匹配，0（false）表示不匹配
  */
 #define EK_KEY_IS_ASCII(c) (((uint8_t)(c) & 0x80) == 0x00)
 
 /**
  * @brief 判断是否为 UTF-8 连续后续字节 (10xxxxxx, 0x80 ~ 0xBF)
+ * @param c 待判断的字节
+ * @return 非 0（true）表示匹配，0（false）表示不匹配
  * @note 逆向回溯字符起点时使用：只要是连续字节，就不是字符头部
  */
 #define EK_KEY_IS_UTF8_CONT_BYTE(c) (((uint8_t)(c) & 0xC0) == 0x80)
 
 /**
  * @brief 判断是否为 UTF-8 双字节起始头部 (110xxxxx, 0xC0 ~ 0xDF)
+ * @param c 待判断的字节
+ * @return 非 0（true）表示匹配，0（false）表示不匹配
  */
 #define EK_KEY_IS_UTF8_2BYTE_HEAD(c) (((uint8_t)(c) & 0xE0) == 0xC0)
 
 /**
  * @brief 判断是否为 UTF-8 三字节起始头部 (1110xxxx, 0xE0 ~ 0xEF)
+ * @param c 待判断的字节
+ * @return 非 0（true）表示匹配，0（false）表示不匹配
  * @note 常用中文汉字（CJK）绝大部分落在此区间！
  */
 #define EK_KEY_IS_UTF8_3BYTE_HEAD(c) (((uint8_t)(c) & 0xF0) == 0xE0)
 
 /**
  * @brief 判断是否为 UTF-8 四字节起始头部 (11110xxx, 0xF0 ~ 0xF7)
+ * @param c 待判断的字节
+ * @return 非 0（true）表示匹配，0（false）表示不匹配
  * @note Emoji 表情与生僻古文字在此区间
  */
 #define EK_KEY_IS_UTF8_4BYTE_HEAD(c) (((uint8_t)(c) & 0xF8) == 0xF0)

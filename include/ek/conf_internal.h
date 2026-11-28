@@ -75,7 +75,8 @@
 #    define EKCFG_IO_LWPRTF (0) /* picolibc 接管 printf，关闭 lwprintf */
 #endif
 #ifndef EKCFG_STATIC_ALLOC
-#    define EKCFG_STATIC_ALLOC (1) /**< 是否启用 EK_DEFINE_* 静态对象注册 (1=使用, 0=不使用);静态初始化函数始终可用 */
+#    define EKCFG_STATIC_ALLOC \
+        (1) /**< 是否启用 EK_DEFINE_* 静态对象注册 (1=启用, 0=禁用；各模块的手动静态初始化函数始终可用) */
 #endif
 
 /* ========================================================================
@@ -154,11 +155,54 @@
 #    ifndef EKCFG_HEAP_SIZE
 #        define EKCFG_HEAP_SIZE (30 * 1024) /**< 内存堆大小（字节） */
 #    endif
+#    ifndef EKCFG_HEAP_MAX_POOL_SIZE
+#        define EKCFG_HEAP_MAX_POOL_SIZE EKCFG_HEAP_SIZE /**< 单个内存池的最大容量（字节），多池时可显式覆盖 */
+#    endif
+
+#    define _EK_TLSF_FL_MAX_AUTO(sz) \
+        ((sz) <= (1UL << 10)   ? 10  \
+         : (sz) <= (1UL << 11) ? 11  \
+         : (sz) <= (1UL << 12) ? 12  \
+         : (sz) <= (1UL << 13) ? 13  \
+         : (sz) <= (1UL << 14) ? 14  \
+         : (sz) <= (1UL << 15) ? 15  \
+         : (sz) <= (1UL << 16) ? 16  \
+         : (sz) <= (1UL << 17) ? 17  \
+         : (sz) <= (1UL << 18) ? 18  \
+         : (sz) <= (1UL << 19) ? 19  \
+         : (sz) <= (1UL << 20) ? 20  \
+         : (sz) <= (1UL << 21) ? 21  \
+         : (sz) <= (1UL << 22) ? 22  \
+         : (sz) <= (1UL << 23) ? 23  \
+         : (sz) <= (1UL << 24) ? 24  \
+         : (sz) <= (1UL << 25) ? 25  \
+         : (sz) <= (1UL << 26) ? 26  \
+         : (sz) <= (1UL << 27) ? 27  \
+         : (sz) <= (1UL << 28) ? 28  \
+         : (sz) <= (1UL << 29) ? 29  \
+                               : 30)
+
+#    define _EK_TLSF_SL_LOG2_AUTO(sz) \
+        ((sz) < (16UL * 1024UL) ? 2 : (sz) < (64UL * 1024UL) ? 3 : (sz) < (256UL * 1024UL) ? 4 : 5)
+
 #    ifndef EKCFG_TLSF_FL_INDEX_MAX
-#        define EKCFG_TLSF_FL_INDEX_MAX (24) /**< TLSF 一级索引最大值，最大连续块为 2 的该值次方字节 */
+#        define EKCFG_TLSF_FL_INDEX_MAX _EK_TLSF_FL_MAX_AUTO(EKCFG_HEAP_MAX_POOL_SIZE) /**< TLSF 一级索引最大值 */
 #    endif
 #    ifndef EKCFG_TLSF_SL_INDEX_COUNT_LOG2
-#        define EKCFG_TLSF_SL_INDEX_COUNT_LOG2 (3) /**< TLSF 二级索引数量的 log2，二级链表数为 2 的该值次方 */
+#        define EKCFG_TLSF_SL_INDEX_COUNT_LOG2 _EK_TLSF_SL_LOG2_AUTO(EKCFG_HEAP_SIZE) /**< TLSF 二级索引数量的 log2 */
+#    endif
+
+#    if (EKCFG_TLSF_SL_INDEX_COUNT_LOG2) < 1 || (EKCFG_TLSF_SL_INDEX_COUNT_LOG2) > 5
+#        error "EKCFG_TLSF_SL_INDEX_COUNT_LOG2 must be in [1, 5]"
+#    endif
+#    if (EKCFG_TLSF_FL_INDEX_MAX) < 10 || (EKCFG_TLSF_FL_INDEX_MAX) > 30
+#        error "EKCFG_TLSF_FL_INDEX_MAX must be in [10, 30]"
+#    endif
+#    if (EKCFG_HEAP_MAX_POOL_SIZE) < (EKCFG_HEAP_SIZE)
+#        error "EKCFG_HEAP_MAX_POOL_SIZE must be >= EKCFG_HEAP_SIZE"
+#    endif
+#    if (1UL << (EKCFG_TLSF_FL_INDEX_MAX)) < (EKCFG_HEAP_MAX_POOL_SIZE)
+#        error "1UL << EKCFG_TLSF_FL_INDEX_MAX must cover EKCFG_HEAP_MAX_POOL_SIZE"
 #    endif
 #endif
 
@@ -281,7 +325,7 @@
 #        define EKCFG_SHELL_UTF8 (0) /**< Shell 支持 UTF-8 处理 */
 #    endif
 #    ifndef EKCFG_SHELL_BUILTIN_CMDS
-#        define EKCFG_SHELL_BUILTIN_CMDS (0) /**< 启动几个默认的 Shell 命令 */
+#        define EKCFG_SHELL_BUILTIN_CMDS (0) /**< 是否启用内置默认 Shell 命令 (1=启用, 0=禁用) */
 #    endif
 #endif
 
@@ -294,7 +338,10 @@
 #endif
 #if EKCFG_RTOS == 1
 #    ifndef EKCFG_OS_KERNEL_TIMEBASE_HZ
-#        define EKCFG_OS_KERNEL_TIMEBASE_HZ (1000000U) /**< OS 内核频率 */
+#        define EKCFG_OS_KERNEL_TIMEBASE_HZ (1000000U) /**< OS 内核时基频率（Hz） */
+#    endif
+#    ifndef EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK
+#        define EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK (0U) /**< 0=关闭 1=边界指针检查 2=魔数染色 + 高水位线  */
 #    endif
 #    ifndef EKCFG_OS_THREAD_NAME_LEN
 #        define EKCFG_OS_THREAD_NAME_LEN (16) /**< OS 线程名字的最大长度 */
@@ -311,11 +358,31 @@
 #    ifndef EKCFG_OS_IDLE_THREAD_STACK
 #        define EKCFG_OS_IDLE_THREAD_STACK (512) /**< OS 空闲线程的栈大小（字节） */
 #    endif
+#    ifndef EKCFG_OS_ISR_WORKQ
+#        define EKCFG_OS_ISR_WORKQ (0) /**< 是否启用内核内置 ISR 工作队列 (0=关闭 1=启用) */
+#    endif
+#    if EKCFG_OS_ISR_WORKQ == 1
+#        ifndef EKCFG_OS_ISR_WORKQ_PRIO
+#            define EKCFG_OS_ISR_WORKQ_PRIO (0U) /**< 内核内置 ISR 工作队列线程优先级 */
+#        endif
+#        ifndef EKCFG_OS_ISR_WORKQ_STACK
+#            define EKCFG_OS_ISR_WORKQ_STACK (1024U) /**< 内核内置 ISR 工作队列线程栈大小（字节） */
+#        endif
+#        if EKCFG_OS_ISR_WORKQ_PRIO > EKCFG_OS_THREAD_MIN_PRIO
+#            error "EKCFG_OS_ISR_WORKQ_PRIO must be <= EKCFG_OS_THREAD_MIN_PRIO"
+#        endif
+#        if EKCFG_OS_ISR_WORKQ_STACK < EKCFG_OS_THREAD_MIN_STACK
+#            error "EKCFG_OS_ISR_WORKQ_STACK must be >= EKCFG_OS_THREAD_MIN_STACK"
+#        endif
+#    endif
 #    if EKCFG_OS_THREADS_MAX > 64
 #        error "EKCFG_OS_THREADS_MAX must be <= 64"
 #    endif
 #    if EKCFG_OS_THREAD_MIN_PRIO > 31
 #        error "EKCFG_OS_THREAD_MIN_PRIO must be <= 31"
+#    endif
+#    if EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK > 2U
+#        error "EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK must be 0, 1, or 2"
 #    endif
 #endif
 
@@ -325,7 +392,7 @@
 
 // DEPEND_ON 为真表示依赖满足：module 未开启，或 dependency 已开启。
 #define DEPEND_ON(module, dependency) (!(module) || (dependency))
-// MUTUAL_EXCLUSION 为真表示互斥，为假为不互斥。
+// MUTUAL_EXCLUSION 为真表示两个互斥模块同时启用（冲突），为假表示未冲突。
 #define MUTUAL_EXCLUSION(module1, module2) ((module1) && (module2))
 
 #if MUTUAL_EXCLUSION(EKCFG_PICOLIBC, EKCFG_NEWLIB)

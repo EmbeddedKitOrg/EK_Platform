@@ -12,38 +12,51 @@
 
 #    if EKCFG_RINGBUF == 1
 
+#        define RINGBUF_MAGIC            0x52425546UL
+#        define RINGBUF_HDR              ((size_t)EK_ALIGN_UP(sizeof(uint32_t), alignof(ek_ringbuf_t)))
+#        define RINGBUF_FROM_BUF(buf)    ((ek_ringbuf_t *)(uintptr_t)((uintptr_t)(buf) + RINGBUF_HDR))
+#        define RINGBUF_GET_MAGIC(rb)    (*(const uint32_t *)(uintptr_t)((uintptr_t)(rb) - RINGBUF_HDR))
+#        define RINGBUF_SET_MAGIC(rb, v) (*(uint32_t *)(uintptr_t)((uintptr_t)(rb) - RINGBUF_HDR) = (uint32_t)(v))
+
+static inline bool _ringbuf_valid(const ek_ringbuf_t *rb)
+{
+    if (!rb) return false;
+    if (!rb->mem_owned) return RINGBUF_GET_MAGIC(rb) == RINGBUF_MAGIC;
+    return true;
+}
+
 bool ek_ringbuf_full(const ek_ringbuf_t *rb)
 {
-    if (rb == NULL) return false;
+    if (!_ringbuf_valid(rb)) return false;
     return rb->item_amount == rb->cap;
 }
 
 bool ek_ringbuf_empty(const ek_ringbuf_t *rb)
 {
-    if (rb == NULL) return false;
-    return rb->item_amount == 0;
+    if (!_ringbuf_valid(rb)) return false;
+    return rb->item_amount == 0U;
 }
 
-int ek_ringbuf_init_static(ek_ringbuf_t *rb, size_t item_size, uint32_t item_amount)
+ek_ringbuf_t *ek_ringbuf_create_static(void *buf, size_t size, size_t item_size, uint32_t item_amount)
 {
-    if (rb == NULL || item_size == 0U || item_amount == 0U) return -EINVAL;
+    if (!buf || item_size == 0U || item_amount == 0U) return NULL;
+    if (((uintptr_t)buf % alignof(ek_ringbuf_t)) != 0U) return NULL;
+    // 防止总大小溢出
+    if (item_amount > (SIZE_MAX - RINGBUF_HDR - sizeof(ek_ringbuf_t)) / item_size)
+    {
+        return NULL;
+    }
+    if (size < EK_RINGBUF_STATIC_BUF_SIZE(item_size, item_amount)) return NULL;
 
+    ek_ringbuf_t *rb = RINGBUF_FROM_BUF(buf);
+    rb->mem_owned = false;
     rb->cap = item_amount;
     rb->item_size = item_size;
     rb->read_idx = 0U;
     rb->write_idx = 0U;
     rb->item_amount = 0U;
-    return 0;
-}
-
-void ek_ringbuf_deinit_static(ek_ringbuf_t *rb)
-{
-    if (rb == NULL) return;
-    rb->cap = 0U;
-    rb->item_size = 0U;
-    rb->read_idx = 0U;
-    rb->write_idx = 0U;
-    rb->item_amount = 0U;
+    RINGBUF_SET_MAGIC(rb, RINGBUF_MAGIC);
+    return rb;
 }
 
 ek_ringbuf_t *ek_ringbuf_create(size_t item_size, uint32_t item_amount)
@@ -61,6 +74,7 @@ ek_ringbuf_t *ek_ringbuf_create(size_t item_size, uint32_t item_amount)
         return NULL;
     }
 
+    rb->mem_owned = true;
     rb->cap = item_amount;
     rb->item_size = item_size;
     rb->read_idx = 0U;
@@ -71,16 +85,28 @@ ek_ringbuf_t *ek_ringbuf_create(size_t item_size, uint32_t item_amount)
 
 void ek_ringbuf_destroy(ek_ringbuf_t *rb)
 {
-    if (rb == NULL) return;
+    if (!_ringbuf_valid(rb)) return;
 
-    ek_free(rb);
+    if (rb->mem_owned)
+    {
+        ek_free(rb);
+        return;
+    }
+
+    RINGBUF_SET_MAGIC(rb, 0U);
+    rb->cap = 0U;
+    rb->item_size = 0U;
+    rb->read_idx = 0U;
+    rb->write_idx = 0U;
+    rb->item_amount = 0U;
 }
 
 int ek_ringbuf_write(ek_ringbuf_t *rb, const void *item)
 {
-    if (rb == NULL || item == NULL) return -EINVAL;
+    if (!_ringbuf_valid(rb)) return -ENOENT;
+    if (item == NULL) return -EINVAL;
 
-    if (ek_ringbuf_full(rb) == true)
+    if (rb->item_amount == rb->cap)
     {
         return -ENOSPC;
     }
@@ -96,9 +122,9 @@ int ek_ringbuf_write(ek_ringbuf_t *rb, const void *item)
 
 int ek_ringbuf_read(ek_ringbuf_t *rb, void *item)
 {
-    if (rb == NULL) return -EINVAL;
+    if (!_ringbuf_valid(rb)) return -ENOENT;
 
-    if (ek_ringbuf_empty(rb) == true)
+    if (rb->item_amount == 0U)
     {
         return -ENODATA;
     }
@@ -117,9 +143,10 @@ int ek_ringbuf_read(ek_ringbuf_t *rb, void *item)
 
 int ek_ringbuf_peek(ek_ringbuf_t *rb, void *item)
 {
-    if (rb == NULL || item == NULL) return -EINVAL;
+    if (!_ringbuf_valid(rb)) return -ENOENT;
+    if (item == NULL) return -EINVAL;
 
-    if (ek_ringbuf_empty(rb) == true)
+    if (rb->item_amount == 0U)
     {
         return -ENODATA;
     }
@@ -132,6 +159,20 @@ int ek_ringbuf_peek(ek_ringbuf_t *rb, void *item)
 #    endif /* EKCFG_RINGBUF */
 
 #    if EKCFG_RINGBUF_SPSC == 1
+#        define RINGBUF_SPSC_MAGIC         0x53505343UL
+#        define RINGBUF_SPSC_HDR           ((size_t)EK_ALIGN_UP(sizeof(uint32_t), alignof(ek_ringbuf_spsc_t)))
+#        define RINGBUF_SPSC_FROM_BUF(buf) ((ek_ringbuf_spsc_t *)(uintptr_t)((uintptr_t)(buf) + RINGBUF_SPSC_HDR))
+#        define RINGBUF_SPSC_GET_MAGIC(rb) (*(const uint32_t *)(uintptr_t)((uintptr_t)(rb) - RINGBUF_SPSC_HDR))
+#        define RINGBUF_SPSC_SET_MAGIC(rb, v) \
+            (*(uint32_t *)(uintptr_t)((uintptr_t)(rb) - RINGBUF_SPSC_HDR) = (uint32_t)(v))
+
+static inline bool _ringbuf_spsc_valid(const ek_ringbuf_spsc_t *rb)
+{
+    if (!rb) return false;
+    if (!rb->mem_owned) return RINGBUF_SPSC_GET_MAGIC(rb) == RINGBUF_SPSC_MAGIC;
+    return true;
+}
+
 __EK_STATIC_INLINE uint32_t _ek_ringbuf_spsc_next_idx(const ek_ringbuf_spsc_t *rb, uint32_t idx)
 {
     return EK_INC_MOD(idx, rb->cap);
@@ -139,34 +180,35 @@ __EK_STATIC_INLINE uint32_t _ek_ringbuf_spsc_next_idx(const ek_ringbuf_spsc_t *r
 
 bool ek_ringbuf_full_spsc(const ek_ringbuf_spsc_t *rb)
 {
-    if (rb == NULL) return false;
+    if (!_ringbuf_spsc_valid(rb)) return false;
     return _ek_ringbuf_spsc_next_idx(rb, rb->write_idx) == rb->read_idx;
 }
 
 bool ek_ringbuf_empty_spsc(const ek_ringbuf_spsc_t *rb)
 {
-    if (rb == NULL) return false;
+    if (!_ringbuf_spsc_valid(rb)) return false;
     return rb->read_idx == rb->write_idx;
 }
 
-int ek_ringbuf_init_spsc_static(ek_ringbuf_spsc_t *rb, size_t item_size, uint32_t amount)
+ek_ringbuf_spsc_t *ek_ringbuf_create_spsc_static(void *buf, size_t size, size_t item_size, uint32_t amount)
 {
-    if (rb == NULL || item_size == 0U || amount <= 1U) return -EINVAL;
+    if (!buf || item_size == 0U || amount <= 1U) return NULL;
+    if (((uintptr_t)buf % alignof(ek_ringbuf_spsc_t)) != 0U) return NULL;
+    // 防止总大小溢出
+    if (amount > (SIZE_MAX - RINGBUF_SPSC_HDR - sizeof(ek_ringbuf_spsc_t)) / item_size)
+    {
+        return NULL;
+    }
+    if (size < EK_RINGBUF_SPSC_STATIC_BUF_SIZE(item_size, amount)) return NULL;
 
+    ek_ringbuf_spsc_t *rb = RINGBUF_SPSC_FROM_BUF(buf);
+    rb->mem_owned = false;
     rb->cap = amount;
     rb->item_size = item_size;
     rb->read_idx = 0U;
     rb->write_idx = 0U;
-    return 0;
-}
-
-void ek_ringbuf_deinit_spsc_static(ek_ringbuf_spsc_t *rb)
-{
-    if (rb == NULL) return;
-    rb->cap = 0U;
-    rb->item_size = 0U;
-    rb->read_idx = 0U;
-    rb->write_idx = 0U;
+    RINGBUF_SPSC_SET_MAGIC(rb, RINGBUF_SPSC_MAGIC);
+    return rb;
 }
 
 ek_ringbuf_spsc_t *ek_ringbuf_create_spsc(size_t item_size, uint32_t item_amount)
@@ -184,6 +226,7 @@ ek_ringbuf_spsc_t *ek_ringbuf_create_spsc(size_t item_size, uint32_t item_amount
         return NULL;
     }
 
+    rb->mem_owned = true;
     rb->cap = item_amount;
     rb->item_size = item_size;
     rb->read_idx = 0U;
@@ -193,14 +236,25 @@ ek_ringbuf_spsc_t *ek_ringbuf_create_spsc(size_t item_size, uint32_t item_amount
 
 void ek_ringbuf_destroy_spsc(ek_ringbuf_spsc_t *rb)
 {
-    if (rb == NULL) return;
+    if (!_ringbuf_spsc_valid(rb)) return;
 
-    ek_free(rb);
+    if (rb->mem_owned)
+    {
+        ek_free(rb);
+        return;
+    }
+
+    RINGBUF_SPSC_SET_MAGIC(rb, 0U);
+    rb->cap = 0U;
+    rb->item_size = 0U;
+    rb->read_idx = 0U;
+    rb->write_idx = 0U;
 }
 
 int ek_ringbuf_write_spsc(ek_ringbuf_spsc_t *rb, const void *item)
 {
-    if (rb == NULL || item == NULL) return -EINVAL;
+    if (!_ringbuf_spsc_valid(rb)) return -ENOENT;
+    if (item == NULL) return -EINVAL;
 
     uint32_t next_idx = _ek_ringbuf_spsc_next_idx(rb, rb->write_idx);
     if (next_idx == rb->read_idx)
@@ -217,7 +271,7 @@ int ek_ringbuf_write_spsc(ek_ringbuf_spsc_t *rb, const void *item)
 
 int ek_ringbuf_read_spsc(ek_ringbuf_spsc_t *rb, void *item)
 {
-    if (rb == NULL) return -EINVAL;
+    if (!_ringbuf_spsc_valid(rb)) return -ENOENT;
 
     if (rb->read_idx == rb->write_idx)
     {
@@ -237,7 +291,8 @@ int ek_ringbuf_read_spsc(ek_ringbuf_spsc_t *rb, void *item)
 
 int ek_ringbuf_peek_spsc(ek_ringbuf_spsc_t *rb, void *item)
 {
-    if (rb == NULL || item == NULL) return -EINVAL;
+    if (!_ringbuf_spsc_valid(rb)) return -ENOENT;
+    if (item == NULL) return -EINVAL;
 
     if (rb->read_idx == rb->write_idx)
     {

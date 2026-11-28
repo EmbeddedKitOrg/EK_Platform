@@ -46,12 +46,12 @@
 /**
  * @brief 完整断言（表达式为假时调用 ek_assert_fault）
  * @param expr 断言表达式
- * @note 会输出文件名、行号和表达式内容
+ * @note 当 EKCFG_ASSERT_LOG == 1 时输出文件名、行号和表达式内容
  */
 #    define ek_assert_full(expr) (expr) ? (void)0 : ek_assert_fault(__FILE_NAME__, __LINE__, #expr)
 
 /**
- * @brief 参数断言（根据配置选择实现方式）
+ * @brief 通用断言（根据配置选择实现方式）
  * @param expr 断言表达式
  * @note 通过 EKCFG_ASSERT_TINY 宏选择使用 tiny 或 full 版本
  */
@@ -71,7 +71,7 @@ extern "C"
  * @param file 源文件名
  * @param line 行号
  * @param expr 断言表达式字符串
- * @note 此函数会输出断言失败信息，然后进入死循环
+ * @note 当 EKCFG_ASSERT_LOG == 1 时输出断言失败日志，随后调用 ek_assert_hook()，最后调用 abort() 终止程序
  */
 void ek_assert_fault(const char *file, uint32_t line, const char *expr);
 
@@ -80,9 +80,9 @@ void ek_assert_fault(const char *file, uint32_t line, const char *expr);
  * @param file 源文件名
  * @param line 行号
  * @param expr 断言表达式字符串
- * @note 在 ek_assert_fault 输出日志后、进入死循环前调用
+ * @note 在 ek_assert_fault 输出日志后、调用 abort() 终止前执行；
  *       用户可覆盖此函数实现自定义处理（如记录到 flash、触发复位）
- * @warning 此函数返回后仍会进入 while(1) 死循环；如需复位，须在钩子内直接触发
+ * @warning 此函数返回后仍会调用 abort() 终止程序；如需复位或自定义停机，须在钩子内直接完成
  */
 void ek_assert_hook(const char *file, uint32_t line, const char *expr);
 

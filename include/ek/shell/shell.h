@@ -3,7 +3,7 @@
  * @brief 嵌入式命令行解释器 (Shell)
  * @author N1netyNine99
  *
- * 提供零动态内存开销的嵌入式命令行交互环境，支持：
+ * 提供轻量级嵌入式命令行交互环境（仅使用静态命令时零动态内存开销），支持：
  * - 链接器段自动导出静态命令
  * - 运行时动态注册与注销命令
  * - VT100 / ANSI 控制台光标与按键解析
@@ -42,7 +42,7 @@ typedef struct ek_shell_cmd ek_shell_cmd_t;
  *
  * @param argc 参数个数（包含命令名本身）
  * @param argv 参数字符串数组
- * @param sh 传递的 shell 的指针
+ * @param sh Shell 实例上下文指针
  * @return 0 表示成功，非 0 或负数错误码表示执行失败
  */
 typedef int (*ek_shell_cmd_fn_t)(int argc, char *argv[], void *sh);
@@ -70,8 +70,8 @@ struct ek_shell_cmd
  *
  * 将命令条目置入 `.ek_shell_cmd` 链接器段，系统启动后自动识别。
  *
- * @param name 命令名称标识符（如 help、ls，无需双引号）
- * @param fn   命令处理函数指针
+ * @param cmd_name 命令名称标识符（如 help、ls，无需双引号）
+ * @param cmd_fn   命令处理函数指针
  */
 #    define EK_DEFINE_SHELL_CMD(cmd_name, cmd_fn)                                                        \
         const ek_shell_cmd_t ek_shell_cmd_##cmd_name __attribute__((used, section(".ek_shell_cmd"))) = { \
@@ -123,11 +123,12 @@ void ek_shell_cmd_unregister(const char *name);
 /**
  * @brief 直接向 Shell 输入数据
  *
- * 用于中断接收、DMA 回调或外部数据流直接送入字符。
+ * 用于外部数据流（如缓冲区或轮询上下文）直接向状态机送入字符。
  *
  * @param data 待输入的字节流指针
  * @param len  数据字节长度
  * @return 0 成功，-EINVAL 参数无效
+ * @note 本函数会同步执行回显与命令回调，不可在中断上下文直接调用。
  */
 int ek_shell_input(const void *data, size_t len);
 

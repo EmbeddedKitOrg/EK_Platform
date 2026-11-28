@@ -20,7 +20,8 @@
 
 /* EKCFG_PICOLIBC / EKCFG_NEWLIB 由 CMake 的 PICOLIBC 选项派生。
  * 裸机 newlib 需要 syscall port 时，在项目 ek_conf.h 中定义 EKCFG_NEWLIB 1。 */
-#define EKCFG_IO_LWPRTF    (1) /**< IO 是否使用 lwprintf (1=使用, 0=不使用) */
+#define EKCFG_IO_LWPRTF (1) /**< IO 是否使用 lwprintf (1=使用, 0=不使用) */
+/* #define EKCFG_IO_CONSOLE_PATH "/dev/uart0" */ /**< 默认控制台 VFS 设备路径（开启 VFS 时自动绑定 stdio） */
 #define EKCFG_STATIC_ALLOC (1) /**< 是否启用 EK_DEFINE_* 静态对象注册 (1=使用, 0=不使用);静态初始化函数始终可用 */
 
 /* ========================================================================
@@ -68,10 +69,12 @@
 
 #define EKCFG_HEAP_TLSF (1) /**< 内存堆使用 TLSF 分配器 (1=TLSF, 0=自定义) */
 #if EKCFG_HEAP_TLSF == 1
-#    define EKCFG_HEAP_SECTION             ".heap" /**< 堆内存所在链接器段 (如 ".tcmram") */
-#    define EKCFG_HEAP_SIZE                (16 * 1024) /**< 内存堆大小（字节） */
-#    define EKCFG_TLSF_FL_INDEX_MAX        (24) /**< TLSF 一级索引最大值，最大连续块为 2 的该值次方字节 */
-#    define EKCFG_TLSF_SL_INDEX_COUNT_LOG2 (3) /**< TLSF 二级索引数量的 log2，二级链表数为 2 的该值次方 */
+#    define EKCFG_HEAP_SECTION ".heap" /**< 堆内存所在链接器段 (如 ".tcmram") */
+#    define EKCFG_HEAP_SIZE    (16 * 1024) /**< 内存堆大小（字节） */
+/* 以下参数未定义时由 conf_internal.h 按堆大小自动推导，通常无需手写 */
+/* #    define EKCFG_HEAP_MAX_POOL_SIZE       (32 * 1024 * 1024) */ /**< 多内存池时的最大单池字节数 */
+/* #    define EKCFG_TLSF_FL_INDEX_MAX        (24) */ /**< TLSF 一级索引最大值，最大连续块为 2 的该值次方字节 */
+/* #    define EKCFG_TLSF_SL_INDEX_COUNT_LOG2 (3) */ /**< TLSF 二级索引数量的 log2，二级链表数为 2 的该值次方 */
 #endif
 
 /* ========================================================================
@@ -140,12 +143,18 @@
 
 #define EKCFG_RTOS (0) /**< 是否启用 RTOS (0=裸机 1=内置 RTOS) */
 #if EKCFG_RTOS == 1
-#    define EKCFG_OS_KERNEL_TIMEBASE_HZ (1000000U) /**< OS 内核频率 */
-#    define EKCFG_OS_THREAD_NAME_LEN    (16) /**< OS 线程名字的最大长度 */
-#    define EKCFG_OS_THREADS_MAX        (16) /**< OS 最大线程数 (<= 64) */
-#    define EKCFG_OS_THREAD_MIN_STACK   (256) /**< OS 线程最小栈大小（字节） */
-#    define EKCFG_OS_THREAD_MIN_PRIO    (31U) /**< OS 线程最低优先级 (< 32) */
-#    define EKCFG_OS_IDLE_THREAD_STACK  (512) /**< OS 空闲线程栈大小（字节） */
+#    define EKCFG_OS_KERNEL_TIMEBASE_HZ         (1000000U) /**< OS 内核频率 */
+#    define EKCFG_OS_KERNEL_STACKOVERFLOW_CHECK (0U) /**< 0=关闭 1=边界指针检查 2=魔数染色 + 高水位线  */
+#    define EKCFG_OS_THREAD_NAME_LEN            (16) /**< OS 线程名字的最大长度 */
+#    define EKCFG_OS_THREADS_MAX                (16) /**< OS 最大线程数 (<= 64) */
+#    define EKCFG_OS_THREAD_MIN_STACK           (256) /**< OS 线程最小栈大小（字节） */
+#    define EKCFG_OS_THREAD_MIN_PRIO            (31U) /**< OS 线程最低优先级 (< 32) */
+#    define EKCFG_OS_IDLE_THREAD_STACK          (512) /**< OS 空闲线程栈大小（字节） */
+#    define EKCFG_OS_ISR_WORKQ                  (0) /**< 是否启用内核内置 ISR 工作队列 (0=关闭 1=启用) */
+#    if EKCFG_OS_ISR_WORKQ == 1
+#        define EKCFG_OS_ISR_WORKQ_PRIO  (0U) /**< 内核内置 ISR 工作队列线程优先级 */
+#        define EKCFG_OS_ISR_WORKQ_STACK (1024U) /**< 内核内置 ISR 工作队列线程栈大小（字节） */
+#    endif
 #endif
 
 #endif /* EK_CONF_H */
